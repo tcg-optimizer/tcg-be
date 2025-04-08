@@ -1,0 +1,1547 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ko">
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7" />
+<meta http-equiv="Content-Type" content="text/html; charset=euc-kr" />
+<meta http-equiv="Content-Script-Type" content="text/javascript" />
+<META Http-Equiv="Cache-Control" Content="no-cache">
+<META Http-Equiv="Pragma" Content="no-cache">
+<META Http-Equiv="Expires" Content="0">
+<title>카드디씨 홈페이지 방문을 환영합니다</title>
+
+<meta name="google-site-verification" content="kYf5Kd1N-adVYTMvv9GGx6aMiiJB1LL-kQfppkiJLUQ" />
+<meta name="naver-site-verification" content="80d91d260907c6a4824ee28754a9ca93182307e5" />
+<meta name="description" content="유희왕카드 할인쇼핑몰, 20%할인, 적립금10%, 서비스지급, 50%할인행사중"/>
+<meta property="og:type" content="website">
+<meta property="og:title" content="카드디씨">
+<meta property="og:description" content="유희왕카드 할인쇼핑몰, 20%할인, 적립금10%, 서비스지급, 50%할인행사중">
+<meta property="og:image" content="http://www.carddc.co.kr/images/kakao_img.jpg">
+<meta property="og:url" content="http://www.carddc.co.kr">
+
+
+<link rel="stylesheet" type="text/css" href="/css/default.css" />
+<link rel="shortcut icon" href="/icon.ico">
+<script type="text/javascript" src="/script/jquery.min.js"></script>
+<script language="javascript" src="/script/object_embed.js" type="text/javascript" charset="euc-kr"></script>
+<script language="javascript" src="/script/flashinside.js" type="text/javascript" charset="euc-kr"></script>
+<script src="/script/mobile-detect.js"></script>
+<script>
+	const md_check = new MobileDetect(navigator.userAgent);
+</script>
+</head>
+<div id='Send_loadingBar' style="display:none;position:absolute;border:1px solid Gray;">
+<script type="text/javascript">
+setem = new setEmbed();
+setem.init('flash','/images/lodding.swf','100','100','');
+setem.parameter('wmode','window');
+setem.show();
+</script>
+</div>
+<script>
+function Show_Load2(){
+	if (window.attachEvent){
+		document.getElementById('Send_loadingBar').style.posLeft = (screen.width)/2 - 50;
+		document.getElementById('Send_loadingBar').style.posTop = parseInt(document.documentElement.scrollTop) + (screen.height/2) - 50;
+		document.getElementById('Send_loadingBar').style.display = "block";
+	}
+	else if (window.addEventListener){
+		document.getElementById('Send_loadingBar').style.left = ((document.body.clientWidth)/2) - 50 +'px';
+		document.getElementById('Send_loadingBar').style.top = (window.pageYOffset + (window.innerHeight/2) - 50)+'px';
+		document.getElementById('Send_loadingBar').style.display = "block";
+	}
+}
+function Hide_Load2(){
+	document.getElementById('Send_loadingBar').style.display = "none";
+}
+
+function popUp(ref, title, width, height){
+	var window_left = (screen.width-width)/2;
+	var window_top = (screen.height-height)/2;
+	window.open(ref, title, 'width=' + width + ',height=' + height + ',top=' + window_top + ',left=' + window_left + ',toolbar=no,status=no,scrollbars=yes,resizable=no');
+}
+</script>
+
+<!--161230 메인 예약상품 클릭 시 목록 보이게 -->
+<script>
+$(document).ready(function(){
+
+	$(".m_moreview").click(function(){
+		$(this).toggleClass("mv_on");
+		var rsv_pro = $(this).parent().find(".rsv_product");
+
+		 if( rsv_pro.is(":visible") ){
+                rsv_pro.slideUp();
+          }else{
+                rsv_pro.slideDown();
+          }
+	});
+});
+</script>
+
+<body class="index">
+<script language="JavaScript">
+<!--
+var XSF_BoolCheck = false;
+function jpri_wish_hd(strMode, selnum){
+	var i = 0;
+	var strMsg		= "";
+	var strResult	= selnum+";";
+
+	if(strMode=="c") strMsg = "선택한 상품을 장바구니에 담으시겠습니까?";
+	else strMsg = "선택한 상품을 관심상품으로 추가 하시겠습니까?";
+
+	if (!confirm(strMsg)){
+		return;
+	}
+
+	if (strMode=="w") {
+		hidden_frame.location.href = "wish_check_arry.php?case=E&seq_lng="+strResult;
+	}else{
+		hidden_frame.location.href = "cartadd_arry.php?case=E&seq_lng="+strResult;
+	}
+
+}
+//-->
+</script>
+<div id="wrapper">
+	<div id="all_con">
+
+	<!-- header -->
+	<script language="javascript">
+function bookmark(){
+window.external.AddFavorite("http://www.carddc.co.kr", "유희왕카드전문쇼핑몰 카드디씨")
+}
+</script>
+<div id="header">
+	<div class="top_t">
+		<div class="top_btn">
+			<ul>
+				<li><a href="javascript:;" onclick="this.style.behavior='url(#default#homepage)';this.setHomePage('http://www.carddc.co.kr');"><img src="/images/top_menu01.jpg" alt="카드디씨를 시작페이지로" /></a></li>
+				<li><a href="javascript:bookmark();"><img src="/images/top_menu02.jpg" alt="즐겨찾기 추가" /></a></li>
+			</ul>
+		</div>
+		<div class="top_menu">
+			<ul>
+							<li><a href="/login.html?site_url=%2Fproduct_list.html%3Fsearch_word%3D%25BB%25E7%25B7%25CE%25BD%25BA%2B%25BF%25A1%25B7%25B9%25BD%25BA%26x%3D0%26y%3D0"><strong>로그인</strong></a></li>
+				<li><a href="/join_01.html">회원가입</a></li>
+							<li><a href="/cart.html">장바구니</a></li>
+				<li><a href="/order_search.html">주문/배송조회</a></li>
+			</ul>
+		</div>
+		<div class="clear"></div>
+	</div>
+
+	<div class="topNew_center_new">
+		<!--// Search Zone -->
+		<div class="topNew_logo_new"><a href="/main.html"><img src="/images/logo.jpg" alt="카드디씨" /></a></div>
+		<div id="topNew_Search_new">
+						<div style="font-size:11px;padding-left:10px;letter-spacing: -0.5px;"><img src="images/icon_search.jpg" align="absmiddle" /> 추천검색어: 
+									<a href="product_list.html?search_word=DP27-KR">DP27-KR</a> |
+									<a href="product_list.html?search_word=POTE-KR">POTE-KR</a> |
+									<a href="product_list.html?search_word=DIFO-JP">DIFO-JP</a> |
+									<a href="product_list.html?search_word=SD43-JP">SD43-JP</a>
+							</div>
+			<div id="search_banner_new">
+				<form action="product_list.html">
+				<div class="search_bar_new">
+					<div class="search_input_new"><input type="text" name="search_word" value="사로스 에레스" style="width:265px;border:0px;height:20px;font-weight:bold;"/></div>
+					<div class="search_btn_gray_new"><input type="image" src="images/btn_search2.jpg"  /></div>
+				</div>
+				</form>
+			</div>
+
+
+			<!--
+			<input type="text" id="keyword" name="keyword" class="input_hidden" maxlength="20" style="border:4px #f98133 solid; width:305px; height:21px;padding-top:5px;font-size:13px;padding-left:5px;font-weight:bold;color:#000;" value="">
+			<img src="/images/btn_search3.jpg" align="absmiddle" />
+			-->
+		</div>
+
+	
+		<!-- 141013삭제<div class="f_left"><a href="/product_list.html?k_cateno=546"><img src="/images/top_banner.jpg" alt="한정수량 미개봉카드" /></a></div> -->
+		<!-- <h1><a href="/main.html"><img src="/images/logo.jpg" alt="카드디씨" /></a></h1> -->
+		<!--141013삭제 <div class="f_right"><a href="partner.html"><img src="/images/top_store.jpg" alt="체인점 및 판매점 모집 0505-294-4083" /></a></div> -->
+	</div>
+
+	<div class="gnb">
+		<ul>
+			<!-- <li><a href="/shop_news.html"><img src="/images/menu_01.jpg" alt="" /></a></li> -->
+			<li><a href="/new_product.html"><img src="/images/menu_05.jpg" alt="" /></a></li>
+			<li><a href="/reservation_product.html"><img src="/images/menu_04.jpg" alt="" /></a></li>
+			<li><a href="/reimport_product.html"><img src="/images/menu_02.jpg" alt="" /></a></li>
+			<li><a href="/product_list.html?mainview05=1"><img src="/images/menu_10.jpg" alt="" /></a></li>
+			<li><a href="/product_list.html?mainview03=1"><img src="/images/menu_11.jpg" alt="" /></a></li>
+			<li><a href="/ranking_new.html"><img src="/images/menu_03.jpg" alt="" /></a></li>
+			<li><a href="/product_comment.html"><img src="/images/menu_09.jpg" alt="" /></a>
+			<li><a href="/qna.html"><img src="/images/menu_06.jpg" alt="" /></a></li>
+			<li><a href="/deck_01.html"><img src="/images/menu_07.jpg" alt="" /></a></li>
+			<li><a href="/deck_02.html"><img src="/images/menu_08.jpg" alt="" /></a></li>
+		</ul>
+	</div>
+
+	<!-- 전체카테고리 -->
+	<script  type="text/javascript">
+	function change_tap_top(no){
+		tab01 = document.getElementById('noticeTab01_top');
+		tab02 = document.getElementById('noticeTab02_top');
+		if(no == '1'){
+			tab01.style.display = 'block';
+			tab02.style.display = 'none';
+		}else if(no == '2'){
+			tab01.style.display = 'none';
+			tab02.style.display = 'block';
+		}
+	}
+</script>
+<div id="all_category">
+
+	<!--
+	<a href="/use.html#class_point"><img src="/images/btn_member_info2.jpg" alt="회원등급소개" style="padding-left:10px;padding-top:2px;"/></a>
+	<a href="/product_list.html?mainview03=1"><img src="/images/btn_card.jpg" alt="신의카드" style="padding-top:2px;" /></a>
+	<a href="/product_list.html?mainview05=1"><img src="/images/btn_card2.jpg" alt="중고카드" style="padding-top:2px;"/></a>
+	-->
+
+	<div id="noticeTab01_top" style="display:none;">
+	<img src="/images/btn_all_category.jpg" alt="카테고리 전체보기" onclick="change_tap_top(2);" style="cursor:pointer;" />
+	</div>
+
+	<div id="noticeTab02_top" style="display:none;">
+		<p><img src="/images/btn_all_category.jpg" alt="카테고리 전체보기" onclick="change_tap_top(1);" style="cursor:pointer;" /></p>
+		<div class="all_category_in">
+			<p><img src="/images/category_t.jpg" alt="" /></p>
+			<div class="category_bg">
+				<div class="category_in">
+					<dl>
+						<dt class="hidden">카테고리</dt>
+						<dd>
+							<p><a href="product_list.html?k_cateno=2"><img src="/images/category_t02.jpg" alt="유희왕카드(한국판)" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=116">싱글카드(정규부스터) <span class="text_sale">(20%↓)</span></a></li>
+																<li><a href="product_list.html?k_cateno=521">싱글카드(스페셜부스터) <span class="text_sale">(20%↓)</span></a></li>
+																<li><a href="product_list.html?k_cateno=1378">싱글카드(스트럭쳐)</a></li>
+																<li><a href="product_list.html?k_cateno=1414">싱글카드(듀얼리스트팩)</a></li>
+																<li><a href="product_list.html?k_cateno=704">싱글카드(스타터덱)</a></li>
+																<li><a href="product_list.html?k_cateno=1419">싱글카드(프리미엄팩)</a></li>
+																<li><a href="product_list.html?k_cateno=1420">싱글카드(덱빌드팩)</a></li>
+																<li><a href="product_list.html?k_cateno=204">한글판스페셜세트</a></li>
+																<li><a href="product_list.html?k_cateno=109">한글판부스터1박스</a></li>
+																<li><a href="product_list.html?k_cateno=108">한글판부스터팩</a></li>
+																<li><a href="product_list.html?k_cateno=110">한글판스트럭쳐</a></li>
+																<li><a href="product_list.html?k_cateno=1418">동봉/대회판/스페셜카드</a></li>
+																<li><a href="product_list.html?k_cateno=1661">한국판퍼스트에디션중고</a></li>
+																<li><a href="product_list.html?k_cateno=1662">한판대회판/어드밴스중고/영판중고</a></li>
+																<li><a href="product_list.html?k_cateno=1664">한국판얼티,시크,프시크중고</a></li>
+																<li><a href="product_list.html?k_cateno=1437">엑스트라초월강화팩</a></li>
+																<li><a href="product_list.html?k_cateno=1453">RD한글판스페셜부스터박스</a></li>
+																<li><a href="product_list.html?k_cateno=1477">RD고러시덱</a></li>
+																<li><a href="product_list.html?k_cateno=1515">RD한글판스페셜팩박스</a></li>
+																<li><a href="product_list.html?k_cateno=1350">러시듀얼통</a></li>
+																<li><a href="product_list.html?k_cateno=1351">RD스타터덱</a></li>
+																<li><a href="product_list.html?k_cateno=1352">RUSHDULE=레어카드</a></li>
+																<li><a href="product_list.html?k_cateno=1370">러시듀얼팩</a></li>
+																<li><a href="product_list.html?k_cateno=1374">RD한글판개조팩박스</a></li>
+																<li><a href="product_list.html?k_cateno=1411">중고카드판매소</a></li>
+																<li><a href="product_list.html?k_cateno=1413">한판러시듀얼최강배틀덱세트</a></li>
+																<li><a href="product_list.html?k_cateno=1421">컬렉터즈,엑스트라</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+						<dd>
+							<p><a href="product_list.html?k_cateno=1"><img src="/images/category_t01.jpg" alt="유희왕카드(일본판)" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=9">레어카드-정규시리즈 <span class="text_sale">(20%↓)</span></a></li>
+																<li><a href="product_list.html?k_cateno=731">레어카드-DP,DT <span class="text_sale">(20%↓)</span></a></li>
+																<li><a href="product_list.html?k_cateno=11">일본판부스터박스</a></li>
+																<li><a href="product_list.html?k_cateno=10">일본판…팩</a></li>
+																<li><a href="product_list.html?k_cateno=202">일본판…덱</a></li>
+																<li><a href="product_list.html?k_cateno=13">일본판리미티드에디션</a></li>
+																<li><a href="product_list.html?k_cateno=842">일본판15주년특별판</a></li>
+																<li><a href="product_list.html?k_cateno=203">일본판스페셜세트</a></li>
+																<li><a href="product_list.html?k_cateno=925">일본판중고카드</a></li>
+																<li><a href="product_list.html?k_cateno=12">일본판서적(동봉카드)</a></li>
+																<li><a href="product_list.html?k_cateno=1412">레어카드-스트럭쳐,스타트덱</a></li>
+																<li><a href="product_list.html?k_cateno=1490">레어카드-EP,WPP,컬랙션류</a></li>
+																<li><a href="product_list.html?k_cateno=1491">레어카드-PP,GS,LVP</a></li>
+																<li><a href="product_list.html?k_cateno=1492">레어카드-SP,DB,SLT</a></li>
+																<li><a href="product_list.html?k_cateno=1493">레어카드-기타</a></li>
+																<li><a href="product_list.html?k_cateno=1494">레어카드-숫자(301~309)</a></li>
+																<li><a href="product_list.html?k_cateno=1655">중고장터</a></li>
+																<li><a href="product_list.html?k_cateno=1660">일본판중고</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+						<dd>
+							<p><a href="product_list.html?k_cateno=448"><img src="/images/category_t03.jpg" alt="유희왕카드(영문판)" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=450">레어카드 <span class="text_sale">(20%↓)</span></a></li>
+																<li><a href="product_list.html?k_cateno=455">영문판부스터팩</a></li>
+																<li><a href="product_list.html?k_cateno=456">영문판스페셜세트</a></li>
+																<li><a href="product_list.html?k_cateno=457">영문판스트럭쳐덱</a></li>
+																<li><a href="product_list.html?k_cateno=458">영문판부스터박스</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+						<dd>
+							<p><a href="product_list.html?k_cateno=546"><img src="/images/category_t08.jpg" alt="카드파이트뱅카드" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=587">싱글카드(한글) <span class="text_sale">(20%↓)</span></a></li>
+																<li><a href="product_list.html?k_cateno=637">싱글카드(일본) <span class="text_sale">(20%↓)</span></a></li>
+																<li><a href="product_list.html?k_cateno=1000">뱅가드서적</a></li>
+																<li><a href="product_list.html?k_cateno=576">한글판뱅가드</a></li>
+																<li><a href="product_list.html?k_cateno=1388">싱글카드(한글,D시즌)</a></li>
+																<li><a href="product_list.html?k_cateno=577">일본판뱅가드</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+						<dd>
+							<p><a href="product_list.html?k_cateno=3"><img src="/images/category_t04.jpg" alt="T.C.G카드(한국,일본,미국)" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=877">포켓몬스터</a></li>
+																<li><a href="product_list.html?k_cateno=258">메이플스토리</a></li>
+																<li><a href="product_list.html?k_cateno=114">와우TCG</a></li>
+																<li><a href="product_list.html?k_cateno=594">골판지전사</a></li>
+																<li><a href="product_list.html?k_cateno=433">블루드래곤</a></li>
+																<li><a href="product_list.html?k_cateno=287">디멘션제로</a></li>
+																<li><a href="product_list.html?k_cateno=611">라이브온</a></li>
+																<li><a href="product_list.html?k_cateno=376">썬더일레븐</a></li>
+																<li><a href="product_list.html?k_cateno=684">바이스슈발츠</a></li>
+																<li><a href="product_list.html?k_cateno=395">디지몬세이버즈</a></li>
+																<li><a href="product_list.html?k_cateno=734">배틀스피리츠</a></li>
+																<li><a href="product_list.html?k_cateno=620">듀얼레전드</a></li>
+																<li><a href="product_list.html?k_cateno=632">매직더게더링</a></li>
+																<li><a href="product_list.html?k_cateno=740">드래곤빌리지카드</a></li>
+																<li><a href="product_list.html?k_cateno=774">몬스터길들이기</a></li>
+																<li><a href="product_list.html?k_cateno=793">소드걸스</a></li>
+																<li><a href="product_list.html?k_cateno=1023">럭앤로직</a></li>
+																<li><a href="product_list.html?k_cateno=1489">섀도우버스EVOLVE</a></li>
+																<li><a href="product_list.html?k_cateno=896">브레이브프론티어</a></li>
+																<li><a href="product_list.html?k_cateno=937">퓨쳐카드버디파이트</a></li>
+																<li><a href="product_list.html?k_cateno=940">퍼즐앤드래곤</a></li>
+																<li><a href="product_list.html?k_cateno=1054">정글에서살아남기</a></li>
+																<li><a href="product_list.html?k_cateno=1065">하이큐</a></li>
+																<li><a href="product_list.html?k_cateno=1113">나의히어로아카데미아</a></li>
+																<li><a href="product_list.html?k_cateno=1122">테일즈런너</a></li>
+																<li><a href="product_list.html?k_cateno=1210">신비아파트</a></li>
+																<li><a href="product_list.html?k_cateno=1310">MTG매직더게더링</a></li>
+																<li><a href="product_list.html?k_cateno=1338">엉덩이탐정</a></li>
+																<li><a href="product_list.html?k_cateno=112">리세(Lycee)</a></li>
+																<li><a href="product_list.html?k_cateno=1572">쿠키런브레이버스</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+
+
+						<dd>
+							<p><a href="product_list.html?k_cateno=""><img src="/images/category_t12.jpg" alt="타임워커" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=888">TW보관케이스</a></li>
+																<li><a href="product_list.html?k_cateno=1163">TW-PP케이스</a></li>
+																<li><a href="product_list.html?k_cateno=893">TW주사위케이스</a></li>
+																<li><a href="product_list.html?k_cateno=894">TW빅보관케이스</a></li>
+																<li><a href="product_list.html?k_cateno=1016">TW카드슬리브</a></li>
+																<li><a href="product_list.html?k_cateno=1323">TW바인더-속지</a></li>
+																<li><a href="product_list.html?k_cateno=889">TW바인더-추가식</a></li>
+																<li><a href="product_list.html?k_cateno=1052">TW바인더-고정형</a></li>
+																<li><a href="product_list.html?k_cateno=890">TW플레이매트</a></li>
+																<li><a href="product_list.html?k_cateno=1127">RS플레이매트</a></li>
+																<li><a href="product_list.html?k_cateno=922">UG보관케이스</a></li>
+																<li><a href="product_list.html?k_cateno=923">UG카드슬리브</a></li>
+																<li><a href="product_list.html?k_cateno=924">UG카드바인더</a></li>
+																<li><a href="product_list.html?k_cateno=1174">UG플레이매트</a></li>
+																<li><a href="product_list.html?k_cateno=1168">Ultra슬리브</a></li>
+																<li><a href="product_list.html?k_cateno=1169">Ultra케이스</a></li>
+																<li><a href="product_list.html?k_cateno=1170">Ultra바인더</a></li>
+																<li><a href="product_list.html?k_cateno=1470">씨엔커머스</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+
+<!--
+						<dd>
+							<p><a href="product_list.html?k_cateno=5"><img src="/images/category_t05.jpg" alt="완구, 문구, 아이디어상품" /></a></p>
+							<ul>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+-->
+						<dd>
+							<p><a href="product_list.html?k_cateno=7"><img src="/images/category_t06.jpg" alt="카드용품" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=1238">저가형-프로텍터</a></li>
+																<li><a href="product_list.html?k_cateno=29">고가형-프로텍터</a></li>
+																<li><a href="product_list.html?k_cateno=1693">부시로드제품</a></li>
+																<li><a href="product_list.html?k_cateno=1406">코나미제품(KONAMI)</a></li>
+																<li><a href="product_list.html?k_cateno=1727">반다이제품(원피스,디지몬)</a></li>
+																<li><a href="product_list.html?k_cateno=31">저가형-덱케이스</a></li>
+																<li><a href="product_list.html?k_cateno=1176">고가형-덱케이스</a></li>
+																<li><a href="product_list.html?k_cateno=557">게임플레이매트</a></li>
+																<li><a href="product_list.html?k_cateno=30">앨범/탑로더/기타</a></li>
+																<li><a href="product_list.html?k_cateno=1243">앨범속지/기타용품</a></li>
+																<li><a href="product_list.html?k_cateno=1481">코나미정발제품</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+<!--
+						<dd>
+							<p><a href="product_list.html?k_cateno=545"><img src="/images/category_t07.jpg" alt="바이스슈발츠" /></a></p>
+							<ul>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+-->
+
+<!-- 140918포켓몬스터삭제
+						<dd>
+							<p><a href="product_list.html?k_cateno=659"><img src="/images/category_t09.jpg" alt="포켓몬스터" /></a></p>
+							<ul>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+-->
+						<dd>
+							<p><a href="product_list.html?k_cateno=660"><img src="/images/category_t10.jpg" alt="스터컬렉션카드" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=670">스타카드(통.박스)</a></li>
+																<li><a href="product_list.html?k_cateno=1156">SCC베이스볼카드</a></li>
+																<li><a href="product_list.html?k_cateno=836">슈퍼스타베이스볼카드</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+
+<!--
+						<dd>
+							<p><a href="product_list.html?k_cateno=661"><img src="/images/category_t11.jpg" alt="소드걸스카드" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=888">TW보관케이스</a></li>
+																<li><a href="product_list.html?k_cateno=1163">TW-PP케이스</a></li>
+																<li><a href="product_list.html?k_cateno=893">TW주사위케이스</a></li>
+																<li><a href="product_list.html?k_cateno=894">TW빅보관케이스</a></li>
+																<li><a href="product_list.html?k_cateno=1016">TW카드슬리브</a></li>
+																<li><a href="product_list.html?k_cateno=1323">TW바인더-속지</a></li>
+																<li><a href="product_list.html?k_cateno=889">TW바인더-추가식</a></li>
+																<li><a href="product_list.html?k_cateno=1052">TW바인더-고정형</a></li>
+																<li><a href="product_list.html?k_cateno=890">TW플레이매트</a></li>
+																<li><a href="product_list.html?k_cateno=1127">RS플레이매트</a></li>
+																<li><a href="product_list.html?k_cateno=922">UG보관케이스</a></li>
+																<li><a href="product_list.html?k_cateno=923">UG카드슬리브</a></li>
+																<li><a href="product_list.html?k_cateno=924">UG카드바인더</a></li>
+																<li><a href="product_list.html?k_cateno=1174">UG플레이매트</a></li>
+																<li><a href="product_list.html?k_cateno=1168">Ultra슬리브</a></li>
+																<li><a href="product_list.html?k_cateno=1169">Ultra케이스</a></li>
+																<li><a href="product_list.html?k_cateno=1170">Ultra바인더</a></li>
+																<li><a href="product_list.html?k_cateno=1470">씨엔커머스</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+-->
+					</dl>
+				</div>
+			</div>
+			<p><img src="/images/category_bt.jpg" alt="" /></p>
+		</div>
+	</div>
+</div>	<!-- /전체카테고리 -->
+	
+
+</div>	<!-- /header -->
+
+	<!-- container -->
+	<div id="container">
+
+		<!-- con_left -->
+		<div id="con_left">
+			<!-- left_login -->
+<script>
+function login_Check2(form){
+	if(form.id.value == ''){
+		alert("아이디를 입력해 주세요.");
+		form.id.focus();
+		return false;
+	}
+	if(form.pw.value == ''){
+		alert("비밀번호를 입력해 주세요.");
+		form.pw.focus();
+		return false;
+	}
+	return true;
+}
+</script>
+<div class="m_login">
+	<!-- 로그인-->
+	<form method="post" action="login_check.php" name="frm_login" onsubmit="return login_Check2(this);" target="hidden_frame">
+	<input type="hidden" name="form_name" value="frm_login">
+	<input type="hidden" name="b_url" value="">
+	<div class="m_login_in">
+		<ul class="f_left" style="width: 130px;">
+			<li><input type="text" name="id" style="width: 121px;padding-left:4px;padding-top:4px;height:15px;" class="m_login_input" value=""></li>
+			<li style="margin: 3px 0 0 0;"><input type="password" name="pw" style="width: 121px;padding-left:4px;padding-top:4px;height:15px;height:15px;" class="m_login_input" value=""></li>
+		</ul>
+		<ul class="f_right">
+			<li><input type="checkbox" name="remember" value="Y" style="height:16px;" >ID저장</li>
+			<li style="margin: 3px 0 0 0;"><input type="image" src="images/btn_main_login.jpg" border="0" class="" alt="로그인"></li>
+		</ul>
+		<div class="clear"></div>
+	</div>
+	<!-- <div class="m_login_info">나의 <strong>쇼핑정보</strong>를 확인하세요.</div> -->
+	<div class="m_login_info"><a href="join_01.html">회원가입</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="idpw_search.html">아이디/비밀번호찾기</a></div>
+	</form>
+	<!-- /로그인-->
+</div><!-- /left_login -->
+
+<!--카테고리전체보기 -->
+<script  type="text/javascript">
+	function change_tap(no){
+
+		//--170726 하위카테고리 열려있는지 확인
+		var get_oldone = document.getElementById("temp_cateopen").value;
+		if(get_oldone){
+			document.getElementById(get_oldone).style.display = "none";
+			document.getElementById("temp_cateopen").value = "";
+		}
+
+		tab01 = document.getElementById('noticeTab01');
+		tab02 = document.getElementById('noticeTab02');
+		if(no == '1'){
+			tab01.style.display = 'block';
+			tab02.style.display = 'none';
+		}else if(no == '2'){
+			tab01.style.display = 'none';
+			tab02.style.display = 'block';
+		}
+	}
+</script>
+<div id="left_all_category">
+	<div id="noticeTab01" class="tt">
+	<img src="/images/btn_all_category.jpg" alt="카테고리 전체보기" onclick="change_tap(2);" style="cursor:pointer;" />
+	</div>
+
+	<div id="noticeTab02" style="display:none; position:relative;" class="tt">
+		<img src="/images/btn_all_category.jpg" alt="카테고리 전체보기" onclick="change_tap(1);" style="cursor:pointer;" />
+		<div class="all_category_in lay_pop">
+			<!-- <p><img src="/images/category_t.jpg" alt="" /></p> -->
+			<div class="">
+				<div class="category_in">
+					<dl class="all_cate">
+						<dt class="hidden">카테고리</dt>
+						<dd>
+							<p><a href="product_list.html?k_cateno=2"><img src="/images/category_t02.jpg" alt="유희왕카드(한국판)" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=116">싱글카드(정규부스터) <span class="text_sale">(20%↓)</span></a></li>
+																<li><a href="product_list.html?k_cateno=521">싱글카드(스페셜부스터) <span class="text_sale">(20%↓)</span></a></li>
+																<li><a href="product_list.html?k_cateno=1378">싱글카드(스트럭쳐)</a></li>
+																<li><a href="product_list.html?k_cateno=1414">싱글카드(듀얼리스트팩)</a></li>
+																<li><a href="product_list.html?k_cateno=704">싱글카드(스타터덱)</a></li>
+																<li><a href="product_list.html?k_cateno=1419">싱글카드(프리미엄팩)</a></li>
+																<li><a href="product_list.html?k_cateno=1420">싱글카드(덱빌드팩)</a></li>
+																<li><a href="product_list.html?k_cateno=204">한글판스페셜세트</a></li>
+																<li><a href="product_list.html?k_cateno=109">한글판부스터1박스</a></li>
+																<li><a href="product_list.html?k_cateno=108">한글판부스터팩</a></li>
+																<li><a href="product_list.html?k_cateno=110">한글판스트럭쳐</a></li>
+																<li><a href="product_list.html?k_cateno=1418">동봉/대회판/스페셜카드</a></li>
+																<li><a href="product_list.html?k_cateno=1661">한국판퍼스트에디션중고</a></li>
+																<li><a href="product_list.html?k_cateno=1662">한판대회판/어드밴스중고/영판중고</a></li>
+																<li><a href="product_list.html?k_cateno=1664">한국판얼티,시크,프시크중고</a></li>
+																<li><a href="product_list.html?k_cateno=1437">엑스트라초월강화팩</a></li>
+																<li><a href="product_list.html?k_cateno=1453">RD한글판스페셜부스터박스</a></li>
+																<li><a href="product_list.html?k_cateno=1477">RD고러시덱</a></li>
+																<li><a href="product_list.html?k_cateno=1515">RD한글판스페셜팩박스</a></li>
+																<li><a href="product_list.html?k_cateno=1350">러시듀얼통</a></li>
+																<li><a href="product_list.html?k_cateno=1351">RD스타터덱</a></li>
+																<li><a href="product_list.html?k_cateno=1352">RUSHDULE=레어카드</a></li>
+																<li><a href="product_list.html?k_cateno=1370">러시듀얼팩</a></li>
+																<li><a href="product_list.html?k_cateno=1374">RD한글판개조팩박스</a></li>
+																<li><a href="product_list.html?k_cateno=1411">중고카드판매소</a></li>
+																<li><a href="product_list.html?k_cateno=1413">한판러시듀얼최강배틀덱세트</a></li>
+																<li><a href="product_list.html?k_cateno=1421">컬렉터즈,엑스트라</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+						<dd>
+							<p><a href="product_list.html?k_cateno=1"><img src="/images/category_t01.jpg" alt="유희왕카드(일본판)" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=9">레어카드-정규시리즈 <span class="text_sale">(20%↓)</span></a></li>
+																<li><a href="product_list.html?k_cateno=731">레어카드-DP,DT <span class="text_sale">(20%↓)</span></a></li>
+																<li><a href="product_list.html?k_cateno=11">일본판부스터박스</a></li>
+																<li><a href="product_list.html?k_cateno=10">일본판…팩</a></li>
+																<li><a href="product_list.html?k_cateno=202">일본판…덱</a></li>
+																<li><a href="product_list.html?k_cateno=13">일본판리미티드에디션</a></li>
+																<li><a href="product_list.html?k_cateno=842">일본판15주년특별판</a></li>
+																<li><a href="product_list.html?k_cateno=203">일본판스페셜세트</a></li>
+																<li><a href="product_list.html?k_cateno=925">일본판중고카드</a></li>
+																<li><a href="product_list.html?k_cateno=12">일본판서적(동봉카드)</a></li>
+																<li><a href="product_list.html?k_cateno=1412">레어카드-스트럭쳐,스타트덱</a></li>
+																<li><a href="product_list.html?k_cateno=1490">레어카드-EP,WPP,컬랙션류</a></li>
+																<li><a href="product_list.html?k_cateno=1491">레어카드-PP,GS,LVP</a></li>
+																<li><a href="product_list.html?k_cateno=1492">레어카드-SP,DB,SLT</a></li>
+																<li><a href="product_list.html?k_cateno=1493">레어카드-기타</a></li>
+																<li><a href="product_list.html?k_cateno=1494">레어카드-숫자(301~309)</a></li>
+																<li><a href="product_list.html?k_cateno=1655">중고장터</a></li>
+																<li><a href="product_list.html?k_cateno=1660">일본판중고</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+						<dd>
+							<p><a href="product_list.html?k_cateno=448"><img src="/images/category_t03.jpg" alt="유희왕카드(영문판)" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=450">레어카드 <span class="text_sale">(20%↓)</span></a></li>
+																<li><a href="product_list.html?k_cateno=455">영문판부스터팩</a></li>
+																<li><a href="product_list.html?k_cateno=456">영문판스페셜세트</a></li>
+																<li><a href="product_list.html?k_cateno=457">영문판스트럭쳐덱</a></li>
+																<li><a href="product_list.html?k_cateno=458">영문판부스터박스</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+						<dd>
+							<p><a href="product_list.html?k_cateno=546"><img src="/images/category_t08.jpg" alt="카드파이트뱅카드" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=587">싱글카드(한글) <span class="text_sale">(20%↓)</span></a></li>
+																<li><a href="product_list.html?k_cateno=637">싱글카드(일본) <span class="text_sale">(20%↓)</span></a></li>
+																<li><a href="product_list.html?k_cateno=1000">뱅가드서적</a></li>
+																<li><a href="product_list.html?k_cateno=576">한글판뱅가드</a></li>
+																<li><a href="product_list.html?k_cateno=1388">싱글카드(한글,D시즌)</a></li>
+																<li><a href="product_list.html?k_cateno=577">일본판뱅가드</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+
+						<!--//150918 위크로스 추가-->
+						<dd>
+							<p><a href="product_list.html?k_cateno=967"><img src="/images/category_t18.jpg" alt="위크로스(WIXOSS)" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=968">싱글카드 <span class="text_sale">(20%↓)</span></a></li>
+																<li><a href="product_list.html?k_cateno=969">부스터박스</a></li>
+																<li><a href="product_list.html?k_cateno=970">부스터팩</a></li>
+																<li><a href="product_list.html?k_cateno=971">구축덱</a></li>
+																<li><a href="product_list.html?k_cateno=972">서적＆한정판</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+
+
+						<dd>
+							<p><a href="product_list.html?k_cateno=3"><img src="/images/category_t04.jpg" alt="T.C.G카드(한국,일본,미국)" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=877">포켓몬스터</a></li>
+																<li><a href="product_list.html?k_cateno=258">메이플스토리</a></li>
+																<li><a href="product_list.html?k_cateno=114">와우TCG</a></li>
+																<li><a href="product_list.html?k_cateno=594">골판지전사</a></li>
+																<li><a href="product_list.html?k_cateno=433">블루드래곤</a></li>
+																<li><a href="product_list.html?k_cateno=287">디멘션제로</a></li>
+																<li><a href="product_list.html?k_cateno=611">라이브온</a></li>
+																<li><a href="product_list.html?k_cateno=376">썬더일레븐</a></li>
+																<li><a href="product_list.html?k_cateno=684">바이스슈발츠</a></li>
+																<li><a href="product_list.html?k_cateno=395">디지몬세이버즈</a></li>
+																<li><a href="product_list.html?k_cateno=734">배틀스피리츠</a></li>
+																<li><a href="product_list.html?k_cateno=620">듀얼레전드</a></li>
+																<li><a href="product_list.html?k_cateno=632">매직더게더링</a></li>
+																<li><a href="product_list.html?k_cateno=740">드래곤빌리지카드</a></li>
+																<li><a href="product_list.html?k_cateno=774">몬스터길들이기</a></li>
+																<li><a href="product_list.html?k_cateno=793">소드걸스</a></li>
+																<li><a href="product_list.html?k_cateno=1023">럭앤로직</a></li>
+																<li><a href="product_list.html?k_cateno=1489">섀도우버스EVOLVE</a></li>
+																<li><a href="product_list.html?k_cateno=896">브레이브프론티어</a></li>
+																<li><a href="product_list.html?k_cateno=937">퓨쳐카드버디파이트</a></li>
+																<li><a href="product_list.html?k_cateno=940">퍼즐앤드래곤</a></li>
+																<li><a href="product_list.html?k_cateno=1054">정글에서살아남기</a></li>
+																<li><a href="product_list.html?k_cateno=1065">하이큐</a></li>
+																<li><a href="product_list.html?k_cateno=1113">나의히어로아카데미아</a></li>
+																<li><a href="product_list.html?k_cateno=1122">테일즈런너</a></li>
+																<li><a href="product_list.html?k_cateno=1210">신비아파트</a></li>
+																<li><a href="product_list.html?k_cateno=1310">MTG매직더게더링</a></li>
+																<li><a href="product_list.html?k_cateno=1338">엉덩이탐정</a></li>
+																<li><a href="product_list.html?k_cateno=112">리세(Lycee)</a></li>
+																<li><a href="product_list.html?k_cateno=1572">쿠키런브레이버스</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+
+
+						<dd>
+							<p><a href="product_list.html?k_cateno=887"><img src="/images/category_t12.jpg" alt="타임워커&얼티카드" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=888">TW보관케이스</a></li>
+																<li><a href="product_list.html?k_cateno=1163">TW-PP케이스</a></li>
+																<li><a href="product_list.html?k_cateno=893">TW주사위케이스</a></li>
+																<li><a href="product_list.html?k_cateno=894">TW빅보관케이스</a></li>
+																<li><a href="product_list.html?k_cateno=1016">TW카드슬리브</a></li>
+																<li><a href="product_list.html?k_cateno=1323">TW바인더-속지</a></li>
+																<li><a href="product_list.html?k_cateno=889">TW바인더-추가식</a></li>
+																<li><a href="product_list.html?k_cateno=1052">TW바인더-고정형</a></li>
+																<li><a href="product_list.html?k_cateno=890">TW플레이매트</a></li>
+																<li><a href="product_list.html?k_cateno=1127">RS플레이매트</a></li>
+																<li><a href="product_list.html?k_cateno=922">UG보관케이스</a></li>
+																<li><a href="product_list.html?k_cateno=923">UG카드슬리브</a></li>
+																<li><a href="product_list.html?k_cateno=924">UG카드바인더</a></li>
+																<li><a href="product_list.html?k_cateno=1174">UG플레이매트</a></li>
+																<li><a href="product_list.html?k_cateno=1168">Ultra슬리브</a></li>
+																<li><a href="product_list.html?k_cateno=1169">Ultra케이스</a></li>
+																<li><a href="product_list.html?k_cateno=1170">Ultra바인더</a></li>
+																<li><a href="product_list.html?k_cateno=1470">씨엔커머스</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+
+
+						<dd>
+							<p><a href="product_list.html?k_cateno=7"><img src="/images/category_t06.jpg" alt="카드용품" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=1238">저가형-프로텍터</a></li>
+																<li><a href="product_list.html?k_cateno=29">고가형-프로텍터</a></li>
+																<li><a href="product_list.html?k_cateno=1693">부시로드제품</a></li>
+																<li><a href="product_list.html?k_cateno=1406">코나미제품(KONAMI)</a></li>
+																<li><a href="product_list.html?k_cateno=1727">반다이제품(원피스,디지몬)</a></li>
+																<li><a href="product_list.html?k_cateno=31">저가형-덱케이스</a></li>
+																<li><a href="product_list.html?k_cateno=1176">고가형-덱케이스</a></li>
+																<li><a href="product_list.html?k_cateno=557">게임플레이매트</a></li>
+																<li><a href="product_list.html?k_cateno=30">앨범/탑로더/기타</a></li>
+																<li><a href="product_list.html?k_cateno=1243">앨범속지/기타용품</a></li>
+																<li><a href="product_list.html?k_cateno=1481">코나미정발제품</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+
+						<dd>
+							<p><a href="product_list.html?k_cateno=660"><img src="/images/category_t10.jpg" alt="스터컬렉션카드" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=670">스타카드(통.박스)</a></li>
+																<li><a href="product_list.html?k_cateno=1156">SCC베이스볼카드</a></li>
+																<li><a href="product_list.html?k_cateno=836">슈퍼스타베이스볼카드</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+
+						<dd>
+							<p><a href="product_list.html?k_cateno=1521"><img src="/images/category_t19.jpg" alt="디지몬카드(한글판)" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=1522">스타트덱</a></li>
+																<li><a href="product_list.html?k_cateno=1526">낱장카드</a></li>
+																<li><a href="product_list.html?k_cateno=1531">디지몬부스터1박스</a></li>
+																<li><a href="product_list.html?k_cateno=1680">디지몬카드1박스</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+
+						<dd>
+							<p><a href="product_list.html?k_cateno=1525"><img src="/images/category_t20.jpg" alt="디지몬카드(일본판)" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=1710">기타상품</a></li>
+																<li><a href="product_list.html?k_cateno=1711">부스터박스</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+
+						<dd>
+							<p><a href="product_list.html?k_cateno=1523"><img src="/images/category_t21.jpg" alt="원피스" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=1524">부스터박스(한글판)</a></li>
+																<li><a href="product_list.html?k_cateno=1613">스타터덱(한글판)</a></li>
+																<li><a href="product_list.html?k_cateno=1614">원피스부스터박스(일본판)</a></li>
+																<li><a href="product_list.html?k_cateno=1615">스타터덱(일본판)</a></li>
+																<li><a href="product_list.html?k_cateno=1616">원피스싱글카드</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+
+						<dd>
+							<p><a href="product_list.html?k_cateno=1034"><img src="/images/category_t14.jpg" alt="어린이완구" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=1035">요괴워치</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+						
+					
+						<dd>
+							<p><a href="product_list.html?k_cateno=1618"><img src="/images/category_t23.jpg" alt="루멘콘덴서" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=1619">스타터덱</a></li>
+																<li><a href="product_list.html?k_cateno=1688">부스터팩</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+
+						<dd>
+							<p><a href="product_list.html?k_cateno=1675"><img src="/images/category_t24.jpg" alt="홀로라이브" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=1676">부스터박스</a></li>
+																<li><a href="product_list.html?k_cateno=1677">스타터덱</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+
+						<dd>
+							<p><a href="product_list.html?k_cateno=1712"><img src="/images/category_t25.jpg" alt="바이스슈발츠" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=1713">부스터박스</a></li>
+																<li><a href="product_list.html?k_cateno=1714">엑스트라박스</a></li>
+																<li><a href="product_list.html?k_cateno=1715">트라이얼덱</a></li>
+																<li><a href="product_list.html?k_cateno=1716">부스터팩</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+
+						<dd>
+							<p><a href="product_list.html?k_cateno=1689"><img src="/images/category_t26.jpg" alt="니벨아레나" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=1690">스타터덱</a></li>
+																<li><a href="product_list.html?k_cateno=1691">부스터팩</a></li>
+																<li><a href="product_list.html?k_cateno=1700">싱글카드</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+					
+						<dd>
+							<p><a href="product_list.html?k_cateno=1594"><img src="/images/category_t27.jpg" alt="파니니축구카드" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=1734">부스터=1박스또는1팩</a></li>
+																<li><a href="product_list.html?k_cateno=1735">포켓틴</a></li>
+																<li><a href="product_list.html?k_cateno=1736">스타터세트</a></li>
+																<li><a href="product_list.html?k_cateno=1737">멀티팩</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+
+						<dd>
+							<p><a href="product_list.html?k_cateno=1083"><img src="/images/category_t15.jpg" alt="기타상품" /></a></p>
+							<ul>
+																<li><a href="product_list.html?k_cateno=1084">캐릭터상품</a></li>
+															</ul>
+							<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+						</dd>
+
+					</dl>
+				</div>
+			</div>
+			<p><img src="/images/category_bt.jpg" alt="" /></p>
+		</div>
+	</div>
+</div>
+<!-- /전체카테고리 -->
+
+<!-- Category -->
+<script type="text/javascript">
+	function init() {
+		setPageSubject('img/tit_01_01.gif', '');
+	}
+	var old_menu = '';
+	function menuclick( submenu, submm_id) {
+/*
+		if( old_menu != submenu ) {
+			if( old_menu !='' ) {
+				old_menu.style.display = 'none';
+			}
+			submenu.style.display = 'block';
+			old_menu = submenu;
+		} else {
+			submenu.style.display = 'none';
+			old_menu = '';
+		}
+*/
+		
+		//--170726 카테고리 오픈 체크
+		var get_oldone = document.getElementById("temp_cateopen").value;
+		if(get_oldone==submm_id){
+			//document.getElementById(get_oldone).style.display = "none";
+		}else if(get_oldone){
+			document.getElementById(get_oldone).style.display = "none";
+		}
+	
+		document.getElementById('noticeTab02').style.display = "none";
+		document.getElementById('noticeTab01').style.display = "block";
+
+
+		if(submenu.style.display == "none") submenu.style.display = "block";
+		else submenu.style.display = "none";
+
+		//--170726 카테고리 오픈 체크
+		document.getElementById("temp_cateopen").value = submm_id;
+	}
+	function menuDisplay(submenu) {
+		clearTimeout(target_timer1);
+		submenu.style.display = 'block';
+	}
+	var target_menu;
+	var target_timer1;
+	function menuHide(submenu) {
+		clearTimeout(target_timer1);
+		target_timer1 = setTimeout("menuHide2()",1000);
+	}
+	function menuHide2() {
+		for(i=1;i<=11;i++) {
+			if(i==5) continue;
+			document.getElementById('submenu'+i).style.display = 'none';
+		}
+	}
+</script>
+<input type="hidden" name="temp_cateopen" id="temp_cateopen" value="" />
+<div class="category">
+	<h3><img src="/images/category_t.jpg" alt="CARD D.C CATEGOTY" /></h3>
+	<div class="category_bg">
+		<div class="category_in">
+			<dl>
+				<dt class="hidden">카테고리</dt>
+				<dd class="l_dd_ht"><!-- 유희왕카드(한국판) -->
+					<a href="javascript:menuclick(document.getElementById('submenu2'), 'submenu2');"><img src="/images/category_t02.jpg" alt="유희왕카드(한국판)" /></a>
+					<div id="submenu2" style="display:none;" class="lay_pop2">
+						<ul>
+														<li><a href="product_list.html?k_cateno=116">싱글카드(정규부스터) <span class="text_sale">(20%↓)</span></a></li>
+														<li><a href="product_list.html?k_cateno=521">싱글카드(스페셜부스터) <span class="text_sale">(20%↓)</span></a></li>
+														<li><a href="product_list.html?k_cateno=1378">싱글카드(스트럭쳐)</a></li>
+														<li><a href="product_list.html?k_cateno=1414">싱글카드(듀얼리스트팩)</a></li>
+														<li><a href="product_list.html?k_cateno=704">싱글카드(스타터덱)</a></li>
+														<li><a href="product_list.html?k_cateno=1419">싱글카드(프리미엄팩)</a></li>
+														<li><a href="product_list.html?k_cateno=1420">싱글카드(덱빌드팩)</a></li>
+														<li><a href="product_list.html?k_cateno=204">한글판스페셜세트</a></li>
+														<li><a href="product_list.html?k_cateno=109">한글판부스터1박스</a></li>
+														<li><a href="product_list.html?k_cateno=108">한글판부스터팩</a></li>
+														<li><a href="product_list.html?k_cateno=110">한글판스트럭쳐</a></li>
+														<li><a href="product_list.html?k_cateno=1418">동봉/대회판/스페셜카드</a></li>
+														<li><a href="product_list.html?k_cateno=1661">한국판퍼스트에디션중고</a></li>
+														<li><a href="product_list.html?k_cateno=1662">한판대회판/어드밴스중고/영판중고</a></li>
+														<li><a href="product_list.html?k_cateno=1664">한국판얼티,시크,프시크중고</a></li>
+														<li><a href="product_list.html?k_cateno=1437">엑스트라초월강화팩</a></li>
+														<li><a href="product_list.html?k_cateno=1453">RD한글판스페셜부스터박스</a></li>
+														<li><a href="product_list.html?k_cateno=1477">RD고러시덱</a></li>
+														<li><a href="product_list.html?k_cateno=1515">RD한글판스페셜팩박스</a></li>
+														<li><a href="product_list.html?k_cateno=1350">러시듀얼통</a></li>
+														<li><a href="product_list.html?k_cateno=1351">RD스타터덱</a></li>
+														<li><a href="product_list.html?k_cateno=1352">RUSHDULE=레어카드</a></li>
+														<li><a href="product_list.html?k_cateno=1370">러시듀얼팩</a></li>
+														<li><a href="product_list.html?k_cateno=1374">RD한글판개조팩박스</a></li>
+														<li><a href="product_list.html?k_cateno=1411">중고카드판매소</a></li>
+														<li><a href="product_list.html?k_cateno=1413">한판러시듀얼최강배틀덱세트</a></li>
+														<li><a href="product_list.html?k_cateno=1421">컬렉터즈,엑스트라</a></li>
+													</ul>
+						<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+					</div>
+				</dd>
+				<dd class="l_dd_ht"><!-- 유희왕카드(일본판) -->
+					<a href="javascript:menuclick(document.getElementById('submenu1'), 'submenu1');"><img src="/images/category_t01.jpg" alt="유희왕카드(일본판)" /></a>
+					<div id="submenu1" style="display:none;" class="lay_pop2">
+						<ul>
+														<li><a href="product_list.html?k_cateno=9">레어카드-정규시리즈 <span class="text_sale">(20%↓)</span></a></li>
+														<li><a href="product_list.html?k_cateno=731">레어카드-DP,DT <span class="text_sale">(20%↓)</span></a></li>
+														<li><a href="product_list.html?k_cateno=11">일본판부스터박스</a></li>
+														<li><a href="product_list.html?k_cateno=10">일본판…팩</a></li>
+														<li><a href="product_list.html?k_cateno=202">일본판…덱</a></li>
+														<li><a href="product_list.html?k_cateno=13">일본판리미티드에디션</a></li>
+														<li><a href="product_list.html?k_cateno=842">일본판15주년특별판</a></li>
+														<li><a href="product_list.html?k_cateno=203">일본판스페셜세트</a></li>
+														<li><a href="product_list.html?k_cateno=925">일본판중고카드</a></li>
+														<li><a href="product_list.html?k_cateno=12">일본판서적(동봉카드)</a></li>
+														<li><a href="product_list.html?k_cateno=1412">레어카드-스트럭쳐,스타트덱</a></li>
+														<li><a href="product_list.html?k_cateno=1490">레어카드-EP,WPP,컬랙션류</a></li>
+														<li><a href="product_list.html?k_cateno=1491">레어카드-PP,GS,LVP</a></li>
+														<li><a href="product_list.html?k_cateno=1492">레어카드-SP,DB,SLT</a></li>
+														<li><a href="product_list.html?k_cateno=1493">레어카드-기타</a></li>
+														<li><a href="product_list.html?k_cateno=1494">레어카드-숫자(301~309)</a></li>
+														<li><a href="product_list.html?k_cateno=1655">중고장터</a></li>
+														<li><a href="product_list.html?k_cateno=1660">일본판중고</a></li>
+													</ul>
+						<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+					</div>
+				</dd>
+				<dd class="l_dd_ht"><!-- 유희왕카드(영문판) -->
+					<a href="javascript:menuclick(document.getElementById('submenu3'), 'submenu3');"><img src="/images/category_t03.jpg" alt="유희왕카드(영문판)" /></a>
+					<div id="submenu3" style="display:none;" class="lay_pop2">
+						<ul>
+														<li><a href="product_list.html?k_cateno=450">레어카드 <span class="text_sale">(20%↓)</span></a></li>
+														<li><a href="product_list.html?k_cateno=455">영문판부스터팩</a></li>
+														<li><a href="product_list.html?k_cateno=456">영문판스페셜세트</a></li>
+														<li><a href="product_list.html?k_cateno=457">영문판스트럭쳐덱</a></li>
+														<li><a href="product_list.html?k_cateno=458">영문판부스터박스</a></li>
+													</ul>
+						<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+					</div>
+				</dd>
+				<dd class="l_dd_ht"><!-- 디지몬카드(한글판) -->
+					<a href="javascript:menuclick(document.getElementById('submenu10'), 'submenu10');"><img src="/images/category_t19.jpg" alt="디지몬카드(한글판)" /></a>
+					<div id="submenu10" style="display:none;" class="lay_pop2">
+						<ul>
+														<li><a href="product_list.html?k_cateno=1522">스타트덱</a></li>
+														<li><a href="product_list.html?k_cateno=1526">낱장카드</a></li>
+														<li><a href="product_list.html?k_cateno=1531">디지몬부스터1박스</a></li>
+														<li><a href="product_list.html?k_cateno=1680">디지몬카드1박스</a></li>
+													</ul>
+						<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+					</div>
+				</dd>
+				<dd class="l_dd_ht"><!-- 디지몬카드(일본판) -->
+					<a href="javascript:menuclick(document.getElementById('submenu24'), 'submenu24');"><img src="/images/category_t20.jpg" alt="디지몬카드(일본판)" /></a>
+					<div id="submenu24" style="display:none;" class="lay_pop2">
+						<ul>
+														<li><a href="product_list.html?k_cateno=1710">기타상품</a></li>
+														<li><a href="product_list.html?k_cateno=1711">부스터박스</a></li>
+													</ul>
+						<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+					</div>
+				</dd>
+				<dd class="l_dd_ht"><!-- 원피스카드(한글판) -->
+					<a href="javascript:menuclick(document.getElementById('submenu23'), 'submenu23');"><img src="/images/category_t21.jpg" alt="원피스카드(한글판)" /></a>
+					<div id="submenu23" style="display:none;" class="lay_pop2">
+						<ul>
+														<li><a href="product_list.html?k_cateno=1524">부스터박스(한글판)</a></li>
+														<li><a href="product_list.html?k_cateno=1613">스타터덱(한글판)</a></li>
+														<li><a href="product_list.html?k_cateno=1614">원피스부스터박스(일본판)</a></li>
+														<li><a href="product_list.html?k_cateno=1615">스타터덱(일본판)</a></li>
+														<li><a href="product_list.html?k_cateno=1616">원피스싱글카드</a></li>
+													</ul>
+						<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+					</div>
+				</dd>
+				<dd class="l_dd_ht"><!-- 니벨아레나 -->
+					<a href="javascript:menuclick(document.getElementById('submenu28'), 'submenu28');"><img src="/images/category_t26.jpg" alt="니벨 아레나" /></a>
+					<div id="submenu28" style="display:none;" class="lay_pop2">
+						<ul>
+														<li><a href="product_list.html?k_cateno=1690">스타터덱</a></li>
+														<li><a href="product_list.html?k_cateno=1691">부스터팩</a></li>
+														<li><a href="product_list.html?k_cateno=1700">싱글카드</a></li>
+													</ul>
+						<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+					</div>
+				</dd>
+				<dd class="l_dd_ht"><!-- 바이스슈발츠 -->
+					<a href="javascript:menuclick(document.getElementById('submenu27'), 'submenu27');"><img src="/images/category_t25.jpg" alt="바이스슈발츠" /></a>
+					<div id="submenu27" style="display:none;" class="lay_pop2">
+						<ul>
+														<li><a href="product_list.html?k_cateno=1713">부스터박스</a></li>
+														<li><a href="product_list.html?k_cateno=1714">엑스트라박스</a></li>
+														<li><a href="product_list.html?k_cateno=1715">트라이얼덱</a></li>
+														<li><a href="product_list.html?k_cateno=1716">부스터팩</a></li>
+													</ul>
+						<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+					</div>
+				</dd>
+				<dd class="l_dd_ht"><!-- 홀로라이브 -->
+					<a href="javascript:menuclick(document.getElementById('submenu26'), 'submenu26');"><img src="/images/category_t24.jpg" alt="홀로라이브" /></a>
+					<div id="submenu26" style="display:none;" class="lay_pop2">
+						<ul>
+														<li><a href="product_list.html?k_cateno=1676">부스터박스</a></li>
+														<li><a href="product_list.html?k_cateno=1677">스타터덱</a></li>
+													</ul>
+						<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+					</div>
+				</dd>
+				<dd class="l_dd_ht"><!-- 루멘콘덴서 -->
+					<a href="javascript:menuclick(document.getElementById('submenu25'), 'submenu25');"><img src="/images/category_t23.jpg" alt="루멘콘덴서" /></a>
+					<div id="submenu25" style="display:none;" class="lay_pop2">
+						<ul>
+														<li><a href="product_list.html?k_cateno=1619">스타터덱</a></li>
+														<li><a href="product_list.html?k_cateno=1688">부스터팩</a></li>
+														<li><a href="product_list.html?k_cateno="></a></li>
+													</ul>
+						<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+					</div>
+				</dd>
+				<dd class="l_dd_ht"><!-- 위크로스(WIXOSS) -->
+					<a href="javascript:menuclick(document.getElementById('submenu18'), 'submenu18');"><img src="/images/category_t18.jpg" alt="위크로스(WIXOSS)" /></a>
+					<div id="submenu18" style="display:none;" class="lay_pop2">
+						<ul>
+														<li><a href="product_list.html?k_cateno=968">싱글카드 <span class="text_sale">(20%↓)</span></a></li>
+														<li><a href="product_list.html?k_cateno=969">부스터박스</a></li>
+														<li><a href="product_list.html?k_cateno=970">부스터팩</a></li>
+														<li><a href="product_list.html?k_cateno=971">구축덱</a></li>
+														<li><a href="product_list.html?k_cateno=972">서적＆한정판</a></li>
+													</ul>
+						<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+					</div>
+				</dd>
+				<dd class="l_dd_ht"><!-- T.C.G카드(한국,일본,미국) -->
+					<a href="javascript:menuclick(document.getElementById('submenu4'), 'submenu4');"><img src="/images/category_t04.jpg" alt="T.C.G카드(한국,일본,미국)" /></a>
+					<div id="submenu4" style="display:none;" class="lay_pop2">
+						<ul>
+														<li><a href="product_list.html?k_cateno=877">포켓몬스터</a></li>
+														<li><a href="product_list.html?k_cateno=258">메이플스토리</a></li>
+														<li><a href="product_list.html?k_cateno=114">와우TCG</a></li>
+														<li><a href="product_list.html?k_cateno=594">골판지전사</a></li>
+														<li><a href="product_list.html?k_cateno=433">블루드래곤</a></li>
+														<li><a href="product_list.html?k_cateno=287">디멘션제로</a></li>
+														<li><a href="product_list.html?k_cateno=611">라이브온</a></li>
+														<li><a href="product_list.html?k_cateno=376">썬더일레븐</a></li>
+														<li><a href="product_list.html?k_cateno=684">바이스슈발츠</a></li>
+														<li><a href="product_list.html?k_cateno=395">디지몬세이버즈</a></li>
+														<li><a href="product_list.html?k_cateno=734">배틀스피리츠</a></li>
+														<li><a href="product_list.html?k_cateno=620">듀얼레전드</a></li>
+														<li><a href="product_list.html?k_cateno=632">매직더게더링</a></li>
+														<li><a href="product_list.html?k_cateno=740">드래곤빌리지카드</a></li>
+														<li><a href="product_list.html?k_cateno=774">몬스터길들이기</a></li>
+														<li><a href="product_list.html?k_cateno=793">소드걸스</a></li>
+														<li><a href="product_list.html?k_cateno=1023">럭앤로직</a></li>
+														<li><a href="product_list.html?k_cateno=1489">섀도우버스EVOLVE</a></li>
+														<li><a href="product_list.html?k_cateno=896">브레이브프론티어</a></li>
+														<li><a href="product_list.html?k_cateno=937">퓨쳐카드버디파이트</a></li>
+														<li><a href="product_list.html?k_cateno=940">퍼즐앤드래곤</a></li>
+														<li><a href="product_list.html?k_cateno=1054">정글에서살아남기</a></li>
+														<li><a href="product_list.html?k_cateno=1065">하이큐</a></li>
+														<li><a href="product_list.html?k_cateno=1113">나의히어로아카데미아</a></li>
+														<li><a href="product_list.html?k_cateno=1122">테일즈런너</a></li>
+														<li><a href="product_list.html?k_cateno=1210">신비아파트</a></li>
+														<li><a href="product_list.html?k_cateno=1310">MTG매직더게더링</a></li>
+														<li><a href="product_list.html?k_cateno=1338">엉덩이탐정</a></li>
+														<li><a href="product_list.html?k_cateno=112">리세(Lycee)</a></li>
+														<li><a href="product_list.html?k_cateno=1572">쿠키런브레이버스</a></li>
+													</ul>
+						<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+					</div>
+				</dd>
+
+
+				<dd class="l_dd_ht"><!-- 파니니축구 -->
+					<a href="javascript:menuclick(document.getElementById('submenu29'), 'submenu29');"><img src="/images/category_t27.jpg" alt="파니니축구" /></a>
+					<div id="submenu29" style="display:none;" class="lay_pop2">
+						<ul>
+														<li><a href="product_list.html?k_cateno=1734">부스터=1박스또는1팩</a></li>
+														<li><a href="product_list.html?k_cateno=1735">포켓틴</a></li>
+														<li><a href="product_list.html?k_cateno=1736">스타터세트</a></li>
+														<li><a href="product_list.html?k_cateno=1737">멀티팩</a></li>
+													</ul>
+						<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+					</div>
+				</dd>
+
+				<dd class="l_dd_ht"><!-- 카드용품 -->
+					<a href="javascript:menuclick(document.getElementById('submenu6'), 'submenu6');"><img src="/images/category_t06.jpg" alt="카드용품" /></a>
+					<div id="submenu6" style="display:none;" class="lay_pop2">
+						<ul>
+														<li><a href="product_list.html?k_cateno=1238">저가형-프로텍터</a></li>
+														<li><a href="product_list.html?k_cateno=29">고가형-프로텍터</a></li>
+														<li><a href="product_list.html?k_cateno=1693">부시로드제품</a></li>
+														<li><a href="product_list.html?k_cateno=1406">코나미제품(KONAMI)</a></li>
+														<li><a href="product_list.html?k_cateno=1727">반다이제품(원피스,디지몬)</a></li>
+														<li><a href="product_list.html?k_cateno=31">저가형-덱케이스</a></li>
+														<li><a href="product_list.html?k_cateno=1176">고가형-덱케이스</a></li>
+														<li><a href="product_list.html?k_cateno=557">게임플레이매트</a></li>
+														<li><a href="product_list.html?k_cateno=30">앨범/탑로더/기타</a></li>
+														<li><a href="product_list.html?k_cateno=1243">앨범속지/기타용품</a></li>
+														<li><a href="product_list.html?k_cateno=1481">코나미정발제품</a></li>
+													</ul>
+						<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+					</div>
+				</dd>
+				<dd class="l_dd_ht"><!-- 타임워커&얼티카드 -->
+					<a href="javascript:menuclick(document.getElementById('submenu12'), 'submenu12');"><img src="/images/category_t12.jpg" alt="타임워커&얼티카드" /></a>
+					<div id="submenu12" style="display:none;" class="lay_pop2">
+						<ul>
+														<li><a href="product_list.html?k_cateno=888">TW보관케이스</a></li>
+														<li><a href="product_list.html?k_cateno=1163">TW-PP케이스</a></li>
+														<li><a href="product_list.html?k_cateno=893">TW주사위케이스</a></li>
+														<li><a href="product_list.html?k_cateno=894">TW빅보관케이스</a></li>
+														<li><a href="product_list.html?k_cateno=1016">TW카드슬리브</a></li>
+														<li><a href="product_list.html?k_cateno=1323">TW바인더-속지</a></li>
+														<li><a href="product_list.html?k_cateno=889">TW바인더-추가식</a></li>
+														<li><a href="product_list.html?k_cateno=1052">TW바인더-고정형</a></li>
+														<li><a href="product_list.html?k_cateno=890">TW플레이매트</a></li>
+														<li><a href="product_list.html?k_cateno=1127">RS플레이매트</a></li>
+														<li><a href="product_list.html?k_cateno=922">UG보관케이스</a></li>
+														<li><a href="product_list.html?k_cateno=923">UG카드슬리브</a></li>
+														<li><a href="product_list.html?k_cateno=924">UG카드바인더</a></li>
+														<li><a href="product_list.html?k_cateno=1174">UG플레이매트</a></li>
+														<li><a href="product_list.html?k_cateno=1168">Ultra슬리브</a></li>
+														<li><a href="product_list.html?k_cateno=1169">Ultra케이스</a></li>
+														<li><a href="product_list.html?k_cateno=1170">Ultra바인더</a></li>
+														<li><a href="product_list.html?k_cateno=1470">씨엔커머스</a></li>
+													</ul>
+						<p><img src="/images/category_in_bg.jpg" alt="" /></p>
+					</div>
+				</dd>
+				
+
+			</dl>
+		</div>
+	</div>
+	<p><img src="/images/category_bt.jpg" alt="" /></p>
+</div><!-- /Category -->
+
+<!-- left_banner -->
+
+<div class="left_banner">
+	<p><a href="daerijum.html"><img src="/images/left_daerijum.jpg" alt="" /></a></p>
+	<p><img src="/images/info.jpg" alt="" /></p>
+	<p><img src="/images/customer.jpg" alt="" /></p>
+	<p><a href="partner.html"><img src="/images/left_store.jpg" alt="" /></a></p>
+	<p><img src="/images/escrow.jpg" alt="" /></p>
+</div><!-- /left_banner -->		</div>
+		<!-- /con_left -->
+
+		<!-- con_right -->
+		<div id="con_right">
+			<div id="sub_title">
+				<h2>
+								전체상품								</h2>
+				<div class="path">
+					<a href="product_list.html">Home</a> >
+										<span class="path_t"><strong>전체상품</strong></span>
+									</div>
+				<div class="clear"></div>
+			</div>
+									<div style="font-size:18px;padding-top:20px;padding-left:40px;">'<strong>사로스 에레스</strong>' 검색결과 입니다.</div>
+					
+
+			<div id="m_pro" class="mt_20">
+
+				<!-- 상품정렬 -->
+				<div id="list_pro_tit">
+					<div class="list_pro_right">
+						<p><a href="/product_list.html?k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&category_no=&k_sort=sale"><img src="images/pro_tab01.jpg" width="75" height="18" alt="인기판매순" /></a></p>
+						<p><a href="/product_list.html?k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&category_no=&k_sort=inserttime"><img src="images/pro_tab02_b.jpg" width="75" height="18" alt="신규등록순" /></a></p>
+						<p><a href="/product_list.html?k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&category_no=&k_sort=downcost"><img src="images/pro_tab03.jpg" width="75" height="18" alt="낮은가격순" /></a></p>
+						<p><a href="/product_list.html?k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&category_no=&k_sort=upcost"><img src="images/pro_tab04.jpg" width="75" height="18" alt="높은가격순" /></a></p>
+						<p><a href="/product_list.html?k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&category_no=&k_sort=productname"><img src="images/pro_tab05.jpg" width="75" height="18" alt="상품이름순" /></a></p>
+						<div class="clear"></div>
+					</div>
+				</div>
+				<!-- /상품정렬 -->
+
+				<!-- list_search -->
+				<div class="list_search">
+	<div class="list_pro_left">총 <span class="text_name">12종</span>의 제품이 있습니다.</div>
+	<div class="list_search_in">
+		<form action="product_list.html">
+		<input type="hidden" name="k_sort" value="inserttime" />
+		<input type="hidden" name="search_word" value="사로스 에레스" />
+		<input type="hidden" name="k_cateno" value="" />
+		<input type="hidden" name="k_rgradecode" value="" />
+		<ul>
+			<li><input type="text" name="search_sub_word" class="m_login_input" style="padding-left:5px;padding-top:5px;width:250px;background:url(/images/list_research_text.jpg) no-repeat left;" onkeydown='this.style.backgroundImage=""' onmousedown='this.style.backgroundImage=""' value=""></li>
+			<li><input type="image" src="/images/btn_research.jpg" alt="재검색" align="absmiddle"></li>
+		</ul>
+		</form>
+	</div>
+</div>				<!-- /list_search -->
+
+				<!-- 상품리스트 -->
+				<div class="pro_table">
+				<input type="checkbox" name='list_check' value="0" style="display:none;">
+					<table cellpadding="0" class="prodcut_list_table" summary="상품리스트표입니다.">
+					<caption class="hidden">상품리스트</caption>
+					<colgroup>
+						<col width="130px;">
+						<col width="130px;">
+						<col width="130px;">
+						<col width="130px;">
+						<col width="130px;">
+						<col width="130px;">
+					</colgroup>
+					<tbody>
+						
+					<tr>
+									
+						<td>
+							<ul>
+								<li class="pro_img"><a href="product_view.html?prdno=83023&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code="><img src="https://www.carddc.co.kr/pimages/P_1711455692_01.jpg"  alt="사로스-에레스쿠르누기아스" width="82" height="120" /></a></li>
+							</ul>
+							<ul class="pro_t">
+								<li><a href="product_view.html?prdno=83023&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code=">사로스-에레스쿠르누기아스</a></li>
+															<li class="pro_info_t2">QCCU-KR192</li>
+							
+							
+															<li class="pro_info_t">시크릿레어</li>
+																														<li>
+
+									<s>20,000원</s>
+																	<span class="text_sale">(20%↓)</span>
+																																								<li class="price_t">
+									16,000 원
+								</li>
+																																					<li class="pro-cart">
+								<a href="javascript:jpri_wish_hd('c', '83023');"><img src="images/bt_cart.jpg" alt="장바구니" /></a>
+								<a href="javascript:jpri_wish_hd('w', '83023');"><img src="images/bt_wish.jpg" alt="관심상품" /></a>
+								</li>
+														</ul>
+						</td>
+																			
+						<td>
+							<ul>
+								<li class="pro_img"><a href="product_view.html?prdno=81941&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code="><img src="https://www.carddc.co.kr/pimages/P_1709368713_01.jpg"  alt="사로스-에레스쿠르누기아스" width="82" height="120" /></a></li>
+							</ul>
+							<ul class="pro_t">
+								<li><a href="product_view.html?prdno=81941&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code=">사로스-에레스쿠르누기아스</a></li>
+															<li class="pro_info_t2">QCCU-JP192</li>
+							
+							
+															<li class="pro_info_t">시크릿레어</li>
+																														<li>
+
+									<s>25,000원</s>
+																	<span class="text_sale">(20%↓)</span>
+																																								<li class="price_t">
+									20,000 원
+								</li>
+																																					<li class="pro-cart">
+								<a href="javascript:jpri_wish_hd('c', '81941');"><img src="images/bt_cart.jpg" alt="장바구니" /></a>
+								<a href="javascript:jpri_wish_hd('w', '81941');"><img src="images/bt_wish.jpg" alt="관심상품" /></a>
+								</li>
+														</ul>
+						</td>
+																			
+						<td>
+							<ul>
+								<li class="pro_img"><a href="product_view.html?prdno=83021&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code="><img src="https://www.carddc.co.kr/pimages/P_1711455566_01.jpg"  alt="사로스-에레스쿠르누기아스" width="82" height="120" /></a></li>
+							</ul>
+							<ul class="pro_t">
+								<li><a href="product_view.html?prdno=83021&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code=">사로스-에레스쿠르누기아스</a></li>
+															<li class="pro_info_t2">QCCU-KR192</li>
+							
+							
+															<li class="pro_info_t">울트라레어</li>
+																																																																			<li><img src='/images/icon_sortout.jpg' alt='품절'></li>
+														</ul>
+						</td>
+																			
+						<td>
+							<ul>
+								<li class="pro_img"><a href="product_view.html?prdno=83024&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code="><img src="https://www.carddc.co.kr/pimages/P_1711441788_01.jpg"  alt="사로스-에레스쿠르누기아스" width="82" height="120" /></a></li>
+							</ul>
+							<ul class="pro_t">
+								<li><a href="product_view.html?prdno=83024&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code=">사로스-에레스쿠르누기아스</a></li>
+															<li class="pro_info_t2">QCCU-KR192</li>
+							
+							
+															<li class="pro_info_t">쿼터센츄리시크</li>
+																																																																			<li><img src='/images/icon_sortout.jpg' alt='품절'></li>
+														</ul>
+						</td>
+																			
+						<td>
+							<ul>
+								<li class="pro_img"><a href="product_view.html?prdno=83022&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code="><img src="https://www.carddc.co.kr/pimages/P_1711441358_01.jpg"  alt="사로스-에레스쿠르누기아스" width="82" height="120" /></a></li>
+							</ul>
+							<ul class="pro_t">
+								<li><a href="product_view.html?prdno=83022&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code=">사로스-에레스쿠르누기아스</a></li>
+															<li class="pro_info_t2">QCCU-KR192</li>
+							
+							
+															<li class="pro_info_t">얼티메이트레어</li>
+																																																																			<li><img src='/images/icon_sortout.jpg' alt='품절'></li>
+														</ul>
+						</td>
+																			
+						<td>
+							<ul>
+								<li class="pro_img"><a href="product_view.html?prdno=82004&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code="><img src="https://www.carddc.co.kr/pimages/P_1709116411_01.jpg"  alt="사로스-에레스쿠르누기아스" width="120" height="120" /></a></li>
+							</ul>
+							<ul class="pro_t">
+								<li><a href="product_view.html?prdno=82004&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code=">사로스-에레스쿠르누기아스</a></li>
+							
+							
+															<li class="pro_info_t">얼티메이트레어</li>
+																																																																			<li><img src='/images/icon_sortout.jpg' alt='품절'></li>
+														</ul>
+						</td>
+														
+					</tr>
+			
+					<tr>
+									
+						<td>
+							<ul>
+								<li class="pro_img"><a href="product_view.html?prdno=81742&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code="><img src="https://www.carddc.co.kr/pimages/P_1709361638_01.jpg"  alt="사로스-에레스쿠르누기아스" width="82" height="120" /></a></li>
+							</ul>
+							<ul class="pro_t">
+								<li><a href="product_view.html?prdno=81742&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code=">사로스-에레스쿠르누기아스</a></li>
+															<li class="pro_info_t2">QCCU-JP192</li>
+							
+							
+															<li class="pro_info_t">울트라레어</li>
+																																																																			<li><img src='/images/icon_sortout.jpg' alt='품절'></li>
+														</ul>
+						</td>
+																			
+						<td>
+							<ul>
+								<li class="pro_img"><a href="product_view.html?prdno=62044&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code="><img src="https://www.carddc.co.kr/pimages/P_1612432128_01.jpg"  alt="사로스-에레스쿠르누기아스" width="82" height="120" /></a></li>
+							</ul>
+							<ul class="pro_t">
+								<li><a href="product_view.html?prdno=62044&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code=">사로스-에레스쿠르누기아스</a></li>
+															<li class="pro_info_t2">BLVO-KR050</li>
+							
+							
+															<li class="pro_info_t">홀로그래픽레어</li>
+																																																																			<li><img src='/images/icon_sortout.jpg' alt='품절'></li>
+														</ul>
+						</td>
+																			
+						<td>
+							<ul>
+								<li class="pro_img"><a href="product_view.html?prdno=62043&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code="><img src="https://www.carddc.co.kr/pimages/P_1612432072_01.jpg"  alt="사로스-에레스쿠르누기아스" width="82" height="120" /></a></li>
+							</ul>
+							<ul class="pro_t">
+								<li><a href="product_view.html?prdno=62043&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code=">사로스-에레스쿠르누기아스</a></li>
+															<li class="pro_info_t2">BLVO-KR050</li>
+							
+							
+															<li class="pro_info_t">시크릿레어</li>
+																																																																			<li><img src='/images/icon_sortout.jpg' alt='품절'></li>
+														</ul>
+						</td>
+																			
+						<td>
+							<ul>
+								<li class="pro_img"><a href="product_view.html?prdno=62042&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code="><img src="https://www.carddc.co.kr/pimages/P_1612853538_01.jpg"  alt="사로스-에레스쿠르누기아스" width="82" height="120" /></a></li>
+							</ul>
+							<ul class="pro_t">
+								<li><a href="product_view.html?prdno=62042&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code=">사로스-에레스쿠르누기아스</a></li>
+															<li class="pro_info_t2">BLVO-KR050</li>
+							
+							
+															<li class="pro_info_t">얼티메이트레어</li>
+																																																																			<li><img src='/images/icon_sortout.jpg' alt='품절'></li>
+														</ul>
+						</td>
+																			
+						<td>
+							<ul>
+								<li class="pro_img"><a href="product_view.html?prdno=62041&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code="><img src="https://www.carddc.co.kr/pimages/P_1612431954_01.jpg"  alt="사로스-에레스쿠르누기아스" width="82" height="120" /></a></li>
+							</ul>
+							<ul class="pro_t">
+								<li><a href="product_view.html?prdno=62041&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code=">사로스-에레스쿠르누기아스</a></li>
+															<li class="pro_info_t2">BLVO-KR050</li>
+							
+							
+															<li class="pro_info_t">울트라레어</li>
+																																						</li>
+
+																													<li><img src='/images/icon_sortout.jpg' alt='품절'></li>
+														</ul>
+						</td>
+																			
+						<td>
+							<ul>
+								<li class="pro_img"><a href="product_view.html?prdno=62045&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code="><img src="https://www.carddc.co.kr/pimages/P_1612432178_01.jpg"  alt="사로스-에레스쿠르누기아스" width="82" height="120" /></a></li>
+							</ul>
+							<ul class="pro_t">
+								<li><a href="product_view.html?prdno=62045&k_cateno=&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA&search_sub_word=&k_sort=inserttime&category_no=&page=1&category_code=">사로스-에레스쿠르누기아스</a></li>
+															<li class="pro_info_t2">BLVO-KR050</li>
+							
+							
+															<li class="pro_info_t">프리즈머틱시크릿레어</li>
+																																																																			<li><img src='/images/icon_sortout.jpg' alt='품절'></li>
+														</ul>
+						</td>
+														
+					</tr>
+								</tbody>
+					</table>
+								</div>
+				<!-- /상품리스트 -->
+
+
+				<!-- 페이지수 -->
+				<div id="page_no">
+	<ul>
+
+		<li><a href="/product_list.html?page=1&page_num=30&k_sort=inserttime&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA" onfocus="blur();" title=" 처음페이지 이동 "><img src="/images/btn_prev_01.jpg" width="28" height="13" alt="처음" /></a></li>
+		<li><a href="/product_list.html?page=&page_num=30&k_sort=inserttime&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA" onclick="alert('이전페이지가 없습니다.');return false;" onfocus="blur();" title=" 이전페이지 이동 "><img src="/images/btn_prev_02.jpg" width="15" height="13" alt="이전" /></a></li>
+		<li>&nbsp;&nbsp;<a href='/product_list.html?page=1&page_num=30&k_sort=inserttime&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA'><span class="page_text">[1]</span></a>
+		&nbsp;&nbsp;</li>
+		<li><a href="/product_list.html?page=&page_num=30&k_sort=inserttime&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA" onclick="alert('다음페이지가 없습니다.');return false;" onfocus="blur();" title=" 다음페이지 이동 "><img src="/images/btn_next_02.jpg" width="15" height="13" alt="다음" /></a></li>
+		<li><a href="/product_list.html?page=1&page_num=30&k_sort=inserttime&search_word=%BB%E7%B7%CE%BD%BA+%BF%A1%B7%B9%BD%BA" onfocus="blur();" title=" 마지막페이지 이동 "><img src="/images/btn_next_01.jpg" width="28" height="13" alt="마지막" /></a></li>	</ul>
+</div>
+			</div>
+		</div>
+		<!-- con_right -->
+
+		<div class="clear"></div>
+
+		<!-- quick -->
+		<script language="JavaScript">
+<!--
+function calcHeight()
+{
+//find the height of the internal page
+var the_height=
+document.getElementById('quick_db').contentWindow.
+document.body.scrollHeight;
+
+//change the height of the iframe
+document.getElementById('quick_db').height=
+the_height+5;
+}
+
+
+function today_autoRS(arg,argid)
+{
+arg.height = 0;
+if(navigator.userAgent.indexOf("MSIE") != -1){
+arg.height = document.getElementById(argid).contentWindow.document.body.scrollHeight;
+document.documentElement.scrollTop = 0;
+}else{
+arg.height = document.getElementById(argid).contentWindow.document.body.scrollHeight+3;
+document.documentElement.scrollTop = 0;
+}
+}
+//-->
+</script>
+<div id="quick">
+	<p><a href="/use.html#class_point"><img src="/images/btn_member_info2.jpg" alt="회원등급소개" style="padding-bottom:5px;"/></a></p>
+	<ul>
+		<li><a href="/mypage.html"><img src="images/quick_01.jpg" alt="My페이지" /></a></li>
+		<li><a href="/cart.html"><img src="images/quick_02.jpg" alt="장바구니" /></a></li>
+		<li><a href="/wish_list.html"><img src="images/quick_03.jpg" alt="관심상품" /></a></li>
+		<li><a href="/order_search.html"><img src="images/quick_04.jpg" alt="주문배송" /></a></li>
+	</ul>
+
+	<!-- 오늘 본 상품 -->
+	<iframe name="quick_db" id="quick_db" frameborder="0" width="100%" height="0" scrolling="no" src="./quick2.html?page_q=&page_num_q=" onLoad="today_autoRS(this,this.id);">
+	</iframe>
+	<!-- /오늘 본 상품 -->
+</div>		<!-- /quick -->
+	</div>
+	<!-- /container -->
+
+	<!-- footer -->
+	<iframe name="hidden_frame" width="100%" height="0" frameborder="0"></iframe>
+
+<div id="footer">
+	<div class="copy_logo"><img src="/images/copy_logo_re.jpg" alt="" /></div>
+	<div class="copy">
+		<ul class="copy_menu">
+			<!-- <li><a href=""><img src="/images/copy_menu01.jpg" alt="" /></a></li> -->
+			<li><a href="/rule.html"><img src="/images/copy_menu02.jpg" alt="" /></a></li>
+			<li class="copy_menu_bg"><a href="/privacy.html"><img src="/images/copy_menu03.jpg" alt="" /></a></li>
+			<li class="copy_menu_bg"><a href="/partner.html"><img src="/images/copy_menu04.jpg" alt="" /></a></li>
+			<li class="copy_menu_bg"><a href="/use.html"><img src="/images/copy_menu05.jpg" alt="" /></a></li>
+		</ul>
+		<address>
+		카드디씨   |   울산광역시 복산동 36-7(번영로 454)   |   대표 : 김성권   |   고객센터 : 052)710-3059<br />
+		통신판매신고 : 울산2006-54호   |   이메일 : sk4488@hotmail.com   |   사업자등록번호 : 606-08-44724 <a href="http://www.ftc.go.kr/info/bizinfo/communicationList.jsp" target="_blank"><strong>[사업자정보확인]</strong></a><br />
+		copyrightⓒ CARDDC.CO.KR All rights reserved.
+		<!-- <img src="/images/copy.jpg" alt="우리문구사 / 울산광역시 중구 약사동 595-11 / 대표 김성권 / 고객센터 0505)294-4083 / 사업자등록번호 606-08-44724 / 통신판매신고 울산2006-54호 / 이메일 sk4488@hotmail.com" /> --></address>
+	</div>
+</div>
+
+<!--// 네이버페이 로그수집공통함수 S-->
+<script type="text/javascript" src="https://wcs.naver.net/wcslog.js"></script>
+<script type="text/javascript">
+if(!wcs_add) var wcs_add = {};
+wcs_add["wa"] = "s_273f12c25448";
+// 유입 추적 함수 호출
+wcs.inflow("carddc.co.kr");
+wcs_do();
+</script>
+<!--// 네이버페이 로그수집공통함수 E-->
+
+<!-- 동봉 팝업에서 구매시 -->
+<form method="post" name="cart_pop" action="buy.html" target="_self" onsubmit="return false;">
+	<input type="hidden" name="mode" value="insert">
+	<input type="hidden" name="no" value="">
+	<input type="hidden" name="r_cost" value="">
+	<input type="hidden" name="point" value="">
+	<input type="hidden" name="other01" value="">
+	<input type="hidden" name="other02" value="">
+	<input type="hidden" name="other03" value="">
+	<input type="hidden" name="buynum" value="1" />
+	<input type="hidden" name="total_buynum" value="1">
+	<input type="hidden" name="shopbag_nums" value="">
+	<input type="hidden" name="precart" value="1">
+	<input type="hidden" name="accessory_nums" value="0">
+	<input type="hidden" name="cart_type" value="BUY" /><!--바로구매구분값-->
+</form>
+<!-- 동봉 팝업에서 구매시 -->
+	<!-- //footer -->
+
+	</div>
+</div>
+
+</body>
+</html>
