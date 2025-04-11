@@ -38,8 +38,20 @@ function filterTopSellers(cardsList, topN = 5) {
       }
     }
     
-    // 각 카드의 상품을 가격순으로 정렬
-    const sortedProducts = [...filteredProducts].sort((a, b) => a.price - b.price);
+    // 각 카드의 상품을 가격순으로 정렬, 가격이 같을 경우 배송비가 저렴한 판매처 우선
+    const sortedProducts = [...filteredProducts].sort((a, b) => {
+      // 우선 가격으로 정렬
+      if (a.price !== b.price) {
+        return a.price - b.price;
+      }
+      
+      // 가격이 같으면, 배송비로 정렬
+      const aInfo = getShippingInfo(getSellerId(a.site));
+      const bInfo = getShippingInfo(getSellerId(b.site));
+      
+      // 배송비 비교 (제주 지역 배송비 고려)
+      return aInfo.jejuShippingFee - bInfo.jejuShippingFee;
+    });
     
     // 이미 포함된 판매처 추적
     const includedSellers = new Set();
@@ -47,8 +59,9 @@ function filterTopSellers(cardsList, topN = 5) {
     
     // 상위 N개의 서로 다른 판매처만 선택
     for (const product of sortedProducts) {
-      if (!includedSellers.has(product.site) && includedSellers.size < topN) {
-        includedSellers.add(product.site);
+      const sellerId = getSellerId(product.site);
+      if (!includedSellers.has(sellerId) && includedSellers.size < topN) {
+        includedSellers.add(sellerId);
         filteredBySellerProducts.push(product);
       }
     }
@@ -291,6 +304,15 @@ function findApproximateOptimalPurchase(cardsList) {
 }
 
 /**
+ * 판매처 객체 또는 문자열에서 ID를 추출하는 함수
+ * @param {string|Object} seller - 판매처 정보
+ * @returns {string} - 판매처 ID
+ */
+function getSellerId(seller) {
+  return typeof seller === 'string' ? seller : (seller.name || seller.id || String(seller));
+}
+
+/**
  * 동적 프로그래밍 기법을 사용한 최적 조합 찾기
  * @param {Array<Object>} cardsList - 카드 목록
  * @param {Object} options - 추가 옵션
@@ -299,14 +321,28 @@ function findApproximateOptimalPurchase(cardsList) {
 function findOptimalPurchaseCombinationDP(cardsList, options = {}) {
   const shippingRegion = options.shippingRegion || 'default';
   
-  // 각 카드별로 상위 5개의 판매처만 고려
-  const reducedCardsList = filterTopSellers(cardsList, 5);
+  // 각 카드별로 상위 30개의 판매처 고려
+  const reducedCardsList = filterTopSellers(cardsList, 30);
+  
+  // 디버그 정보 출력 - 카드별 상품 목록
+  console.log("\n카드별 고려 대상 판매처 (가격 오름차순):");
+  reducedCardsList.forEach(card => {
+    console.log(`[${card.cardName}]`);
+    card.products.forEach((p, idx) => {
+      const sellerId = getSellerId(p.site);
+      const info = getShippingInfo(sellerId);
+      const shippingFee = shippingRegion === 'jeju' ? info.jejuShippingFee : 
+                          shippingRegion === 'island' ? info.islandShippingFee : 
+                          info.shippingFee;
+      console.log(`  ${idx+1}. ${sellerId}: ${p.price}원 (배송비: ${shippingFee}원, 무료배송: ${info.freeShippingThreshold}원)`);
+    });
+  });
   
   // 모든 가능한 판매처 목록
   const allSellers = new Set();
   reducedCardsList.forEach(card => {
     card.products.forEach(product => {
-      allSellers.add(product.site);
+      allSellers.add(getSellerId(product.site));
     });
   });
   const sellersList = Array.from(allSellers);
@@ -326,13 +362,13 @@ function findOptimalPurchaseCombinationDP(cardsList, options = {}) {
       case 'jeju':
         sellerShippingInfo[seller] = {
           ...info,
-          shippingFee: info.jejuShippingFee
+          shippingFee: info.jejuShippingFee || info.shippingFee
         };
         break;
       case 'island':
         sellerShippingInfo[seller] = {
           ...info,
-          shippingFee: info.islandShippingFee
+          shippingFee: info.islandShippingFee || info.shippingFee
         };
         break;
       default:
@@ -354,6 +390,7 @@ function findOptimalPurchaseCombinationDP(cardsList, options = {}) {
         const amount = sellerAmounts[i];
         if (amount > 0) {
           const { shippingFee, freeShippingThreshold } = sellerShippingInfo[seller];
+          // 배송비 계산 - 제주/도서 지역 고려
           const shippingCost = amount >= freeShippingThreshold ? 0 : shippingFee;
           totalCost += amount + shippingCost;
         }
@@ -382,7 +419,7 @@ function findOptimalPurchaseCombinationDP(cardsList, options = {}) {
     let bestSelections = [];
     
     for (const product of currentCard.products) {
-      const sellerIndex = sellersList.indexOf(product.site);
+      const sellerIndex = sellersList.indexOf(getSellerId(product.site));
       if (sellerIndex !== -1) {
         // 선택된 판매처의 금액 업데이트 (수량 고려)
         const newSellerAmounts = [...sellerAmounts];
@@ -395,7 +432,7 @@ function findOptimalPurchaseCombinationDP(cardsList, options = {}) {
         if (result.cost < minCost) {
           minCost = result.cost;
           bestSelections = [
-            { cardIndex, seller: product.site, product, quantity },
+            { cardIndex, seller: getSellerId(product.site), product, quantity },
             ...result.selections
           ];
         }
@@ -424,6 +461,12 @@ function findOptimalPurchaseCombinationDP(cardsList, options = {}) {
       message: "모든 카드를 구매할 수 있는 조합을 찾지 못했습니다."
     };
   }
+  
+  // DP 알고리즘을 통해 찾은 최적 조합 정보 출력
+  console.log('\n최적 조합 선택 과정:');
+  result.selections.forEach((selection, idx) => {
+    console.log(`${idx+1}. ${reducedCardsList[selection.cardIndex].cardName}: ${selection.seller} 에서 ${selection.product.price}원에 ${selection.quantity}장 구매`);
+  });
   
   // 판매처별 구매 내역 구성
   const purchaseDetails = {};
@@ -460,6 +503,7 @@ function findOptimalPurchaseCombinationDP(cardsList, options = {}) {
     const details = purchaseDetails[seller];
     if (details.subtotal > 0) {
       const { shippingFee, freeShippingThreshold } = sellerShippingInfo[seller];
+      // 최종 배송비 계산 (제주/도서 지역 고려)
       details.shippingFee = details.subtotal >= freeShippingThreshold ? 0 : shippingFee;
       details.total = details.subtotal + details.shippingFee;
       totalCost += details.total;
@@ -507,6 +551,104 @@ function findOptimalPurchaseCombinationDP(cardsList, options = {}) {
     };
   });
   
+  // 전체 판매처에서 구매 시 비용 계산
+  console.log("\n단일 판매처에서 모두 구매 시 총 비용:");
+  const singleSellerCosts = [];
+  
+  sellersList.forEach(seller => {
+    let allCardsAvailable = true;
+    let totalProductCost = 0;
+    
+    // 이 판매처에서 모든 카드를 구매할 수 있는지 확인
+    for (const card of reducedCardsList) {
+      const productFromSeller = card.products.find(p => getSellerId(p.site) === seller);
+      if (!productFromSeller) {
+        allCardsAvailable = false;
+        break;
+      }
+      totalProductCost += productFromSeller.price * (card.quantity || 1);
+    }
+    
+    if (allCardsAvailable) {
+      const { shippingFee, freeShippingThreshold } = sellerShippingInfo[seller];
+      const finalShippingFee = totalProductCost >= freeShippingThreshold ? 0 : shippingFee;
+      const totalCost = totalProductCost + finalShippingFee;
+      
+      singleSellerCosts.push({
+        seller,
+        productCost: totalProductCost,
+        shippingFee: finalShippingFee, 
+        totalCost
+      });
+      
+      console.log(`- ${seller}: 상품 ${totalProductCost.toLocaleString()}원 + 배송비 ${finalShippingFee.toLocaleString()}원 = ${totalCost.toLocaleString()}원`);
+    }
+  });
+  
+  // 단일 판매처 최적 조합이 있으면 DP 결과와 비교
+  if (singleSellerCosts.length > 0) {
+    singleSellerCosts.sort((a, b) => a.totalCost - b.totalCost);
+    const bestSingleSeller = singleSellerCosts[0];
+    
+    if (bestSingleSeller.totalCost < result.cost) {
+      console.log(`\n단일 판매처(${bestSingleSeller.seller})에서 구매가 더 저렴합니다: ${bestSingleSeller.totalCost.toLocaleString()}원 vs DP 결과 ${result.cost.toLocaleString()}원`);
+      
+      // 단일 판매처 구매 내역 구성
+      const singleSellerPurchaseDetails = {};
+      singleSellerPurchaseDetails[bestSingleSeller.seller] = {
+        cards: [],
+        subtotal: 0,
+        shippingFee: bestSingleSeller.shippingFee,
+        total: bestSingleSeller.totalCost
+      };
+      
+      const selections = [];
+      for (let i = 0; i < reducedCardsList.length; i++) {
+        const card = reducedCardsList[i];
+        const product = card.products.find(p => getSellerId(p.site) === bestSingleSeller.seller);
+        const quantity = card.quantity || 1;
+        
+        singleSellerPurchaseDetails[bestSingleSeller.seller].cards.push({
+          cardName: card.cardName,
+          price: product.price,
+          product,
+          quantity
+        });
+        
+        singleSellerPurchaseDetails[bestSingleSeller.seller].subtotal += product.price * quantity;
+        
+        selections.push({
+          cardIndex: i,
+          seller: bestSingleSeller.seller,
+          product,
+          quantity
+        });
+      }
+      
+      // 단일 판매처 결과 반환
+      return {
+        success: true,
+        totalCost: bestSingleSeller.totalCost,
+        totalProductCost: bestSingleSeller.productCost,
+        totalShippingCost: bestSingleSeller.shippingFee,
+        sellers: [bestSingleSeller.seller],
+        purchaseDetails: singleSellerPurchaseDetails,
+        cardsOptimalPurchase: selections.map(selection => {
+          const { cardIndex, seller, product, quantity } = selection;
+          return {
+            cardName: reducedCardsList[cardIndex].cardName,
+            seller,
+            price: product.price,
+            totalPrice: product.price * quantity,
+            quantity,
+            product
+          };
+        }),
+        shippingRegion
+      };
+    }
+  }
+  
   return {
     success: true,
     totalCost,
@@ -534,7 +676,7 @@ function findOptimalPurchaseCombinationBruteForce(cardsList) {
     const { cardName, products } = cardInfo;
     
     products.forEach(product => {
-      const sellerName = product.site;
+      const sellerName = getSellerId(product.site);
       uniqueSellers.add(sellerName);
       
       if (!sellerCards[sellerName]) {
@@ -712,13 +854,21 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
   const uniqueSellers = new Set();
   cardsList.forEach(card => {
     card.products.forEach(product => {
-      uniqueSellers.add(product.site);
+      uniqueSellers.add(getSellerId(product.site));
     });
   });
   const sellerCount = uniqueSellers.size;
   
   console.log(`카드 수: ${cardsList.length}, 판매처 수: ${sellerCount}`);
   
+  // 발견된 판매처 목록 출력
+  console.log('발견된 판매처 목록:');
+  const sellersArray = Array.from(uniqueSellers);
+  sellersArray.forEach(seller => {
+    const info = getShippingInfo(seller);
+    console.log(`- ${seller}: 배송비 ${info.shippingFee}원, 제주 ${info.jejuShippingFee}원, 무료배송 기준 ${info.freeShippingThreshold}원`);
+  });
+
   // 레어도 조건이 있는 카드 목록 출력
   const cardsWithRarity = cardsList.filter(card => card.desiredRarity);
   if (cardsWithRarity.length > 0) {

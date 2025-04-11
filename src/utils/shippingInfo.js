@@ -475,13 +475,25 @@ function shouldSkipMarketplace(sellerName) {
 }
 
 /**
- * 판매자 이름으로 배송비 정보를 가져옵니다
- * @param {string} site - 판매 사이트 (tcgshop, carddc, onlyyugioh 또는 네이버 판매자명)
+ * 판매처 객체 또는 문자열에서 ID를 추출하는 함수
+ * @param {string|Object} seller - 판매처 정보
+ * @returns {string} - 판매처 ID
+ */
+function getSellerId(seller) {
+  return typeof seller === 'string' ? seller : (seller.name || seller.id || String(seller));
+}
+
+/**
+ * 배송비 정보를 반환하는 함수
+ * @param {string|Object} site - 판매 사이트
  * @returns {Object} - 배송비와 무료배송 기준액
  */
 function getShippingInfo(site) {
+  // site가 객체인 경우 사이트 이름 추출
+  const siteStr = getSellerId(site);
+  
   // 사이트 이름을 소문자로 변환하여 비교
-  const siteLower = site.toLowerCase();
+  const siteLower = siteStr.toLowerCase();
   
   if (siteLower === 'tcgshop') {
     return shippingInfo.tcgshop;
@@ -491,7 +503,7 @@ function getShippingInfo(site) {
     return shippingInfo.onlyyugioh;
   } else {
     // 네이버 판매자인 경우 정규화된 이름으로 비교
-    const normalizedSellerName = normalizeSellerName(site);
+    const normalizedSellerName = normalizeSellerName(siteStr);
     
     // 모든 판매자 키를 확인하면서 정규화된 이름과 일치하는지 검사
     for (const seller in naverSellerShippingInfo) {
@@ -507,7 +519,7 @@ function getShippingInfo(site) {
 
 /**
  * 지역에 따른 배송비를 계산합니다
- * @param {string} site - 판매 사이트
+ * @param {string|Object} site - 판매 사이트
  * @param {string} region - 지역 타입 (default, jeju, island)
  * @param {number} totalPrice - 주문 총 금액
  * @returns {number} - 최종 배송비
@@ -550,5 +562,6 @@ module.exports = {
   updateNaverSellerShippingInfo,
   normalizeSellerName,
   REGION_TYPES,
-  shouldSkipMarketplace
+  shouldSkipMarketplace,
+  getSellerId
 }; 

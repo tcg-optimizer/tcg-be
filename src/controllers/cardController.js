@@ -33,7 +33,15 @@ exports.getAllCards = async (req, res) => {
 // 특정 카드 가격 정보 가져오기
 exports.getCardByName = async (req, res) => {
   try {
-    const cardName = req.params.cardName;
+    const { cardName } = req.query;
+    
+    if (!cardName) {
+      return res.status(400).json({
+        success: false,
+        error: '카드 이름은 필수 파라미터입니다. ?cardName=카드이름 형식으로 요청해주세요.'
+      });
+    }
+    
     console.log(`[DEBUG] 카드 검색 요청: "${cardName}"`);
     
     // 1. 먼저 네이버 쇼핑 API로 실시간 검색 시도
@@ -188,14 +196,29 @@ exports.getCardByName = async (req, res) => {
 // 특정 카드의 최저가 정보 가져오기
 exports.getLowestPrice = async (req, res) => {
   // GET /api/cards/:cardName가 제거되었으므로 레어도별 가격 정보 API로 리다이렉트
-  return res.redirect(`/api/cards/rarity-prices/${req.params.cardName}?${new URLSearchParams(req.query)}`);
+  const { cardName } = req.query;
+  
+  if (!cardName) {
+    return res.status(400).json({
+      success: false,
+      error: '카드 이름은 필수 파라미터입니다. ?cardName=카드이름 형식으로 요청해주세요.'
+    });
+  }
+  
+  return res.redirect(`/api/cards/rarity-prices?cardName=${encodeURIComponent(cardName)}&${new URLSearchParams(req.query).toString().replace(`cardName=${encodeURIComponent(cardName)}&`, '')}`);
 };
 
 // 레어도별 카드 가격 정보 가져오기
 exports.getPricesByRarity = async (req, res) => {
   try {
-    const cardName = req.params.cardName;
-    const { includeUsed = 'true' } = req.query; // 중고 상품 포함 여부 (기본값: true)
+    const { cardName, includeUsed = 'true' } = req.query; // 쿼리 스트링에서 카드 이름과 중고 상품 포함 여부 가져오기
+    
+    if (!cardName) {
+      return res.status(400).json({
+        success: false,
+        error: '카드 이름은 필수 파라미터입니다. ?cardName=카드이름 형식으로 요청해주세요.'
+      });
+    }
     
     console.log(`[DEBUG] 레어도별 가격 정보 검색: "${cardName}", 중고포함=${includeUsed}`);
     
@@ -289,18 +312,23 @@ exports.getPricesByRarity = async (req, res) => {
     // 모든 가격 정보를 가격 오름차순으로 정렬
     const allPricesSorted = [...cardFilteredPrices].sort((a, b) => a.price - b.price);
     
-    // 레어도별로 가격 정보 그룹화
+    // 언어별, 레어도별로 가격 정보 그룹화
     const rarityPrices = {};
     
-    // 가격들을 레어도별로 그룹화
+    // 가격들을 언어별, 레어도별로 그룹화
     cardFilteredPrices.forEach(price => {
+      const language = price.language || '알 수 없음';
       const rarity = price.rarity || '알 수 없음';
       
-      if (!rarityPrices[rarity]) {
-        rarityPrices[rarity] = [];
+      if (!rarityPrices[language]) {
+        rarityPrices[language] = {};
       }
       
-      rarityPrices[rarity].push({
+      if (!rarityPrices[language][rarity]) {
+        rarityPrices[language][rarity] = [];
+      }
+      
+      rarityPrices[language][rarity].push({
         id: price.id,
         price: price.price,
         site: price.site,
@@ -314,9 +342,11 @@ exports.getPricesByRarity = async (req, res) => {
       });
     });
     
-    // 각 레어도 그룹 내에서 가격 오름차순 정렬
-    Object.keys(rarityPrices).forEach(rarity => {
-      rarityPrices[rarity].sort((a, b) => a.price - b.price);
+    // 각 언어와 레어도 그룹 내에서 가격 오름차순 정렬
+    Object.keys(rarityPrices).forEach(language => {
+      Object.keys(rarityPrices[language]).forEach(rarity => {
+        rarityPrices[language][rarity].sort((a, b) => a.price - b.price);
+      });
     });
 
     // 가격 정보를 캐시에 저장하고 ID 발급
@@ -365,12 +395,12 @@ exports.getPricesByRarity = async (req, res) => {
 // 네이버 스토어에서 카드 가격 크롤링
 exports.crawlNaverStorePrice = async (req, res) => {
   try {
-    const { cardName } = req.params;
+    const { cardName } = req.query;
     
     if (!cardName) {
       return res.status(400).json({ 
         success: false, 
-        error: '카드 이름이 필요합니다.' 
+        error: '카드 이름은 필수 파라미터입니다. ?cardName=카드이름 형식으로 요청해주세요.' 
       });
     }
     
@@ -403,13 +433,13 @@ exports.crawlNaverStorePrice = async (req, res) => {
 // 네이버 쇼핑 API를 사용하여 카드 가격 검색
 exports.searchNaverShopApi = async (req, res) => {
   try {
-    const { cardName } = req.params;
+    const { cardName } = req.query;
     console.log(`[DEBUG] 네이버 쇼핑 API 요청: ${cardName}`);
     
     if (!cardName) {
       return res.status(400).json({ 
         success: false, 
-        error: '카드 이름이 필요합니다.' 
+        error: '카드 이름은 필수 파라미터입니다. ?cardName=카드이름 형식으로 요청해주세요.' 
       });
     }
     
@@ -445,11 +475,14 @@ exports.searchNaverShopApi = async (req, res) => {
 // 네이버 API 직접 테스트
 exports.testNaverApi = async (req, res) => {
   try {
-    const { cardName } = req.params;
+    const { cardName } = req.query;
     console.log(`[DEBUG] 네이버 API 테스트: ${cardName}`);
     
     if (!cardName) {
-      return res.status(400).json({ success: false, error: '카드 이름이 필요합니다.' });
+      return res.status(400).json({ 
+        success: false, 
+        error: '카드 이름은 필수 파라미터입니다. ?cardName=카드이름 형식으로 요청해주세요.' 
+      });
     }
     
     const clientId = process.env.NAVER_CLIENT_ID;
@@ -563,13 +596,13 @@ exports.testRarityParsing = async (req, res) => {
 // TCGShop에서 카드 가격 검색
 exports.searchTCGShop = async (req, res) => {
   try {
-    const { cardName } = req.params;
+    const { cardName } = req.query;
     console.log(`[DEBUG] TCGShop 검색 요청: ${cardName}`);
     
     if (!cardName) {
       return res.status(400).json({ 
         success: false, 
-        error: '카드 이름이 필요합니다.' 
+        error: '카드 이름은 필수 파라미터입니다. ?cardName=카드이름 형식으로 요청해주세요.' 
       });
     }
     
@@ -618,13 +651,13 @@ exports.searchTCGShop = async (req, res) => {
 // CardDC에서 카드 가격 검색
 exports.searchCardDC = async (req, res) => {
   try {
-    const { cardName } = req.params;
+    const { cardName } = req.query;
     console.log(`[DEBUG] CardDC 검색 요청: ${cardName}`);
     
     if (!cardName) {
       return res.status(400).json({ 
         success: false, 
-        error: '카드 이름이 필요합니다.' 
+        error: '카드 이름은 필수 파라미터입니다. ?cardName=카드이름 형식으로 요청해주세요.' 
       });
     }
     
@@ -673,13 +706,13 @@ exports.searchCardDC = async (req, res) => {
 // OnlyYugioh에서 카드 가격 검색
 exports.searchOnlyYugioh = async (req, res) => {
   try {
-    const { cardName } = req.params;
+    const { cardName } = req.query;
     console.log(`[DEBUG] OnlyYugioh 검색 요청: ${cardName}`);
     
     if (!cardName) {
       return res.status(400).json({ 
         success: false, 
-        error: '카드 이름이 필요합니다.' 
+        error: '카드 이름은 필수 파라미터입니다. ?cardName=카드이름 형식으로 요청해주세요.' 
       });
     }
     
@@ -788,7 +821,7 @@ exports.getCachedPrices = async (req, res) => {
  * @param {Object} res - HTTP 응답 객체
  * @returns {Promise<void>}
  */
-const getOptimalPurchaseCombination = async (req, res) => {
+exports.getOptimalPurchaseCombination = async (req, res) => {
   try {
     // 요청 데이터 확인
     const { 
@@ -854,7 +887,7 @@ const getOptimalPurchaseCombination = async (req, res) => {
             console.log(`'${card.name}' 캐시 만료 또는 없음`);
             return res.status(410).json({
               success: false,
-              message: `'${card.name}' 카드의 가격 정보가 만료되었거나 존재하지 않습니다. 다시 /api/cards/rarity-prices/${encodeURIComponent(card.name)} API를 호출하여 새로운 캐시 ID를 얻어주세요.`,
+              message: `'${card.name}' 카드의 가격 정보가 만료되었거나 존재하지 않습니다. 다시 /api/cards/rarity-prices?cardName=${encodeURIComponent(card.name)} API를 호출하여 새로운 캐시 ID를 얻어주세요.`,
               invalidCacheId: card.cacheId
             });
           }
@@ -866,43 +899,66 @@ const getOptimalPurchaseCombination = async (req, res) => {
           let products = [];
           const rarityPrices = priceCache.rarityPrices;
           
-          if (card.rarity && rarityPrices[card.rarity]) {
-            // 선택된 레어도 상품 중 필터링
-            const rarityProducts = rarityPrices[card.rarity];
-            
-            // 언어 선택이 있는 경우 해당 언어로 필터링
-            if (card.language) {
-              const languageProducts = rarityProducts.filter(product => 
-                product.language === card.language
-              );
+          if (card.rarity) {
+            // 언어 선택이 있는 경우
+            if (card.language && rarityPrices[card.language] && rarityPrices[card.language][card.rarity]) {
+              // 선택된 언어와 레어도에 해당하는 상품 가져오기
+              products = rarityPrices[card.language][card.rarity];
+            } 
+            // 언어 선택이 없는 경우
+            else if (!card.language) {
+              // 모든 언어에서 해당 레어도 상품 찾기
+              products = [];
+              Object.keys(rarityPrices).forEach(language => {
+                if (rarityPrices[language][card.rarity]) {
+                  products = products.concat(rarityPrices[language][card.rarity]);
+                }
+              });
+            }
+            // 선택한 언어에 해당 레어도가 없는 경우
+            else if (card.language && rarityPrices[card.language] && !rarityPrices[card.language][card.rarity]) {
+              console.log(`'${card.name}' 카드의 '${card.language}' 언어에서 '${card.rarity}' 레어도 상품을 찾을 수 없습니다.`);
               
-              // 선택한 레어도와 언어 조합이 없는 경우
-              if (languageProducts.length === 0) {
-                console.log(`'${card.name}' 카드의 '${card.rarity}' 레어도에서 '${card.language}' 언어 상품을 찾을 수 없습니다.`);
-                
-                // 가능한 언어 목록 제공
-                const availableLanguages = [...new Set(rarityProducts.map(p => p.language))];
-                
-                return {
-                  cardName: card.name,
-                  desiredRarity: card.rarity,
-                  desiredLanguage: card.language,
-                  quantity: card.quantity || 1,
-                  products: [],
-                  availableLanguages
-                };
-              }
+              // 선택한 언어에서 가능한 레어도 목록 제공
+              const availableRarities = Object.keys(rarityPrices[card.language]);
               
-              products = languageProducts;
-            } else {
-              // 언어 선택이 없으면 모든 언어 상품 포함
-              products = rarityProducts;
+              return {
+                cardName: card.name,
+                desiredRarity: card.rarity,
+                desiredLanguage: card.language,
+                quantity: card.quantity || 1,
+                products: [],
+                availableRarities
+              };
+            }
+            // 선택한 언어가 없는 경우
+            else if (card.language && !rarityPrices[card.language]) {
+              console.log(`'${card.name}' 카드에 '${card.language}' 언어 상품이 없습니다.`);
+              
+              // 가능한 언어 목록 제공
+              const availableLanguages = Object.keys(rarityPrices);
+              
+              return {
+                cardName: card.name,
+                desiredRarity: card.rarity,
+                desiredLanguage: card.language,
+                quantity: card.quantity || 1,
+                products: [],
+                availableLanguages
+              };
             }
           } else {
-            console.log(`'${card.name}' 카드에 대한 레어도 '${card.rarity}'의 가격 정보가 없습니다.`);
+            console.log(`'${card.name}' 카드에 대한 레어도 정보가 없습니다.`);
             
-            // 가능한 레어도 목록 제공
-            const availableRarities = Object.keys(rarityPrices);
+            // 가능한 언어와 레어도 목록 제공
+            const availableLanguages = Object.keys(rarityPrices);
+            const availableRarities = new Set();
+            
+            availableLanguages.forEach(language => {
+              Object.keys(rarityPrices[language]).forEach(rarity => {
+                availableRarities.add(rarity);
+              });
+            });
             
             return {
               cardName: card.name,
@@ -910,7 +966,8 @@ const getOptimalPurchaseCombination = async (req, res) => {
               desiredLanguage: card.language,
               quantity: card.quantity || 1,
               products: [],
-              availableRarities
+              availableLanguages,
+              availableRarities: [...availableRarities]
             };
           }
           
@@ -1023,9 +1080,58 @@ const getOptimalPurchaseCombination = async (req, res) => {
       }
     }));
     
-    // 이미지 정보를 결과에 추가
+    // 판매자별 카드 정보 재구성
+    const sellerCardsMap = {};
+    
+    // 카드별 최적 구매 정보 처리
+    optimalCombination.cardsOptimalPurchase.forEach(card => {
+      const seller = card.seller;
+      const product = card.product ? {
+        price: card.product.price,
+        rarity: card.product.rarity,
+        language: card.product.language,
+        site: card.product.site,
+        url: card.product.url,
+        cardCode: card.product.cardCode
+      } : null;
+      
+      if (!sellerCardsMap[seller]) {
+        sellerCardsMap[seller] = {
+          cards: [],
+          subtotal: 0,
+          shippingCost: 0
+        };
+      }
+      
+      const processedCard = {
+        cardName: card.cardName,
+        price: card.price,
+        quantity: card.quantity || 1,
+        totalPrice: card.totalPrice || (card.price * (card.quantity || 1)),
+        product: product
+      };
+      
+      sellerCardsMap[seller].cards.push(processedCard);
+      sellerCardsMap[seller].subtotal += processedCard.totalPrice;
+    });
+    
+    // 배송비 정보 추가
+    if (optimalCombination.sellers) {
+      optimalCombination.sellers.forEach(seller => {
+        if (sellerCardsMap[seller.name]) {
+          sellerCardsMap[seller.name].shippingCost = seller.shippingCost || 0;
+        }
+      });
+    }
+    
+    // 응답 구성
     const response = {
-      ...optimalCombination,
+      success: true,
+      totalPrice: optimalCombination.totalProductCost || 0,
+      totalShippingCost: optimalCombination.totalShippingCost || 0,
+      finalPrice: optimalCombination.totalCost || 0,
+      shippingRegion: optimalCombination.shippingRegion || shippingRegion,
+      cardsOptimalPurchase: sellerCardsMap,
       cardImages,
       notFoundCards: cards
         .filter(card => !validCardsResults.some(vc => vc.cardName === card.name))
@@ -1036,28 +1142,6 @@ const getOptimalPurchaseCombination = async (req, res) => {
     if (invalidRarityCards.length > 0) {
       response.invalidRarityLanguageCards = invalidRarityCards;
     }
-    
-    // 클라이언트에 반환할 때는 민감한 정보 필터링
-    response.cardsOptimalPurchase = response.cardsOptimalPurchase.map(card => {
-      // 제품 객체에서 필요한 정보만 포함
-      const product = card.product ? {
-        price: card.product.price,
-        rarity: card.product.rarity,
-        language: card.product.language,
-        site: card.product.site,
-        url: card.product.url,
-        cardCode: card.product.cardCode
-      } : null;
-      
-      return {
-        cardName: card.cardName,
-        seller: card.seller,
-        price: card.price,
-        quantity: card.quantity || 1,  // 수량 정보 추가
-        totalPrice: card.totalPrice || card.price,  // 총 가격 정보 추가
-        product: product
-      };
-    });
 
     // 응답 반환
     return res.json(response);
@@ -1073,16 +1157,16 @@ const getOptimalPurchaseCombination = async (req, res) => {
 };
 
 module.exports = {
-  getAllCards,
-  getLowestPrice,
-  getPricesByRarity,
-  crawlNaverStorePrice,
-  searchNaverShopApi,
-  testNaverApi,
-  testRarityParsing,
-  searchTCGShop,
-  searchCardDC,
-  searchOnlyYugioh,
-  getOptimalPurchaseCombination,
-  getCachedPrices
+  getAllCards: exports.getAllCards,
+  getLowestPrice: exports.getLowestPrice,
+  getPricesByRarity: exports.getPricesByRarity,
+  crawlNaverStorePrice: exports.crawlNaverStorePrice,
+  searchNaverShopApi: exports.searchNaverShopApi,
+  testNaverApi: exports.testNaverApi,
+  testRarityParsing: exports.testRarityParsing,
+  searchTCGShop: exports.searchTCGShop,
+  searchCardDC: exports.searchCardDC,
+  searchOnlyYugioh: exports.searchOnlyYugioh,
+  getOptimalPurchaseCombination: exports.getOptimalPurchaseCombination,
+  getCachedPrices: exports.getCachedPrices
 }; 

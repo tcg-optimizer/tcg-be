@@ -9,11 +9,13 @@ const { findOptimalPurchaseCombination } = require('./utils/optimizedPurchase');
  * 단일 카드의 가격 정보를 모든 소스에서 검색
  * @param {string} cardName - 검색할 카드 이름
  * @param {string} desiredRarity - 원하는 레어도 (선택적)
+ * @param {string} desiredLanguage - 원하는 언어 (선택적)
+ * @param {number} quantity - 구매할 카드 수량 (기본값: 1)
  * @returns {Promise<Object>} - 카드 이름, 레어도 목록, 상품 목록
  */
-async function searchCardPrices(cardName, desiredRarity = null) {
+async function searchCardPrices(cardName, desiredRarity = null, desiredLanguage = null, quantity = 1) {
   try {
-    console.log(`'${cardName}'${desiredRarity ? ` (${desiredRarity})` : ''} 카드 가격 검색 중...`);
+    console.log(`'${cardName}'${desiredRarity ? ` (${desiredRarity})` : ''}${desiredLanguage ? ` [${desiredLanguage}]` : ''} ${quantity}장 카드 가격 검색 중...`);
     
     // 검색 결과를 저장할 배열
     let allProducts = [];
@@ -86,9 +88,26 @@ async function searchCardPrices(cardName, desiredRarity = null) {
       )) // 카드가 아닌 상품 제외
       .sort((a, b) => a.price - b.price); // 가격 오름차순 정렬
 
+    // 레어도와 언어 필터링
+    if (desiredRarity) {
+      allProducts = allProducts.filter(product => 
+        product.rarity && product.rarity.includes(desiredRarity)
+      );
+    }
+
+    if (desiredLanguage) {
+      allProducts = allProducts.filter(product => 
+        product.language && product.language.includes(desiredLanguage)
+      );
+    }
+
     // 발견된 레어도 목록 추출 (프론트엔드에서 사용)
     const rarities = new Set(allProducts.map(p => p.rarity).filter(r => r && r !== '알 수 없음'));
     const availableRarities = Array.from(rarities);
+    
+    // 발견된 언어 목록 추출
+    const languages = new Set(allProducts.map(p => p.language).filter(l => l && l !== '알 수 없음'));
+    const availableLanguages = Array.from(languages);
     
     // 상품이 검색되지 않은 경우 빈 배열 반환
     if (allProducts.length === 0) {
@@ -97,6 +116,9 @@ async function searchCardPrices(cardName, desiredRarity = null) {
       // 검색된 상품의 레어도 정보 출력
       if (availableRarities.length > 0) {
         console.log(`발견된 레어도: ${availableRarities.join(', ')}`);
+      }
+      if (availableLanguages.length > 0) {
+        console.log(`발견된 언어: ${availableLanguages.join(', ')}`);
       }
     }
     
@@ -116,7 +138,10 @@ async function searchCardPrices(cardName, desiredRarity = null) {
     return {
       cardName,
       desiredRarity,
+      desiredLanguage,
+      quantity,
       availableRarities,
+      availableLanguages,
       cheapestByRarity,
       products: allProducts
     };
@@ -125,7 +150,10 @@ async function searchCardPrices(cardName, desiredRarity = null) {
     return {
       cardName,
       desiredRarity,
+      desiredLanguage,
+      quantity,
       availableRarities: [],
+      availableLanguages: [],
       cheapestByRarity: {},
       products: []
     };
@@ -134,16 +162,31 @@ async function searchCardPrices(cardName, desiredRarity = null) {
 
 /**
  * 여러 카드의 최적 구매 조합을 찾는 함수
- * @param {Array<Object>} cardList - 검색할 카드 정보 (이름과 레어도)
+ * @param {Array<Object>} cardList - 검색할 카드 정보 (이름, 레어도, 언어, 수량)
+ * @param {Object} options - 추가 옵션 (배송 지역 등)
+ * @returns {Promise<Object>} - 최적 구매 조합 결과
  */
-async function findOptimalCardsPurchase(cardList) {
+async function findOptimalCardsPurchase(cardList, options = {}) {
   try {
     console.log('카드 검색 시작...\n');
     
+    // 기본 옵션 설정
+    const defaultOptions = {
+      shippingRegion: 'default' // 기본 배송 지역
+    };
+    
+    const mergedOptions = { ...defaultOptions, ...options };
+    
     // 1. 각 카드의 가격 정보 검색
     const cardsPromises = cardList.map(card => 
-      searchCardPrices(card.name, card.rarity)
+      searchCardPrices(
+        card.name, 
+        card.rarity, 
+        card.language,
+        card.quantity || 1
+      )
     );
+    
     const cardsSearchResults = await Promise.all(cardsPromises);
     
     // 각 카드의 사용 가능한 레어도 정보 출력
@@ -162,7 +205,10 @@ async function findOptimalCardsPurchase(cardList) {
     
     if (validCardsResults.length === 0) {
       console.log('유효한 카드 정보를 찾을 수 없습니다.');
-      return;
+      return {
+        success: false,
+        message: '유효한 카드 정보를 찾을 수 없습니다.'
+      };
     }
     
     if (validCardsResults.length < cardList.length) {
@@ -172,24 +218,33 @@ async function findOptimalCardsPurchase(cardList) {
     // 3. 최적 구매 조합 찾기 - 동적 프로그래밍 방식만 사용
     console.log('\n최적 구매 조합 계산 중...');
     console.time('최적화 계산 시간');
-    const optimalCombination = findOptimalPurchaseCombination(validCardsResults);
+    const optimalCombination = findOptimalPurchaseCombination(validCardsResults, mergedOptions);
     console.timeEnd('최적화 계산 시간');
     
     // 4. 결과 출력
     if (!optimalCombination.success) {
       console.log('최적 구매 조합을 찾지 못했습니다:', optimalCombination.message);
-      return;
+      return optimalCombination;
     }
     
-    // 5. 상세 정보 출력
+    // 5. 결과 정보 구성
     console.log('\n=== 최적 구매 조합 결과 ===');
     console.log(`총 비용: ${optimalCombination.totalCost.toLocaleString()}원`);
     console.log(`판매처 수: ${optimalCombination.sellers.length}개 (${optimalCombination.sellers.join(', ')})`);
     
     console.log('\n=== 판매처별 구매 내역 ===');
     for (const seller of optimalCombination.sellers) {
-      const details = optimalCombination.purchaseDetails[seller];
-      console.log(`\n[${seller}]`);
+      // seller가 문자열인지 객체인지 확인
+      const sellerKey = getSellerId(seller);
+      const details = optimalCombination.purchaseDetails[sellerKey];
+      
+      if (!details || !details.cards) {
+        console.log(`\n[${sellerKey || '알 수 없는 판매처'}]`);
+        console.log('구매 내역을 표시할 수 없습니다.');
+        continue;
+      }
+      
+      console.log(`\n[${sellerKey}]`);
       console.log(`카드 수: ${details.cards.length}개`);
       console.log(`소계: ${details.subtotal.toLocaleString()}원`);
       console.log(`배송비: ${details.shippingFee.toLocaleString()}원`);
@@ -197,25 +252,160 @@ async function findOptimalCardsPurchase(cardList) {
       
       console.log('\n구매 카드 목록:');
       details.cards.forEach((card, index) => {
-        console.log(`${index + 1}. ${card.cardName}: ${card.price.toLocaleString()}원 ${card.product && card.product.rarity ? `(${card.product.rarity})` : ''}`);
+        console.log(`${index + 1}. ${card.cardName}: ${card.price.toLocaleString()}원 x ${card.quantity || 1}장 = ${(card.price * (card.quantity || 1)).toLocaleString()}원 ${card.product && card.product.rarity ? `(${card.product.rarity})` : ''}`);
       });
     }
     
     console.log('\n=== 카드별 최적 구매처 ===');
     optimalCombination.cardsOptimalPurchase.forEach((card, index) => {
-      console.log(`${index + 1}. ${card.cardName}: ${card.seller} - ${card.price.toLocaleString()}원 ${card.product && card.product.rarity ? `(${card.product.rarity})` : ''}`);
+      console.log(`${index + 1}. ${card.cardName}: ${card.seller} - ${card.price.toLocaleString()}원 x ${card.quantity || 1}장 = ${(card.price * (card.quantity || 1)).toLocaleString()}원 ${card.product && card.product.rarity ? `(${card.product.rarity})` : ''}`);
     });
+    
+    return optimalCombination;
   } catch (error) {
     console.error('최적 구매 조합 검색 중 오류 발생:', error);
-    throw error;
+    return {
+      success: false,
+      message: `최적 구매 조합 검색 중 오류 발생: ${error.message}`
+    };
   }
 }
 
-// 명령줄 옵션 파싱 함수 수정 - 카드 이름과 레어도를 함께 처리
+/**
+ * 판매처 객체 또는 문자열에서 ID를 추출하는 함수
+ * @param {string|Object} seller - 판매처 정보
+ * @returns {string} - 판매처 ID
+ */
+function getSellerId(seller) {
+  return typeof seller === 'string' ? seller : (seller.name || seller.id || String(seller));
+}
+
+// API 요청 처리 함수
+/**
+ * 최적 구매 조합을 계산하는 API 핸들러
+ * @param {Object} req - 요청 객체
+ * @param {Object} res - 응답 객체
+ * @returns {Promise<void>}
+ */
+async function getOptimalPurchaseCombination(req, res) {
+  try {
+    // 요청 데이터 확인
+    const { 
+      cards, 
+      shippingRegion = 'default'
+    } = req.body;
+    
+    if (!cards || !Array.isArray(cards) || cards.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: '카드 목록은 필수이며, 비어있지 않은 배열이어야 합니다.'
+      });
+    }
+
+    // 지역 유효성 검사
+    if (!['default', 'jeju', 'island'].includes(shippingRegion)) {
+      return res.status(400).json({
+        success: false,
+        message: '유효하지 않은 배송 지역입니다. default, jeju, island 중 하나여야 합니다.'
+      });
+    }
+    
+    // 필수 필드 검증
+    const invalidCards = cards.filter(card => !card.name);
+    if (invalidCards.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: '모든 카드는 name 필드가 필수입니다.',
+        invalidCards
+      });
+    }
+    
+    console.log(`${cards.length}개 유형의 카드에 대한 최적 구매 조합 계산 요청 (배송지역: ${shippingRegion})`);
+    
+    // 최적 구매 조합 계산
+    const options = { shippingRegion };
+    const optimalCombination = await findOptimalCardsPurchase(cards, options);
+    
+    // 결과 반환
+    if (!optimalCombination.success) {
+      return res.status(404).json({
+        success: false,
+        message: '최적 구매 조합을 찾지 못했습니다.',
+        error: optimalCombination.message
+      });
+    }
+    
+    // 판매자별 카드 정보 재구성
+    const sellerCardsMap = {};
+    
+    // 카드별 최적 구매 정보 처리
+    optimalCombination.cardsOptimalPurchase.forEach(card => {
+      const seller = getSellerId(card.seller);
+      const product = card.product ? {
+        price: card.product.price,
+        rarity: card.product.rarity,
+        language: card.product.language,
+        site: card.product.site,
+        url: card.product.url,
+        cardCode: card.product.cardCode
+      } : null;
+      
+      if (!sellerCardsMap[seller]) {
+        sellerCardsMap[seller] = {
+          cards: [],
+          subtotal: 0,
+          shippingCost: 0
+        };
+      }
+      
+      const processedCard = {
+        cardName: card.cardName,
+        price: card.price,
+        quantity: card.quantity || 1,
+        totalPrice: card.price * (card.quantity || 1),
+        product: product
+      };
+      
+      sellerCardsMap[seller].cards.push(processedCard);
+      sellerCardsMap[seller].subtotal += processedCard.totalPrice;
+    });
+    
+    // 배송비 정보 추가
+    optimalCombination.sellers.forEach(seller => {
+      const sellerKey = getSellerId(seller);
+      
+      if (sellerCardsMap[sellerKey]) {
+        const details = optimalCombination.purchaseDetails[sellerKey];
+        sellerCardsMap[sellerKey].shippingCost = details ? details.shippingFee : 0;
+      }
+    });
+    
+    // 응답 구성
+    return res.json({
+      success: true,
+      totalPrice: optimalCombination.totalProductCost || 0,
+      totalShippingCost: optimalCombination.totalShippingCost || 0,
+      finalPrice: optimalCombination.totalCost || 0,
+      shippingRegion: optimalCombination.shippingRegion || shippingRegion,
+      cardsOptimalPurchase: sellerCardsMap
+    });
+    
+  } catch (error) {
+    console.error('최적 구매 조합 계산 중 오류 발생:', error);
+    return res.status(500).json({
+      success: false,
+      message: '최적 구매 조합 계산 중 오류가 발생했습니다.',
+      error: error.message
+    });
+  }
+}
+
+// 명령줄에서 실행 시 사용할 함수
 function parseCommandLineArgs() {
   const args = process.argv.slice(2);
   const options = {
-    cardList: []
+    cardList: [],
+    shippingRegion: 'default'
   };
   
   for (let i = 0; i < args.length; i++) {
@@ -224,26 +414,24 @@ function parseCommandLineArgs() {
     if (arg === '--help' || arg === '-h') {
       showHelp();
       process.exit(0);
+    } else if (arg.startsWith('--region=')) {
+      options.shippingRegion = arg.substring(9);
     } else if (arg.startsWith('--card=')) {
-      // --card="카드이름:레어도" 형식 처리
+      // --card="카드이름:레어도:언어:수량" 형식 처리
       const cardInfo = arg.substring(7).split(':');
       options.cardList.push({
         name: cardInfo[0],
-        rarity: cardInfo.length > 1 ? cardInfo[1] : null
+        rarity: cardInfo.length > 1 ? cardInfo[1] : null,
+        language: cardInfo.length > 2 ? cardInfo[2] : null,
+        quantity: cardInfo.length > 3 ? parseInt(cardInfo[3], 10) : 1
       });
-    } else if (i < args.length - 1 && args[i+1].startsWith('--rarity=')) {
-      // "카드이름" --rarity="레어도" 형식 처리
-      const rarity = args[i+1].substring(9);
-      options.cardList.push({
-        name: arg,
-        rarity: rarity
-      });
-      i++; // rarity 인수를 건너뜀
     } else {
       // 일반 카드 이름만 있는 경우
       options.cardList.push({
         name: arg,
-        rarity: null
+        rarity: null,
+        language: null,
+        quantity: 1
       });
     }
   }
@@ -253,24 +441,22 @@ function parseCommandLineArgs() {
 
 // 도움말 출력 함수 수정
 function showHelp() {
-  console.log('사용법: node src/test-optimal-purchase.js [카드 정보...]');
+  console.log('사용법: node src/test-optimal-purchase.js [카드 정보...] [옵션]');
   console.log('\n카드 정보 지정 방법:');
   console.log('  1. "카드이름" - 레어도 지정 없이 카드 이름만 사용');
-  console.log('  2. --card="카드이름:레어도" - 카드 이름과 레어도를 콜론(:)으로 구분하여 지정');
-  console.log('  3. "카드이름" --rarity="레어도" - 카드 이름 다음에 --rarity 옵션으로 레어도 지정');
+  console.log('  2. --card="카드이름:레어도:언어:수량" - 카드 이름, 레어도, 언어, 수량을 콜론(:)으로 구분하여 지정');
   console.log('\n옵션:');
   console.log('  --help, -h                  도움말 출력');
-  console.log('\n레어도 예시:');
-  console.log('  노멀, 레어, 슈퍼 레어, 울트라 레어, 시크릿 레어, 얼티밋 레어 등');
+  console.log('  --region=REGION             배송 지역 지정 (default, jeju, island)');
   console.log('\n사용 예시:');
   console.log('  node src/test-optimal-purchase.js "블랙 마제스틱" "청룡의 전사"');
-  console.log('  node src/test-optimal-purchase.js --card="블랙 마제스틱:울트라 레어" --card="청룡의 전사:슈퍼 레어"');
-  console.log('  node src/test-optimal-purchase.js "블랙 마제스틱" --rarity="울트라 레어" "청룡의 전사"');
+  console.log('  node src/test-optimal-purchase.js --card="블랙 마제스틱:울트라 레어:한국어:2" --card="청룡의 전사:슈퍼 레어::1"');
+  console.log('  node src/test-optimal-purchase.js "블랙 마제스틱" "청룡의 전사" --region=jeju');
 }
 
 // 메인 함수 수정
 async function main() {
-  const { cardList } = parseCommandLineArgs();
+  const { cardList, shippingRegion } = parseCommandLineArgs();
 
   if (cardList.length === 0) {
     console.log('사용법: node src/test-optimal-purchase.js [카드 정보...]');
@@ -281,12 +467,12 @@ async function main() {
   // 카드 정보 출력
   console.log('검색할 카드 목록:');
   cardList.forEach((card, index) => {
-    console.log(`${index + 1}. ${card.name}${card.rarity ? ` (${card.rarity})` : ''}`);
+    console.log(`${index + 1}. ${card.name}${card.rarity ? ` (${card.rarity})` : ''}${card.language ? ` [${card.language}]` : ''} x ${card.quantity}장`);
   });
   console.log('');
 
   try {
-    await findOptimalCardsPurchase(cardList);
+    await findOptimalCardsPurchase(cardList, { shippingRegion });
   } catch (error) {
     console.error('최적 구매 조합 검색 중 오류 발생:', error);
     process.exit(1);
@@ -296,4 +482,11 @@ async function main() {
 // 실행
 if (require.main === module) {
   main();
+} else {
+  // 모듈로 사용될 때 API 핸들러 함수 노출
+  module.exports = {
+    searchCardPrices,
+    findOptimalCardsPurchase,
+    getOptimalPurchaseCombination
+  };
 } 

@@ -27,7 +27,6 @@ function parseRarity(title) {
     { pattern: /(컬렉터즈\s*레어|컬렉터스\s*레어|컬렉터즈레어|컬렉터스레어|컬렉터|collector'?s?\s*rare|collector'?s?)/i, rarity: '컬렉터즈 레어', code: 'CR' },
     { pattern: /(얼티미트\s*레어|얼티메이트\s*레어|얼티미트레어|얼티메이트레어|얼티밋\s*레어|얼티밋레어|얼티밋|얼티미트|얼티메이트|얼티|ultimate\s*rare|ultimate)/i, rarity: '얼티미트 레어', code: 'UL' },
     { pattern: /(패러렐\s*레어|패러럴\s*레어|패러렐레어|패러럴레어|패러렐|패러럴|parallel\s*rare)/i, rarity: '패러렐 레어', code: 'P' },
-    { pattern: /(고스트\s*레어|고스트레어|고스트|ghost\s*rare)/i, rarity: '고스트 레어', code: 'GsR' },
     { pattern: /(프리미엄\s*골드\s*레어|프리미엄골드레어|프리미엄\s*골드|premium\s*gold\s*rare|premium\s*gold)/i, rarity: '프리미엄 골드 레어', code: 'PG' },
     { pattern: /(골드\s*레어|골드레어|골드|gold\s*rare)/i, rarity: '골드 레어', code: 'GR' },
     

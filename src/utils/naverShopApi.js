@@ -37,7 +37,7 @@ async function searchNaverShop(cardName) {
     let allItems = [];
     let start = 1;
     let hasMoreItems = true;
-    const maxItems = 500; // 최대 500개까지 가져오기
+    const maxItems = 1000; // 최대 1000개까지 가져오기
     
     while (hasMoreItems && allItems.length < maxItems) {
       // API 요청 URL
