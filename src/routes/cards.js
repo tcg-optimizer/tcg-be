@@ -5,7 +5,6 @@ const router = express.Router();
 const cardController = require('../controllers/cardController');
 
 // 카드 라우트
-router.get('/', cardController.getAllCards);
 router.get('/crawl/naver', cardController.crawlNaverStorePrice);
 router.get('/search/naver-api', cardController.searchNaverShopApi);
 router.get('/search/tcgshop', cardController.searchTCGShop);

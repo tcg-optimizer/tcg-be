@@ -13,6 +13,11 @@ const CardPriceCache = sequelize.define('CardPriceCache', {
     allowNull: false,
     comment: '카드 이름'
   },
+  image: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: '카드 이미지 URL'
+  },
   rarityPrices: {
     type: DataTypes.JSON,
     allowNull: false,

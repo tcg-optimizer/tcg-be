@@ -44,23 +44,74 @@ exports.getCardByName = async (req, res) => {
     
     console.log(`[DEBUG] 카드 검색 요청: "${cardName}"`);
     
-    // 1. 먼저 네이버 쇼핑 API로 실시간 검색 시도
+    // 1. 캐시에서 먼저 검색
+    const cachedResult = await CardPriceCache.findOne({
+      where: {
+        cardName: cardName,
+        expiresAt: { [Op.gt]: new Date() }
+      }
+    });
+    
+    if (cachedResult) {
+      console.log(`[DEBUG] 캐시에서 "${cardName}" 검색 결과 발견`);
+      // 캐시 데이터의 구조 검사 (구 버전과 신 버전 호환성)
+      let responseData = {
+        success: true,
+        source: 'cache',
+        data: {
+          name: cachedResult.cardName,
+          image: cachedResult.image
+        }
+      };
+      
+      // 캐시 데이터가 새 형식인지 확인 (레어도별 이미지 URL 포함)
+      const isNewFormat = Object.values(cachedResult.rarityPrices).some(lang => 
+        Object.values(lang).some(rarity => 
+          rarity.hasOwnProperty('image') && rarity.hasOwnProperty('prices')
+        )
+      );
+      
+      if (isNewFormat) {
+        // 새 형식의 데이터
+        responseData.rarityPrices = cachedResult.rarityPrices;
+      } else {
+        // 구 형식의 데이터 - 새 형식으로 변환
+        const convertedRarityPrices = {};
+        
+        // 구 형식 데이터를 새 형식으로 변환
+        Object.keys(cachedResult.rarityPrices).forEach(language => {
+          convertedRarityPrices[language] = {};
+          
+          Object.keys(cachedResult.rarityPrices[language]).forEach(rarity => {
+            convertedRarityPrices[language][rarity] = {
+              image: cachedResult.image, // 기존 이미지를 사용
+              prices: cachedResult.rarityPrices[language][rarity]
+            };
+          });
+        });
+        
+        responseData.rarityPrices = convertedRarityPrices;
+      }
+      
+      return res.status(200).json(responseData);
+    }
+    
+    // 2. 캐시에 없으면 네이버 쇼핑 API로 실시간 검색 시도
     try {
       console.log(`[DEBUG] 네이버 API로 "${cardName}" 검색 시도`);
-      // searchAndSaveCardPricesApi 함수를 사용하여 네이버 API 검색
       const naverResult = await searchAndSaveCardPricesApi(cardName);
       
-      // 2. TCGShop 검색 시도
+      // 3. TCGShop 검색 시도
       console.log(`[DEBUG] TCGShop으로 "${cardName}" 검색 시도`);
-      const tcgshopResult = await searchAndSaveTCGShopPrices(cardName, naverResult.card?.id);
+      const tcgshopResult = await searchAndSaveTCGShopPrices(cardName, null);
       
-      // 3. CardDC 검색 시도
+      // 4. CardDC 검색 시도
       console.log(`[DEBUG] CardDC로 "${cardName}" 검색 시도`);
-      const cardDCResult = await searchAndSaveCardDCPrices(cardName, naverResult.card?.id);
+      const cardDCResult = await searchAndSaveCardDCPrices(cardName, null);
       
-      // 4. OnlyYugioh 검색 시도
+      // 5. OnlyYugioh 검색 시도
       console.log(`[DEBUG] OnlyYugioh로 "${cardName}" 검색 시도`);
-      const onlyYugiohResult = await searchAndSaveOnlyYugiohPrices(cardName, naverResult.card?.id);
+      const onlyYugiohResult = await searchAndSaveOnlyYugiohPrices(cardName, null);
       
       if (naverResult && naverResult.count > 0) {
         console.log(`[DEBUG] 네이버 API 검색 성공: ${naverResult.count}개 상품 발견`);
@@ -76,11 +127,76 @@ exports.getCardByName = async (req, res) => {
           ...(onlyYugiohResult.prices || [])
         ];
         
+        // 검색 결과를 캐시에 저장
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 24); // 24시간 캐시
+        
+        // 언어별, 레어도별로 가격 정보 그룹화
+        const rarityPrices = {};
+        
+        // 가격들을 언어별, 레어도별로 그룹화
+        combinedPrices.forEach(price => {
+          const language = price.language || '알 수 없음';
+          const rarity = price.rarity || '알 수 없음';
+          
+          if (!rarityPrices[language]) {
+            rarityPrices[language] = {};
+          }
+          
+          if (!rarityPrices[language][rarity]) {
+            rarityPrices[language][rarity] = {
+              image: null, // 레어도별 이미지 URL을 저장할 필드 추가
+              prices: []
+            };
+          }
+          
+          rarityPrices[language][rarity].prices.push({
+            id: price.id,
+            price: price.price,
+            site: price.site,
+            url: price.url,
+            condition: price.condition,
+            rarity: price.rarity,
+            language: price.language,
+            cardCode: price.cardCode,
+            available: price.available,
+            lastUpdated: price.lastUpdated
+          });
+        });
+        
+        // 각 언어와 레어도 그룹 내에서 가격 오름차순 정렬
+        Object.keys(rarityPrices).forEach(language => {
+          Object.keys(rarityPrices[language]).forEach(rarity => {
+            rarityPrices[language][rarity].prices.sort((a, b) => a.price - b.price);
+            
+            // 레어도별 이미지 URL 설정 (네이버 API 결과에서 가져옴)
+            const rarityItems = naverResult.prices.filter(item => 
+              item.rarity === rarity && 
+              item.language === language && 
+              item.image && 
+              item.image.trim() !== ''
+            );
+            
+            if (rarityItems.length > 0 && rarityItems[0].image) {
+              rarityPrices[language][rarity].image = rarityItems[0].image;
+            } else if (naverResult.card && naverResult.card.image) {
+              rarityPrices[language][rarity].image = naverResult.card.image;
+            }
+          });
+        });
+        
+        await CardPriceCache.create({
+          cardName: cardName,
+          image: naverResult.card?.image || null,
+          rarityPrices: rarityPrices,
+          expiresAt: expiresAt
+        });
+        
         return res.status(200).json({ 
           success: true, 
           source: 'naver_api_tcgshop_carddc_onlyyugioh',
           data: naverResult.card,
-          prices: combinedPrices,
+          rarityPrices: rarityPrices,
           summary: {
             naver: naverResult.count,
             tcgshop: tcgshopResult.count,
@@ -89,101 +205,83 @@ exports.getCardByName = async (req, res) => {
           }
         });
       }
-      console.log(`[DEBUG] 네이버 API 검색 결과 없음, DB 검색으로 대체`);
-    } catch (naverError) {
-      console.error(`[ERROR] 네이버 API 검색 실패: ${naverError.message}`);
-      console.log(`[DEBUG] DB 검색으로 대체`);
-    }
-    
-    // 3. 네이버 API 검색 실패 또는 결과 없음 시 DB에서 검색
-    const normalizedCardName = cardName.replace(/\s+/g, '');
-    
-    const card = await Card.findOne({
-      where: {
-        [Op.or]: [
-          { name: { [Op.like]: `%${cardName}%` } },
-          { koName: { [Op.like]: `%${cardName}%` } },
-          sequelize.where(
-            sequelize.fn('REPLACE', sequelize.col('name'), ' ', ''),
-            { [Op.like]: `%${normalizedCardName}%` }
-          ),
-          sequelize.where(
-            sequelize.fn('REPLACE', sequelize.col('koName'), ' ', ''),
-            { [Op.like]: `%${normalizedCardName}%` }
-          )
-        ]
-      },
-      include: [
-        { 
-          model: CardPrice, 
-          as: 'prices',
-          required: false 
-        }
-      ]
-    });
-
-    if (!card) {
-      console.log(`[DEBUG] DB에서도 '${cardName}' 검색 결과 없음`);
       
-      // 4. DB에도 없지만 TCGShop에서라도 결과가 있는지 확인
-      try {
-        const tcgshopOnlyResult = await searchAndSaveTCGShopPrices(cardName, null);
-        if (tcgshopOnlyResult && tcgshopOnlyResult.count > 0) {
-          console.log(`[DEBUG] TCGShop에서만 ${tcgshopOnlyResult.count}개 상품 발견`);
+      // 6. 네이버 API 없지만 TCGShop에서라도 결과가 있는지 확인
+      if (tcgshopResult && tcgshopResult.count > 0) {
+        console.log(`[DEBUG] TCGShop에서만 ${tcgshopResult.count}개 상품 발견`);
+        
+        // 언어별, 레어도별로 가격 정보 그룹화
+        const rarityPrices = {};
+        
+        // 가격들을 언어별, 레어도별로 그룹화
+        tcgshopResult.prices.forEach(price => {
+          const language = price.language || '알 수 없음';
+          const rarity = price.rarity || '알 수 없음';
           
-          return res.status(200).json({
-            success: true,
-            source: 'tcgshop_only',
-            data: {
-              name: cardName,
-              prices: tcgshopOnlyResult.prices
-            }
+          if (!rarityPrices[language]) {
+            rarityPrices[language] = {};
+          }
+          
+          if (!rarityPrices[language][rarity]) {
+            rarityPrices[language][rarity] = {
+              image: null, // 레어도별 이미지 URL을 저장할 필드 추가
+              prices: []
+            };
+          }
+          
+          rarityPrices[language][rarity].prices.push({
+            id: price.id,
+            price: price.price,
+            site: price.site,
+            url: price.url,
+            condition: price.condition,
+            rarity: price.rarity,
+            language: price.language,
+            cardCode: price.cardCode,
+            available: price.available,
+            lastUpdated: price.lastUpdated
           });
-        }
-      } catch (tcgError) {
-        console.error(`[ERROR] TCGShop 전용 검색 실패: ${tcgError.message}`);
+        });
+        
+        // 각 언어와 레어도 그룹 내에서 가격 오름차순 정렬
+        Object.keys(rarityPrices).forEach(language => {
+          Object.keys(rarityPrices[language]).forEach(rarity => {
+            rarityPrices[language][rarity].prices.sort((a, b) => a.price - b.price);
+          });
+        });
+        
+        // 검색 결과를 캐시에 저장
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 24); // 24시간 캐시
+        
+        await CardPriceCache.create({
+          cardName: cardName,
+          image: null,
+          rarityPrices: rarityPrices,
+          expiresAt: expiresAt
+        });
+        
+        return res.status(200).json({
+          success: true,
+          source: 'tcgshop_only',
+          data: {
+            name: cardName
+          },
+          rarityPrices: rarityPrices
+        });
       }
       
       return res.status(404).json({ 
         success: false, 
-        error: '카드를 찾을 수 없습니다. 네이버 API 검색, TCGShop 검색 및 DB 검색 모두 실패했습니다.' 
+        error: '카드를 찾을 수 없습니다. 네이버 API 검색 및 TCGShop 검색 모두 실패했습니다.' 
+      });
+    } catch (error) {
+      console.error(`[ERROR] 카드 검색 실패: ${error.message}`);
+      return res.status(500).json({ 
+        success: false, 
+        error: error.message 
       });
     }
-
-    console.log(`[DEBUG] DB 검색 성공: "${card.name}" / "${card.koName}"`);
-    
-    // 5. 카드를 찾았지만 최신 가격 정보가 없으면 TCGShop, CardDC, OnlyYugioh 추가 검색
-    if (!card.prices || card.prices.length === 0 || 
-        !card.prices.some(p => p.lastUpdated && new Date(p.lastUpdated) > new Date(Date.now() - 24*60*60*1000))) {
-      try {
-        console.log(`[DEBUG] DB 가격 정보 없거나 오래됨, TCGShop, CardDC, OnlyYugioh 추가 검색`);
-        const tcgshopResult = await searchAndSaveTCGShopPrices(cardName, card.id);
-        const cardDCResult = await searchAndSaveCardDCPrices(cardName, card.id);
-        const onlyYugiohResult = await searchAndSaveOnlyYugiohPrices(cardName, card.id);
-        
-        if ((tcgshopResult && tcgshopResult.count > 0) || 
-            (cardDCResult && cardDCResult.count > 0) || 
-            (onlyYugiohResult && onlyYugiohResult.count > 0)) {
-          // DB에서 다시 조회하여 최신 가격 정보 포함
-          const updatedCard = await Card.findOne({
-            where: { id: card.id },
-            include: [{ model: CardPrice, as: 'prices', required: false }]
-          });
-          
-          if (updatedCard) {
-            card = updatedCard;
-          }
-        }
-      } catch (error) {
-        console.error(`[ERROR] 추가 크롤링 검색 실패: ${error.message}`);
-      }
-    }
-    
-    res.status(200).json({ 
-      success: true,
-      source: 'database',
-      data: card 
-    });
   } catch (error) {
     console.error('[ERROR] 카드 검색 오류:', error);
     res.status(500).json({ 
@@ -224,9 +322,61 @@ exports.getPricesByRarity = async (req, res) => {
     
     let card = null;
     let prices = [];
-    let searchSource = 'database';
+    let searchSource = 'api';
     
-    // 1. 먼저 네이버 쇼핑 API로 실시간 검색 시도
+    // 1. 캐시에서 먼저 검색
+    const cachedResult = await CardPriceCache.findOne({
+      where: {
+        cardName: cardName,
+        expiresAt: { [Op.gt]: new Date() }
+      }
+    });
+    
+    if (cachedResult) {
+      console.log(`[DEBUG] 캐시에서 "${cardName}" 레어도별 검색 결과 발견`);
+      // 캐시 데이터의 구조 검사 (구 버전과 신 버전 호환성)
+      let responseData = {
+        success: true,
+        source: 'cache',
+        data: {
+          name: cachedResult.cardName,
+          image: cachedResult.image
+        }
+      };
+      
+      // 캐시 데이터가 새 형식인지 확인 (레어도별 이미지 URL 포함)
+      const isNewFormat = Object.values(cachedResult.rarityPrices).some(lang => 
+        Object.values(lang).some(rarity => 
+          rarity.hasOwnProperty('image') && rarity.hasOwnProperty('prices')
+        )
+      );
+      
+      if (isNewFormat) {
+        // 새 형식의 데이터
+        responseData.rarityPrices = cachedResult.rarityPrices;
+      } else {
+        // 구 형식의 데이터 - 새 형식으로 변환
+        const convertedRarityPrices = {};
+        
+        // 구 형식 데이터를 새 형식으로 변환
+        Object.keys(cachedResult.rarityPrices).forEach(language => {
+          convertedRarityPrices[language] = {};
+          
+          Object.keys(cachedResult.rarityPrices[language]).forEach(rarity => {
+            convertedRarityPrices[language][rarity] = {
+              image: cachedResult.image, // 기존 이미지를 사용
+              prices: cachedResult.rarityPrices[language][rarity]
+            };
+          });
+        });
+        
+        responseData.rarityPrices = convertedRarityPrices;
+      }
+      
+      return res.status(200).json(responseData);
+    }
+    
+    // 2. 캐시에 없으면 네이버 쇼핑 API로 실시간 검색 시도
     try {
       console.log(`[DEBUG] 네이버 API로 "${cardName}" 레어도별 검색 시도`);
       const naverResult = await searchAndSaveCardPricesApi(cardName);
@@ -236,53 +386,56 @@ exports.getPricesByRarity = async (req, res) => {
         card = naverResult.card;
         prices = naverResult.prices;
         searchSource = 'naver_api';
+        
+        // 캐시에 저장
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 24); // 24시간 캐시
+        
+        await CardPriceCache.create({
+          cardName: cardName,
+          image: card?.image || null,
+          rarityPrices: prices,
+          expiresAt: expiresAt
+        });
       } else {
-        console.log(`[DEBUG] 네이버 API 검색 결과 없음, DB 검색으로 대체`);
+        console.log(`[DEBUG] 네이버 API 검색 결과 없음`);
       }
     } catch (naverError) {
       console.error(`[ERROR] 네이버 API 검색 실패: ${naverError.message}`);
-      console.log(`[DEBUG] DB 검색으로 대체`);
     }
     
-    // 2. 네이버 API 검색 실패 또는 결과 없음 시 DB에서 검색
+    // 3. 네이버 API 검색 실패시 TCGShop 검색
     if (!card) {
-      const normalizedCardName = cardName.replace(/\s+/g, '');
-      
-      const dbCard = await Card.findOne({
-        where: {
-          [Op.or]: [
-            { name: { [Op.like]: `%${cardName}%` } },
-            { koName: { [Op.like]: `%${cardName}%` } },
-            sequelize.where(
-              sequelize.fn('REPLACE', sequelize.col('name'), ' ', ''),
-              { [Op.like]: `%${normalizedCardName}%` }
-            ),
-            sequelize.where(
-              sequelize.fn('REPLACE', sequelize.col('koName'), ' ', ''),
-              { [Op.like]: `%${normalizedCardName}%` }
-            )
-          ]
-        },
-        include: [
-          { 
-            model: CardPrice, 
-            as: 'prices',
-            required: false 
-          }
-        ]
-      });
-      
-      if (dbCard) {
-        card = dbCard;
-        prices = dbCard.prices || [];
+      try {
+        console.log(`[DEBUG] TCGShop으로 "${cardName}" 레어도별 검색 시도`);
+        const tcgshopResult = await searchAndSaveTCGShopPrices(cardName, null);
+        
+        if (tcgshopResult && tcgshopResult.count > 0) {
+          console.log(`[DEBUG] TCGShop 검색 성공: ${tcgshopResult.count}개 상품 발견`);
+          card = { name: cardName };
+          prices = tcgshopResult.prices;
+          searchSource = 'tcgshop';
+          
+          // 캐시에 저장
+          const expiresAt = new Date();
+          expiresAt.setHours(expiresAt.getHours() + 24); // 24시간 캐시
+          
+          await CardPriceCache.create({
+            cardName: cardName,
+            image: null,
+            rarityPrices: prices,
+            expiresAt: expiresAt
+          });
+        }
+      } catch (tcgError) {
+        console.error(`[ERROR] TCGShop 검색 실패: ${tcgError.message}`);
       }
     }
-
+    
     if (!card) {
-      console.log(`[DEBUG] '${cardName}' 레어도별 가격 검색 결과 없음`);
-      return res.status(404).json({ 
-        success: false, 
-        error: '카드를 찾을 수 없습니다. 네이버 API 검색 및 DB 검색 모두 실패했습니다.' 
+      return res.status(404).json({
+        success: false,
+        error: '카드를 찾을 수 없습니다. 네이버 API 검색 및 TCGShop 검색 모두 실패했습니다.'
       });
     }
 
@@ -325,10 +478,13 @@ exports.getPricesByRarity = async (req, res) => {
       }
       
       if (!rarityPrices[language][rarity]) {
-        rarityPrices[language][rarity] = [];
+        rarityPrices[language][rarity] = {
+          image: null, // 레어도별 이미지 URL을 저장할 필드 추가
+          prices: []
+        };
       }
       
-      rarityPrices[language][rarity].push({
+      rarityPrices[language][rarity].prices.push({
         id: price.id,
         price: price.price,
         site: price.site,
@@ -345,9 +501,60 @@ exports.getPricesByRarity = async (req, res) => {
     // 각 언어와 레어도 그룹 내에서 가격 오름차순 정렬
     Object.keys(rarityPrices).forEach(language => {
       Object.keys(rarityPrices[language]).forEach(rarity => {
-        rarityPrices[language][rarity].sort((a, b) => a.price - b.price);
+        rarityPrices[language][rarity].prices.sort((a, b) => a.price - b.price);
       });
     });
+
+    // 이미지 URL을 레어도별로 설정
+    // 1. 네이버 API 검색 결과에서 이미지 URL을 가져옵니다
+    try {
+      // 네이버 쇼핑 API 검색
+      console.log(`[DEBUG] 이미지 URL 추출을 위한 네이버 API 검색: "${cardName}"`);
+      const { searchNaverShop } = require('../utils/naverShopApi');
+      const apiResults = await searchNaverShop(cardName);
+      
+      // 레어도별로 이미지 URL 설정
+      if (apiResults && apiResults.length > 0) {
+        // 레어도별로 이미지가 있는 상품 찾기
+        Object.keys(rarityPrices).forEach(language => {
+          Object.keys(rarityPrices[language]).forEach(rarity => {
+            // 현재 레어도에 해당하는 API 검색 결과 필터링
+            const rarityItems = apiResults.filter(item => 
+              item.rarity === rarity && 
+              item.language === language && 
+              item.image && 
+              item.image.trim() !== ''
+            );
+            
+            if (rarityItems.length > 0) {
+              // 이미지가 있는 첫 번째 상품의 이미지 URL 사용
+              rarityPrices[language][rarity].image = rarityItems[0].image;
+              console.log(`[DEBUG] "${language}" / "${rarity}" 레어도 이미지 URL 설정: ${rarityItems[0].image}`);
+            } else if (card.image) {
+              // 레어도별 이미지가 없으면 카드의 기본 이미지 사용
+              rarityPrices[language][rarity].image = card.image;
+            }
+          });
+        });
+      } else if (card.image) {
+        // API 검색 결과가 없으면 카드의 기본 이미지 사용
+        Object.keys(rarityPrices).forEach(language => {
+          Object.keys(rarityPrices[language]).forEach(rarity => {
+            rarityPrices[language][rarity].image = card.image;
+          });
+        });
+      }
+    } catch (imageError) {
+      console.error(`[ERROR] 이미지 URL 설정 오류: ${imageError.message}`);
+      // 오류가 발생해도 계속 진행하고 기본 이미지 사용
+      if (card.image) {
+        Object.keys(rarityPrices).forEach(language => {
+          Object.keys(rarityPrices[language]).forEach(rarity => {
+            rarityPrices[language][rarity].image = card.image;
+          });
+        });
+      }
+    }
 
     // 가격 정보를 캐시에 저장하고 ID 발급
     const expiresAt = new Date();
@@ -377,9 +584,9 @@ exports.getPricesByRarity = async (req, res) => {
           cardCode: price.cardCode,
           available: price.available,
           lastUpdated: price.lastUpdated
-        })),
-        rarityPrices
+        }))
       },
+      rarityPrices: rarityPrices,
       cacheId: cacheEntry.id, // 캐시 ID 응답에 포함
       cacheExpiresAt: expiresAt // 만료 시간 응답에 포함
     });
@@ -1060,19 +1267,21 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
     
     // 결과에 카드 이미지 정보 추가
     const cardImages = {};
-    await Promise.all(validCardsResults.map(async (card) => {
+    await Promise.all(cards.map(async (card) => {
       try {
-        const cardRecord = await Card.findOne({
-          where: { name: card.cardName }
-        });
+        // 캐시에서 이미지 정보 조회
+        const priceCache = await CardPriceCache.findByPk(card.cacheId);
+        if (priceCache && priceCache.image) {
+          cardImages[card.name] = priceCache.image;
+          return;
+        }
         
-        if (cardRecord && cardRecord.image) {
-          cardImages[card.cardName] = cardRecord.image;
-        } else {
-          // 상품 중에 이미지가 있는지 확인
-          const productWithImage = card.products.find(p => p.image);
+        // 캐시에 이미지가 없는 경우, 상품 데이터에서 이미지 검색
+        const cardResult = validCardsResults.find(c => c.cardName === card.name);
+        if (cardResult && cardResult.products) {
+          const productWithImage = cardResult.products.find(p => p.image);
           if (productWithImage) {
-            cardImages[card.cardName] = productWithImage.image;
+            cardImages[card.name] = productWithImage.image;
           }
         }
       } catch (error) {
@@ -1082,6 +1291,44 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
     
     // 판매자별 카드 정보 재구성
     const sellerCardsMap = {};
+    
+    // 레어도별 이미지 URL을 저장할 객체
+    const rarityImages = {};
+    
+    // 먼저 모든 카드의 레어도별 이미지를 캐시에서 가져오기
+    await Promise.all(cards.map(async (card) => {
+      try {
+        if (!card.cacheId) return;
+        
+        const priceCache = await CardPriceCache.findByPk(card.cacheId);
+        if (!priceCache || !priceCache.rarityPrices) return;
+        
+        // 캐시 데이터가 새 형식인지 확인 (레어도별 이미지 URL 포함)
+        const rarityPrices = priceCache.rarityPrices;
+        const isNewFormat = Object.values(rarityPrices).some(lang => 
+          Object.values(lang).some(rarity => 
+            rarity.hasOwnProperty('image') && rarity.hasOwnProperty('prices')
+          )
+        );
+        
+        if (isNewFormat) {
+          // cardName을 키로 저장 (카드이름-언어-레어도)
+          const cardKey = card.name; // 여기서 API 요청 객체의 name 필드 사용
+          
+          // 카드 이름, 언어, 레어도를 키로 사용하여 이미지 URL 저장
+          Object.keys(rarityPrices).forEach(language => {
+            Object.keys(rarityPrices[language]).forEach(rarity => {
+              const key = `${cardKey}:${language}:${rarity}`;
+              if (rarityPrices[language][rarity].image) {
+                rarityImages[key] = rarityPrices[language][rarity].image;
+              }
+            });
+          });
+        }
+      } catch (error) {
+        console.error(`레어도별 이미지 URL 캐싱 중 오류: ${error.message}`);
+      }
+    }));
     
     // 카드별 최적 구매 정보 처리
     optimalCombination.cardsOptimalPurchase.forEach(card => {
@@ -1103,12 +1350,37 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
         };
       }
       
+      // 레어도별 이미지 찾기
+      let rarityImage = null;
+      if (product && product.rarity && product.language) {
+        // 구매 최적화 결과에서는 cardName 필드 사용
+        // cards 배열에서 동일한 이름을 찾아 매핑
+        const originalCard = cards.find(c => c.name === card.cardName);
+        if (originalCard) {
+          // 원래 요청 카드 이름으로 키 생성
+          const key = `${originalCard.name}:${product.language}:${product.rarity}`;
+          rarityImage = rarityImages[key] || null;
+        }
+      }
+      
+      // 레어도별 이미지가 없으면 기본 이미지 사용
+      if (!rarityImage) {
+        // cards 배열에서 동일한 이름을 찾기
+        const originalCard = cards.find(c => c.name === card.cardName);
+        if (originalCard && cardImages[originalCard.name]) {
+          rarityImage = cardImages[originalCard.name];
+        } else {
+          rarityImage = cardImages[card.cardName] || null;
+        }
+      }
+      
       const processedCard = {
         cardName: card.cardName,
         price: card.price,
         quantity: card.quantity || 1,
         totalPrice: card.totalPrice || (card.price * (card.quantity || 1)),
-        product: product
+        product: product,
+        image: rarityImage // 레어도별 이미지 또는 기본 이미지
       };
       
       sellerCardsMap[seller].cards.push(processedCard);
