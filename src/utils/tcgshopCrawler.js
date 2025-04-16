@@ -61,8 +61,6 @@ async function crawlTCGShop(cardName) {
     // 직접 검색 URL
     const searchUrl = `http://www.tcgshop.co.kr/search_result.php?search=meta_str&searchstring=${encodedQuery.replace(/%20/g, '+')}`;
     
-    console.log(`[DEBUG] TCGShop 검색 URL: ${searchUrl}`);
-    
     // User-Agent 설정하여 차단 방지
     const headers = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -76,7 +74,6 @@ async function crawlTCGShop(cardName) {
     
     // 응답 디코딩
     const html = iconv.decode(response.data, 'euc-kr');
-    console.log(`[DEBUG] 응답 수신 (총 길이: ${html.length})`);
     
     // Cheerio로 HTML 파싱
     const $ = cheerio.load(html);
@@ -86,8 +83,6 @@ async function crawlTCGShop(cardName) {
     const resultCountText = $('font.nom_id').text();
     const resultCountMatch = resultCountText.match(/\d+/);
     const resultCount = resultCountMatch ? parseInt(resultCountMatch[0]) : 0;
-    
-    console.log(`[DEBUG] 검색 결과 수: ${resultCount}개`);
     
     // 직접 검색 결과 처리
     // TCGShop 검색 결과는 td.glist_01 요소로 시작하는 테이블 구조
@@ -106,8 +101,6 @@ async function crawlTCGShop(cardName) {
       const cleanTitle = title.replace(/[-=\s]/g, '').toLowerCase();
       
       if (!title || !cleanTitle.includes(cleanCardName)) return;
-      
-      console.log(`[DEBUG] 상품 발견: ${title}`);
       
       // 상품 URL
       const detailUrl = productLink.attr('href');
@@ -144,7 +137,6 @@ async function crawlTCGShop(cardName) {
           const rarityInfo = parseRarity(rarityText);
           rarity = rarityInfo.rarity;
           rarityCode = rarityInfo.rarityCode;
-          console.log(`[DEBUG] 레어도 정보 발견: ${rarityText} -> ${rarity} (${rarityCode})`);
         }
       }
       
@@ -169,7 +161,6 @@ async function crawlTCGShop(cardName) {
         const priceElement = discountRow.find('.glist_price12');
         const priceText = priceElement.text().trim();
         price = parseInt(priceText.replace(/,/g, ''));
-        console.log(`[DEBUG] 할인 가격 발견: ${price}원 (원래 가격: ${originalPrice}원)`);
       } else if (originalPrice > 0) {
         // 할인된 가격이 없으면 원래 가격 사용
         price = originalPrice;
@@ -193,10 +184,8 @@ async function crawlTCGShop(cardName) {
       
       if (soldOutImage.length > 0) {
         available = false;
-        console.log(`[DEBUG] 품절 상품 발견: ${title}`);
       } else if (cartImage.length > 0) {
         available = true;
-        console.log(`[DEBUG] 구매 가능 상품 발견: ${title}`);
       }
       
       items.push({
@@ -212,8 +201,6 @@ async function crawlTCGShop(cardName) {
         available
       });
     });
-    
-    console.log(`[DEBUG] TCGShop 검색 결과: ${items.length}개 상품 발견`);
     
     return items;
   } catch (error) {

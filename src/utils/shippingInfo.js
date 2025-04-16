@@ -415,6 +415,22 @@ const naverSellerShippingInfo = {
     islandShippingFee: 4000,
     freeShippingThreshold: 60000
   },
+
+  굿즈덕트 : {
+    shippingFee: 3200,
+    jejuShippingFee: 6700,
+    islandShippingFee: 8200,
+    freeShippingThreshold: 50000
+  },
+
+  Tcg랜드 : {
+    shippingFee: 3000,
+    jejuShippingFee: 6000,
+    islandShippingFee: 6000,
+    freeShippingThreshold: 45000
+  },
+  
+  
   
   
   
@@ -527,8 +543,8 @@ function getShippingInfo(site) {
 function calculateShippingFee(site, region = REGION_TYPES.DEFAULT, totalPrice = 0) {
   const info = getShippingInfo(site);
   
-  // 무료 배송 기준 금액 이상이면 무료 배송
-  if (totalPrice >= info.freeShippingThreshold) {
+  // 무료 배송 기준 금액 이상이면 무료 배송 (단, 무료배송이 불가능한 경우 제외)
+  if (totalPrice >= info.freeShippingThreshold && info.freeShippingThreshold !== Infinity) {
     return 0;
   }
   

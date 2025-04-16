@@ -18,8 +18,6 @@ async function crawlCardDC(cardName) {
     // CardDC 검색 URL
     const searchUrl = `https://www.carddc.co.kr/product_list.html?search_word=${encodedQuery.replace(/%20/g, '+')}&x=0&y=0`;
     
-    console.log(`[DEBUG] CardDC 검색 URL: ${searchUrl}`);
-    
     // User-Agent 설정하여 차단 방지
     const headers = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -33,7 +31,6 @@ async function crawlCardDC(cardName) {
     
     // 응답 디코딩
     const html = iconv.decode(response.data, 'euc-kr');
-    console.log(`[DEBUG] CardDC 응답 수신 (총 길이: ${html.length})`);
     
     // Cheerio로 HTML 파싱
     const $ = cheerio.load(html);
@@ -42,8 +39,6 @@ async function crawlCardDC(cardName) {
     // 검색 결과 개수 추출
     const resultCountText = $('body').text().match(/총 (\d+)개의 상품이 있습니다/);
     const resultCount = resultCountText ? parseInt(resultCountText[1]) : 0;
-    
-    console.log(`[DEBUG] CardDC 검색 결과 수: ${resultCount}개`);
     
     // 상품 목록 처리 - 테이블 내의 모든 tr 요소 확인
     $('table tr').each((index, row) => {
@@ -68,11 +63,8 @@ async function crawlCardDC(cardName) {
         // 재고 여부 확인 - 품절된 상품은 처리하지 않음
         const isSoldOut = productCell.find('img[src*="icon_sortout.jpg"]').length > 0;
         if (isSoldOut) {
-          console.log(`[DEBUG] CardDC 품절 상품 무시: ${title}`);
           return; // 품절된 상품은 처리하지 않고 건너뜀
         }
-        
-        console.log(`[DEBUG] CardDC 상품 발견: ${title}`);
         
         // 상품 URL
         const detailUrl = productLink.attr('href');
@@ -144,8 +136,6 @@ async function crawlCardDC(cardName) {
         });
       });
     });
-    
-    console.log(`[DEBUG] CardDC 검색 결과: ${items.length}개 상품 발견 (품절 상품 제외)`);
     
     return items;
   } catch (error) {
