@@ -17,8 +17,6 @@ async function crawlOnlyYugioh(cardName) {
     // OnlyYugioh 검색 URL
     const searchUrl = `https://www.onlyyugioh.com/product/search.html?banner_action=&keyword=${encodedQuery}`;
     
-    console.log(`[DEBUG] OnlyYugioh 검색 URL: ${searchUrl}`);
-    
     // User-Agent 설정하여 차단 방지
     const headers = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -27,29 +25,18 @@ async function crawlOnlyYugioh(cardName) {
     // 검색 결과 페이지 요청
     const response = await axios.get(searchUrl, { headers });
     
-    console.log(`[DEBUG] OnlyYugioh 응답 수신 (총 길이: ${response.data.length})`);
-    
     // Cheerio로 HTML 파싱
     const $ = cheerio.load(response.data);
     const items = [];
     
-    // 디버깅을 위해 HTML 구조의 일부를 출력
-    console.log('[DEBUG] HTML 구조 확인:');
-    console.log(`검색 결과 헤더: ${$('.xans-element-.xans-search.xans-search-title').text().trim()}`);
-    console.log(`상품 목록 ul 태그 수: ${$('ul.prdList').length}`);
-    console.log(`상품 li 태그 수: ${$('ul.prdList li').length}`);
-    
     // 검색 결과 개수 추출 시도
     let resultCount = 0;
     const searchResultText = $('.xans-search-total, .xans-element-.xans-search.xans-search-total').text().trim();
-    console.log(`[DEBUG] 검색 결과 텍스트: ${searchResultText}`);
     
     const resultMatch = searchResultText.match(/총\s+(\d+)개/);
     if (resultMatch && resultMatch[1]) {
       resultCount = parseInt(resultMatch[1]);
     }
-    
-    console.log(`[DEBUG] OnlyYugioh 검색 결과 수: ${resultCount}개`);
     
     // 여러 가지 선택자 시도
     const productSelectors = [
@@ -62,17 +49,14 @@ async function crawlOnlyYugioh(cardName) {
     let productElements = [];
     for (const selector of productSelectors) {
       const elements = $(selector);
-      console.log(`[DEBUG] 선택자 '${selector}'로 찾은 요소 수: ${elements.length}`);
       if (elements.length > 0) {
         productElements = elements;
-        console.log(`[DEBUG] 선택자 '${selector}'를 사용합니다.`);
         break;
       }
     }
     
     // 상품 목록 처리 - 각 상품 아이템 확인
     if (productElements.length === 0) {
-      console.log('[DEBUG] 상품 목록을 찾을 수 없습니다.');
       return items;
     }
     
@@ -87,8 +71,6 @@ async function crawlOnlyYugioh(cardName) {
         processProductElement($(element), cardName, items, $);
       });
     }
-    
-    console.log(`[DEBUG] OnlyYugioh 검색 결과: ${items.length}개 상품 발견 (품절 상품 제외)`);
     
     return items;
   } catch (error) {
@@ -105,17 +87,11 @@ async function crawlOnlyYugioh(cardName) {
  * @param {Object} $ - Cheerio 객체
  */
 function processProductElement(el, cardName, items, $) {
-  // 디버깅을 위해 각 상품 요소의 HTML 구조 확인
-  console.log(`[DEBUG] 상품 HTML 구조:`);
-  console.log(`- 상품명 요소: ${el.find('strong.name, .name').length > 0 ? '있음' : '없음'}`);
-  console.log(`- 가격 요소: ${el.find('li:contains("판매가")').length > 0 ? '있음' : '없음'}`);
-  
   // 품절 상품인지 확인
   const isSoldOut = el.find('img[alt="품절"]').length > 0 ||
                    el.text().includes('품절');
   
   if (isSoldOut) {
-    console.log('[DEBUG] 품절 상품 무시');
     return; // 품절 상품은 처리하지 않음
   }
   
@@ -136,7 +112,6 @@ function processProductElement(el, cardName, items, $) {
     if (titleElement.length > 0) {
       title = titleElement.text().trim();
       if (title) {
-        console.log(`[DEBUG] 선택자 '${selector}'로 상품명 찾음: ${title}`);
         break;
       }
     }
@@ -149,8 +124,6 @@ function processProductElement(el, cardName, items, $) {
   if (!title || !title.toLowerCase().includes(cardName.toLowerCase())) {
     return;
   }
-  
-  console.log(`[DEBUG] OnlyYugioh 상품 발견: ${title}`);
   
   // 상품 URL 추출
   let detailUrl = '';
@@ -175,9 +148,7 @@ function processProductElement(el, cardName, items, $) {
   for (const selector of priceSelectors) {
     const priceElement = el.find(selector);
     if (priceElement.length > 0) {
-      // 원본 가격 텍스트를 로깅
       const rawPriceText = priceElement.text().trim();
-      console.log(`[DEBUG] 원본 가격 텍스트: "${rawPriceText}"`);
       
       const priceText = rawPriceText.replace(/[^0-9]/g, '');
       if (priceText) {
@@ -186,12 +157,10 @@ function processProductElement(el, cardName, items, $) {
         if (priceText.length > 2) {
           const correctedPrice = priceText.substring(2);
           parsedPrice = parseInt(correctedPrice);
-          console.log(`[DEBUG] 가격 수정: ${priceText} -> ${correctedPrice} (앞 두 자리 제거)`);
         } else {
           parsedPrice = parseInt(priceText);
         }
         price = parsedPrice;
-        console.log(`[DEBUG] 선택자 '${selector}'로 가격 찾음: ${price}원`);
         break;
       }
     }
@@ -211,7 +180,6 @@ function processProductElement(el, cardName, items, $) {
     if (descriptionElement.length > 0) {
       description = descriptionElement.text().trim();
       if (description) {
-        console.log(`[DEBUG] 선택자 '${selector}'로 상품 설명 찾음: ${description}`);
         break;
       }
     }

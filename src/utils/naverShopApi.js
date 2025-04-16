@@ -7,6 +7,13 @@ const { parseRarity } = require('./rarityUtil');
 const { parseLanguage, parseCondition, extractCardCode, testRarityParsing } = require('./naverCrawler');
 
 /**
+ * 지정된 시간(ms) 동안 실행을 지연시키는 함수
+ * @param {number} ms - 지연 시간 (밀리초)
+ * @returns {Promise} - 지정된 시간 후 해결되는 Promise
+ */
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
  * 네이버 쇼핑 검색 API를 사용하여 카드 가격 정보를 가져옵니다.
  * @param {string} cardName - 검색할 카드 이름
  * @returns {Promise<Array>} - 검색된 상품 정보 배열
@@ -16,8 +23,6 @@ async function searchNaverShop(cardName) {
     // 네이버 API 키 설정 (환경 변수에서 가져옴)
     const clientId = process.env.NAVER_CLIENT_ID;
     const clientSecret = process.env.NAVER_CLIENT_SECRET;
-    
-    console.log(`[DEBUG] 네이버 API 키: ${clientId ? '설정됨' : '없음'}, ${clientSecret ? '설정됨' : '없음'}`);
     
     if (!clientId || !clientSecret) {
       throw new Error('네이버 API 인증 정보가 설정되지 않았습니다.');
@@ -38,56 +43,84 @@ async function searchNaverShop(cardName) {
     let start = 1;
     let hasMoreItems = true;
     const maxItems = 1000; // 최대 1000개까지 가져오기
+    let retryCount = 0;
+    const maxRetries = 3;
     
     while (hasMoreItems && allItems.length < maxItems) {
       // API 요청 URL
       const apiUrl = `https://openapi.naver.com/v1/search/shop.json?query=${query}&display=${display}&start=${start}&sort=${sort}`;
-      console.log(`[DEBUG] 네이버 API 요청 URL: ${apiUrl}`);
       
-      // API 요청
-      const response = await axios.get(apiUrl, { headers });
-      
-      // 결과 파싱
-      const items = response.data.items.map(item => {
-        const title = item.title.replace(/<b>|<\/b>/g, ''); // HTML 태그 제거
+      try {
+        // API 요청 전 지연 추가 (1초 대기)
+        await delay(1000);
         
-        // 레어도, 언어, 상태 정보 파싱
-        const rarityInfo = parseRarity(title);
-        const language = parseLanguage(title);
-        const condition = parseCondition(title);
-        const cardCode = extractCardCode(title);
+        // API 요청 - 타임아웃 5초 설정
+        const response = await axios.get(apiUrl, { 
+          headers, 
+          timeout: 5000 
+        });
         
-        console.log(`[DEBUG] 상품 파싱: "${title}" - 레어도: ${rarityInfo.rarity}, 언어: ${language}`);
+        // 결과 파싱
+        const items = response.data.items.map(item => {
+          const title = item.title.replace(/<b>|<\/b>/g, ''); // HTML 태그 제거
+          
+          // 레어도, 언어, 상태 정보 파싱
+          const rarityInfo = parseRarity(title);
+          const language = parseLanguage(title);
+          const condition = parseCondition(title);
+          const cardCode = extractCardCode(title);
+          
+          return {
+            title: title,
+            price: parseInt(item.lprice), // 최저가
+            site: item.mallName,
+            url: item.link,
+            productId: item.productId,
+            image: item.image, // 이미지 URL 추가
+            condition: condition,
+            rarity: rarityInfo.rarity,
+            rarityCode: rarityInfo.rarityCode,
+            language: language,
+            cardCode: cardCode ? cardCode.fullCode : null,
+            available: true,
+            brand: item.brand,
+            category: item.category1
+          };
+        });
         
-        return {
-          title: title,
-          price: parseInt(item.lprice), // 최저가
-          site: item.mallName,
-          url: item.link,
-          productId: item.productId,
-          image: item.image, // 이미지 URL 추가
-          condition: condition,
-          rarity: rarityInfo.rarity,
-          rarityCode: rarityInfo.rarityCode,
-          language: language,
-          cardCode: cardCode ? cardCode.fullCode : null,
-          available: true,
-          brand: item.brand,
-          category: item.category1
-        };
-      });
-      
-      allItems = [...allItems, ...items];
-      
-      // 100개 미만의 결과를 받았거나 최대 개수에 도달했다면 더 이상 요청하지 않음
-      if (items.length < display) {
-        hasMoreItems = false;
-      } else {
-        start += display; // 다음 페이지로 이동
+        allItems = [...allItems, ...items];
+        retryCount = 0; // 성공하면 재시도 카운트 초기화
+        
+        // 100개 미만의 결과를 받았거나 최대 개수에 도달했다면 더 이상 요청하지 않음
+        if (items.length < display) {
+          hasMoreItems = false;
+        } else {
+          start += display; // 다음 페이지로 이동
+        }
+      } catch (error) {
+        // 429 에러(너무 많은 요청)가 발생한 경우 더 오래 대기한 후 재시도
+        if (error.response && error.response.status === 429) {
+          console.log('[WARN] 네이버 API 요청 한도 초과. 3초 대기 후 재시도합니다.');
+          await delay(3000);
+        } else if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') {
+          // 소켓 오류나 타임아웃 처리
+          retryCount++;
+          if (retryCount <= maxRetries) {
+            console.log(`[WARN] 네이버 API 연결 오류(${error.code}). ${retryCount}/${maxRetries} 재시도 중...`);
+            await delay(2000 * retryCount); // 재시도마다 대기 시간 증가
+            continue; // 현재 시도 건너뛰기
+          } else {
+            console.log('[WARN] 네이버 API 연결 오류. 최대 재시도 횟수 초과, 검색 종료.');
+            break; // 최대 재시도 횟수 초과하면 루프 종료
+          }
+        } else {
+          // 다른 오류는 로그만 남기고 검색 종료
+          console.error(`[ERROR] 네이버 API 오류: ${error.message}`);
+          break;
+        }
       }
     }
     
-    console.log(`[INFO] 총 ${allItems.length}개의 상품 정보를 가져왔습니다.`);
     return allItems;
   } catch (error) {
     console.error('[ERROR] 네이버 쇼핑 API 검색 오류:', error);
@@ -130,7 +163,6 @@ async function searchAndSaveCardPricesApi(cardName) {
       const itemWithImage = priceData.find(item => item.image && item.image.trim() !== '');
       
       if (itemWithImage) {
-        console.log(`[DEBUG] 카드 이미지 업데이트: ${itemWithImage.image}`);
         await card.update({ image: itemWithImage.image });
         // 업데이트된 카드 정보 다시 로드
         card = await Card.findByPk(card.id);
