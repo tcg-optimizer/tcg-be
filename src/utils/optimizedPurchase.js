@@ -947,27 +947,61 @@ function findOptimalPurchaseCombinationBruteForce(cardsList, options = {}) {
   cardsList.forEach(cardInfo => {
     const { cardName, quantity = 1 } = cardInfo;
     let bestSeller = null;
-    let bestPrice = Infinity;
     let bestProduct = null;
+    let lowestTotalCost = Infinity;
     
-    for (const seller of optimalCombination.sellers) {
-      const cards = optimalCombination.purchaseDetails[seller].cards;
-      const card = cards.find(c => c.cardName === cardName);
+    // 각 판매처별로 이 카드를 추가했을 때의 총 비용 계산
+    cardInfo.products.forEach(product => {
+      const seller = getSellerId(product.site);
+      const currentSubtotal = purchaseDetails[seller].subtotal;
+      const newSubtotal = currentSubtotal + (product.price * quantity);
       
-      if (card && card.price < bestPrice) {
-        bestPrice = card.price;
+      // 배송비 계산
+      const { shippingFee, freeShippingThreshold } = sellerShippingInfo[seller];
+      const currentShippingFee = purchaseDetails[seller].shippingFee;
+      const newShippingFee = newSubtotal >= freeShippingThreshold && freeShippingThreshold !== Infinity ? 0 : shippingFee;
+      
+      // 이 카드를 이 판매처에 추가했을 때의 총 비용 변화
+      const costDifference = (product.price * quantity) + (newShippingFee - currentShippingFee);
+      
+      // 새 판매처 페널티 부분 제거 - 실제 비용만 고려
+      const totalCostWithPenalty = costDifference;
+      
+      if (totalCostWithPenalty < lowestTotalCost) {
+        lowestTotalCost = totalCostWithPenalty;
         bestSeller = seller;
-        bestProduct = card.product;
+        bestProduct = product;
       }
-    }
+    });
     
-    if (bestSeller) {
+    if (bestSeller && bestProduct) {
+      // 구매 내역에 추가
+      purchaseDetails[bestSeller].cards.push({
+        cardName,
+        price: bestProduct.price,
+        product: bestProduct,
+        quantity
+      });
+      
+      purchaseDetails[bestSeller].subtotal += bestProduct.price * quantity;
+      
+      // 배송비 재계산
+      const { shippingFee, freeShippingThreshold } = sellerShippingInfo[bestSeller];
+      purchaseDetails[bestSeller].shippingFee = 
+        purchaseDetails[bestSeller].subtotal >= freeShippingThreshold && freeShippingThreshold !== Infinity ? 0 : shippingFee;
+      
+      // 총 비용 업데이트
+      purchaseDetails[bestSeller].total = 
+        purchaseDetails[bestSeller].subtotal + purchaseDetails[bestSeller].shippingFee;
+      
+      // 카드별 최적 구매처 정보에 추가
       cardsOptimalPurchase.push({
         cardName,
         seller: bestSeller,
-        price: bestPrice,
-        product: bestProduct,
-        quantity
+        price: bestProduct.price,
+        totalPrice: bestProduct.price * quantity,
+        quantity,
+        product: bestProduct
       });
     }
   });
@@ -1073,9 +1107,8 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
       // 이 카드를 이 판매처에 추가했을 때의 총 비용 변화
       const costDifference = (product.price * quantity) + (newShippingFee - currentShippingFee);
       
-      // 새로운 판매처를 사용하는 경우의 페널티 (판매처 수 최소화)
-      const newSellerPenalty = currentSubtotal === 0 ? 500 : 0;
-      const totalCostWithPenalty = costDifference + newSellerPenalty;
+      // 새 판매처 페널티 부분 제거 - 실제 비용만 고려
+      const totalCostWithPenalty = costDifference;
       
       if (totalCostWithPenalty < lowestTotalCost) {
         lowestTotalCost = totalCostWithPenalty;
