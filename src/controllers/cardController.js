@@ -1,6 +1,6 @@
 const { Card, CardPrice } = require('../models/Card');
 const { Op } = require('sequelize');
-const { searchAndSaveCardPrices, testRarityParsing } = require('../utils/naverCrawler');
+const { searchAndSaveCardPrices, testRarityParsing } = require('../utils/crawler');
 const { searchAndSaveCardPricesApi } = require('../utils/naverShopApi');
 const { searchAndSaveTCGShopPrices } = require('../utils/tcgshopCrawler');
 const { searchAndSaveCardDCPrices } = require('../utils/cardDCCrawler');

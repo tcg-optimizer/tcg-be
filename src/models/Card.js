@@ -77,7 +77,7 @@ const CardPrice = sequelize.define('CardPrice', {
 Card.hasMany(CardPrice, { foreignKey: 'cardId', as: 'prices' });
 CardPrice.belongsTo(Card, { foreignKey: 'cardId' });
 
-// 최저가 계산 메소드 추가
+// 최저가 계산 메소드
 Card.prototype.getLowestPrice = async function() {
   try {
     const prices = await CardPrice.findAll({
