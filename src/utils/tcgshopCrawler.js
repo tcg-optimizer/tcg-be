@@ -2,7 +2,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const iconv = require('iconv-lite'); // EUC-KR 인코딩 처리를 위해 필요
 const { parseRarity } = require('./rarityUtil');
-const { parseLanguage, parseCondition, extractCardCode } = require('./naverCrawler');
+const { parseLanguage, parseCondition, extractCardCode } = require('./crawler');
 
 /**
  * 카드 이름을 EUC-KR로 인코딩합니다 (TCGShop은 EUC-KR 인코딩 사용)

@@ -1,7 +1,7 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 const { parseRarity } = require('./rarityUtil');
-const { parseLanguage, parseCondition, extractCardCode } = require('./naverCrawler');
+const { parseLanguage, parseCondition, extractCardCode } = require('./crawler');
 const { encodeEUCKR, detectLanguageFromCardCode } = require('./tcgshopCrawler');
 
 /**
@@ -207,7 +207,7 @@ function processProductElement(el, cardName, items, $) {
   // 제목과 설명에서 레어도 관련 단어 찾기
   const fullText = title + ' ' + description;
   
-  // naverCrawler의 parseRarity 함수를 사용하여 레어도 파싱
+  // crawler의 parseRarity 함수를 사용하여 레어도 파싱
   const rarityInfo = parseRarity(fullText);
   rarity = rarityInfo.rarity;
   rarityCode = rarityInfo.rarityCode;

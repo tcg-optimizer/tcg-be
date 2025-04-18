@@ -144,74 +144,6 @@ function testRarityParsing(title) {
 }
 
 /**
- * 네이버 스토어에서 카드 가격 정보를 크롤링합니다.
- * @param {string} cardName - 검색할 카드 이름
- * @returns {Promise<Array>} - 크롤링된 가격 정보 배열
- */
-async function crawlNaverStore(cardName) {
-  try {
-    // 검색 URL 인코딩
-    const encodedQuery = encodeURIComponent(cardName);
-    const url = `https://search.shopping.naver.com/search/all?query=${encodedQuery}`;
-    
-    // User-Agent 설정하여 차단 방지
-    const headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    };
-    
-    // 네이버 스토어 페이지 요청
-    const response = await axios.get(url, { headers });
-    const html = response.data;
-    
-    // Cheerio로 HTML 파싱
-    const $ = cheerio.load(html);
-    const items = [];
-    
-    // 상품 목록 선택자 (실제 네이버 쇼핑 HTML 구조에 맞게 수정 필요)
-    $('.basicList_item__0T9JD').each((index, element) => {
-      const title = $(element).find('.basicList_title__VfX3c').text().trim();
-      const price = $(element).find('.price_num__S2p_v').text().trim()
-        .replace('원', '').replace(/,/g, '');
-      const storeLink = $(element).find('.basicList_title__VfX3c a').attr('href');
-      const storeName = $(element).find('.basicList_mall_title__FDXX5').text().trim();
-      
-      // 카드 이름과 관련된 상품만 필터링
-      if (title.includes(cardName)) {
-        // 레어도 파싱
-        const { rarity, rarityCode } = parseRarity(title);
-        
-        // 언어 파싱
-        const language = parseLanguage(title);
-        
-        // 상품 상태 파싱
-        const condition = parseCondition(title);
-        
-        // 카드 코드 추출
-        const cardCode = extractCardCode(title);
-        
-        items.push({
-          title,
-          price: parseFloat(price),
-          site: storeName,
-          url: storeLink,
-          condition,
-          rarity,
-          rarityCode,
-          language,
-          cardCode: cardCode ? cardCode.fullCode : null,
-          available: true
-        });
-      }
-    });
-    
-    return items;
-  } catch (error) {
-    console.error('네이버 스토어 크롤링 오류:', error);
-    return [];
-  }
-}
-
-/**
  * 카드 이름으로 검색하여 가격 정보를 저장합니다.
  * @param {string} cardName - 검색할 카드 이름
  * @returns {Promise<Object>} - 저장된 카드와 가격 정보
@@ -224,10 +156,8 @@ async function searchAndSaveCardPrices(cardName) {
       defaults: { name: cardName }
     });
     
-    // 네이버 스토어 크롤링
-    const priceData = await crawlNaverStore(cardName);
-    
     // 크롤링 결과가 없는 경우
+    const priceData = [];
     if (priceData.length === 0) {
       return { message: '검색 결과가 없습니다.', card };
     }

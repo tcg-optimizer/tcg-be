@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../utils/db');
 
-// 카드 가격 정보 캐싱을 위한 모델
+// 카드 가격 정보 캐싱
 const CardPriceCache = sequelize.define('CardPriceCache', {
   id: {
     type: DataTypes.UUID,

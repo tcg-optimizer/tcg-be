@@ -1,7 +1,6 @@
 const axios = require('axios');
 require('dotenv').config();
 const { searchCards } = require('./utils/naverShopApi');
-const { scrapeNaverPageItems } = require('./utils/naverCrawler');
 const { parseRarity } = require('./utils/rarityUtil');
 
 async function main() {
@@ -20,22 +19,10 @@ async function main() {
     const apiItems = await searchCards(searchTerm);
     console.log(`API 검색 결과: ${apiItems.length}개 항목 발견`);
     
-    // 네이버 크롤링으로 검색 결과 가져오기
-    const crawledItems = await scrapeNaverPageItems(searchTerm);
-    console.log(`크롤링 결과: ${crawledItems.length}개 항목 발견`);
-    
-    // 결과 합치기 - 중복 제거
-    const allItems = [...apiItems];
-    for (const item of crawledItems) {
-      if (!allItems.some(apiItem => apiItem.link === item.link)) {
-        allItems.push(item);
-      }
-    }
-    
-    console.log(`총 ${allItems.length}개 항목 발견`);
+    console.log(`총 ${apiItems.length}개 항목 발견`);
     
     // 카드 정보 정리 및 레어도 분석
-    const processedItems = allItems.map(item => {
+    const processedItems = apiItems.map(item => {
       const rarityInfo = parseRarity(item.title);
       return {
         ...item,
