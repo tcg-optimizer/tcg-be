@@ -6,7 +6,7 @@ const { parseLanguage, parseCondition, extractCardCode } = require('./crawler');
 const { encodeEUCKR, detectLanguageFromCardCode } = require('./tcgshopCrawler');
 
 /**
- * 카드DC에서 카드 가격 정보를 크롤링합니다.
+ * CardDC에서 카드 가격 정보를 크롤링합니다.
  * @param {string} cardName - 검색할 카드 이름
  * @returns {Promise<Array>} - 크롤링된 가격 정보 배열
  */
@@ -54,7 +54,8 @@ async function crawlCardDC(cardName) {
         if (!productLink.length) return;
         
         const title = productLink.text().trim();
-        // 카드 이름이 포함된 상품만 처리 - 특수문자와 띄어쓰기를 제외하고 비교하도록 수정
+        
+        // 제목에 카드명이 포함되어 있는지 확인 - 특수문자와 띄어쓰기를 제외하고 비교하도록 수정
         const cleanCardName = cardName.replace(/[-=\s]/g, '').toLowerCase();
         const cleanTitle = title.replace(/[-=\s]/g, '').toLowerCase();
         
@@ -73,15 +74,21 @@ async function crawlCardDC(cardName) {
           : `https://www.carddc.co.kr/${detailUrl}`;
         
         // 카드 코드 추출 - li.pro_info_t2
-        const cardCode = productCell.find('li.pro_info_t2').text().trim();
+        const extractedCardCode = productCell.find('li.pro_info_t2').text().trim();
         
         // 레어도 추출 - li.pro_info_t
         const rarityText = productCell.find('li.pro_info_t').text().trim();
         
         // rarityUtil의 parseRarity 함수를 사용하여 레어도 표준화
-        const rarityInfo = parseRarity(rarityText || title);
-        let rarity = rarityInfo.rarity;
-        let rarityCode = rarityInfo.rarityCode;
+        let rarity = '알 수 없음';
+        let rarityCode = 'UNK';
+        
+        if (rarityText) {
+          const rarityInfo = parseRarity(rarityText || title);
+          rarity = rarityInfo.rarity;
+          rarityCode = rarityInfo.rarityCode;
+        }
+        
         // 가격 정보
         let price = 0;
         let originalPrice = 0;
@@ -111,8 +118,8 @@ async function crawlCardDC(cardName) {
         
         // 언어 정보
         let language = '알 수 없음';
-        if (cardCode) {
-          language = detectLanguageFromCardCode(cardCode);
+        if (extractedCardCode) {
+          language = detectLanguageFromCardCode(extractedCardCode);
         } else {
           // 제목에서 언어 정보 추정
           language = parseLanguage(title);
@@ -128,7 +135,7 @@ async function crawlCardDC(cardName) {
           rarity,
           rarityCode,
           language,
-          cardCode,
+          cardCode: extractedCardCode,
           price,
           originalPrice,
           site: 'CardDC',

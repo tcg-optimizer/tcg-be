@@ -166,7 +166,7 @@ async function crawlTCGShop(cardName) {
         price = originalPrice;
       }
       
-      // 상태 정보 (노멀, 데미지 등)
+      // 상태 정보 (노멀, 중고 여부 등)
       let language = parseLanguage(title);
       const condition = parseCondition(title);
       

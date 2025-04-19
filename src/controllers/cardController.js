@@ -1,6 +1,6 @@
 const { Card, CardPrice } = require('../models/Card');
 const { Op } = require('sequelize');
-const { searchAndSaveCardPrices, testRarityParsing } = require('../utils/crawler');
+const { searchAndSaveCardPrices } = require('../utils/crawler');
 const { searchAndSaveCardPricesApi } = require('../utils/naverShopApi');
 const { searchAndSaveTCGShopPrices } = require('../utils/tcgshopCrawler');
 const { searchAndSaveCardDCPrices } = require('../utils/cardDCCrawler');
@@ -679,127 +679,6 @@ exports.searchNaverShopApi = async (req, res) => {
   }
 };
 
-// 네이버 API 직접 테스트
-exports.testNaverApi = async (req, res) => {
-  try {
-    const { cardName } = req.query;
-    console.log(`[DEBUG] 네이버 API 테스트: ${cardName}`);
-    
-    if (!cardName) {
-      return res.status(400).json({ 
-        success: false, 
-        error: '카드 이름은 필수 파라미터입니다. ?cardName=카드이름 형식으로 요청해주세요.' 
-      });
-    }
-    
-    const clientId = process.env.NAVER_CLIENT_ID;
-    const clientSecret = process.env.NAVER_CLIENT_SECRET;
-    
-    console.log(`[DEBUG] API 키: ${clientId ? '설정됨' : '없음'}, ${clientSecret ? '설정됨' : '없음'}`);
-    
-    if (!clientId || !clientSecret) {
-      return res.status(500).json({ success: false, error: 'API 인증 정보가 없습니다.' });
-    }
-    
-    const query = encodeURIComponent(cardName);
-    const apiUrl = `https://openapi.naver.com/v1/search/shop.json?query=${query}&display=10`;
-    
-    const headers = {
-      'X-Naver-Client-Id': clientId,
-      'X-Naver-Client-Secret': clientSecret
-    };
-    
-    const response = await axios.get(apiUrl, { headers });
-    
-    return res.status(200).json({
-      success: true,
-      total: response.data.total,
-      items: response.data.items
-    });
-  } catch (error) {
-    console.error('[ERROR] 네이버 API 직접 테스트 오류:', error);
-    return res.status(500).json({ 
-      success: false, 
-      error: error.message,
-      response: error.response ? {
-        status: error.response.status,
-        data: error.response.data
-      } : null
-    });
-  }
-};
-
-// 레어도 파싱 테스트 API
-exports.testRarityParsing = async (req, res) => {
-  try {
-    const { title } = req.body;
-    
-    // 테스트 케이스 목록
-    const testCases = [
-      '네가로기어아제우스 (PHRA-KR045) Ultimate Rare 한글판 유희왕',
-      '네가로기어아제우스 (QCAC-KR014) Secret Rare 한글판 유희왕',
-      '네가로기어 아제우스 / 시크릿 레어 / QCAC-KR014 (신일러)',
-      '네가로기어아제우스 QCAC-JP014 시크릿레어 신규일러스트 일본판 유희왕',
-      '유희왕 한글판 네가로기어아제우스 슈퍼레어 QCAC-KR014',
-      '네가로기어아제우스 Holographic Rare 한글판 유희왕 B급 PHRA-KR045',
-      '네가로기어 아제우스 얼티밋레어 QCCU-JP182',
-      '네가로기어아제우스 / QCAC-KR014 / Super Rare',
-      '네가로기어아제우스 / QCCU-KR182 / Ultra Rare',
-      '네가로기어아제우스 (QCAC-JP014) Secret Rare 일본판 유희왕카드',
-      '유희왕 한글판 네가로기어아제우스(다른일러) QC시크릿레어 QCAC-KR014',
-      '네가로기어아제우스 QCAC-KR014 시크릿레어 A급 중고',
-      '네가로기어아제우스 시크릿 레어 C급 카드'
-    ];
-    
-    // 결과 저장
-    const formattedArray = [];
-    const resultsObject = {};
-    
-    // 제공된 상품명 또는 테스트 케이스 파싱
-    if (title && title.trim() !== '') {
-      // 단일 상품명 파싱
-      const result = testRarityParsing(title);
-      resultsObject[title] = result;
-      formattedArray.push({
-        title: title,
-        rarity: result.rarity,
-        rarityCode: result.rarityCode,
-        language: result.language,
-        condition: result.condition,
-        cardCode: result.cardCode ? result.cardCode.fullCode : null
-      });
-    } else {
-      // 테스트 케이스 파싱
-      for (const testCase of testCases) {
-        const result = testRarityParsing(testCase);
-        resultsObject[testCase] = result;
-        formattedArray.push({
-          title: testCase,
-          rarity: result.rarity,
-          rarityCode: result.rarityCode,
-          language: result.language,
-          condition: result.condition,
-          cardCode: result.cardCode ? result.cardCode.fullCode : null
-        });
-      }
-    }
-    
-    console.log('=== 카드 정보 파싱 테스트 결과 ===');
-    
-    res.status(200).json({ 
-      success: true, 
-      formattedArray,
-      results: resultsObject
-    });
-  } catch (error) {
-    console.error('[ERROR] 카드 정보 파싱 테스트 오류:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
-    });
-  }
-};
-
 // TCGShop에서 카드 가격 검색
 exports.searchTCGShop = async (req, res) => {
   try {
@@ -1434,8 +1313,6 @@ module.exports = {
   getPricesByRarity: exports.getPricesByRarity,
   crawlNaverStorePrice: exports.crawlNaverStorePrice,
   searchNaverShopApi: exports.searchNaverShopApi,
-  testNaverApi: exports.testNaverApi,
-  testRarityParsing: exports.testRarityParsing,
   searchTCGShop: exports.searchTCGShop,
   searchCardDC: exports.searchCardDC,
   searchOnlyYugioh: exports.searchOnlyYugioh,
