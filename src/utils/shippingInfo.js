@@ -3,7 +3,7 @@
  */
 
 const shippingInfo = {
-  // 네이버 상점의 기본 배송비 정보 (각 판매자마다 다름, 나중에 수정 필요)
+  // 네이버 상점의 기본 배송비 정보
   naverDefault: {
     shippingFee: 3000,            // 기본 배송비
     jejuShippingFee: 5000,        // 제주 지역 배송비

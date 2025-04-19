@@ -1,5 +1,6 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
+const iconv = require('iconv-lite'); // EUC-KR 인코딩 처리를 위해 필요
 const { parseRarity } = require('./rarityUtil');
 const { parseLanguage, parseCondition, extractCardCode } = require('./crawler');
 const { encodeEUCKR, detectLanguageFromCardCode } = require('./tcgshopCrawler');
@@ -23,7 +24,10 @@ async function crawlOnlyYugioh(cardName) {
     };
     
     // 검색 결과 페이지 요청
-    const response = await axios.get(searchUrl, { headers });
+    const response = await axios.get(searchUrl, { 
+      headers, 
+      responseType: 'arraybuffer'
+    });
     
     // Cheerio로 HTML 파싱
     const $ = cheerio.load(response.data);
@@ -60,190 +64,175 @@ async function crawlOnlyYugioh(cardName) {
       return items;
     }
     
-    // 상품 목록이 배열이 아닌 체인트 객체인 경우 each 메서드로 처리
-    if (typeof productElements.each === 'function') {
-      productElements.each((index, element) => {
-        processProductElement($(element), cardName, items, $);
+    productElements.each((index, element) => {
+      // 품절 상품인지 확인
+      const productElement = $(element);
+      const isSoldOut = productElement.find('img[alt="품절"]').length > 0 ||
+                     productElement.text().includes('품절');
+      
+      if (isSoldOut) {
+        return; // 품절 상품은 처리하지 않음
+      }
+      
+      // 상품명 및 링크 - 여러 선택자 시도
+      let title = '';
+      let titleElement;
+      
+      // 여러 선택자 시도
+      const titleSelectors = [
+        'strong.name a span:not(.title)',
+        'strong.name a',
+        '.name a',
+        '.prdName a'
+      ];
+      
+      for (const selector of titleSelectors) {
+        titleElement = productElement.find(selector);
+        if (titleElement.length > 0) {
+          title = titleElement.text().trim();
+          if (title) {
+            break;
+          }
+        }
+      }
+      
+      // 상품명에서 "상품명" 텍스트 제거 - 보다 확실하게 제거
+      title = title.replace(/^상품명/, '').trim();
+      
+      // 제목에 카드명이 포함되어 있는지 확인 - 특수문자와 띄어쓰기를 제외하고 비교하도록 수정
+      const cleanCardName = cardName.replace(/[-=\s]/g, '').toLowerCase();
+      const cleanTitle = title.replace(/[-=\s]/g, '').toLowerCase();
+      
+      if (!title || !cleanTitle.includes(cleanCardName)) {
+        return;
+      }
+      
+      // 상품 URL 추출
+      let detailUrl = '';
+      const detailUrlElement = productElement.find('strong.name a, .name a');
+      if (detailUrlElement.length > 0) {
+        detailUrl = detailUrlElement.attr('href');
+      }
+      
+      const fullUrl = detailUrl && detailUrl.startsWith('http') 
+        ? detailUrl 
+        : `https://www.onlyyugioh.com${detailUrl}`;
+      
+      // 가격 정보 추출 - 여러 선택자 시도
+      let price = 0;
+      const priceSelectors = [
+        'ul.spec li:contains("판매가") span:last-child',
+        'li:contains("판매가") span',
+        '.price',
+        'span:contains("원")'
+      ];
+      
+      for (const selector of priceSelectors) {
+        const priceElement = productElement.find(selector);
+        if (priceElement.length > 0) {
+          const rawPriceText = priceElement.text().trim();
+          
+          const priceText = rawPriceText.replace(/[^0-9]/g, '');
+          if (priceText) {
+            // 모든 가격에서 앞의 두 자리 제거
+            let parsedPrice;
+            if (priceText.length > 2) {
+              const correctedPrice = priceText.substring(2);
+              parsedPrice = parseInt(correctedPrice);
+            } else {
+              parsedPrice = parseInt(priceText);
+            }
+            price = parsedPrice;
+            break;
+          }
+        }
+      }
+      
+      // 상품 요약 정보에서 카드 코드, 레어도 등 추출
+      let description = '';
+      const descriptionSelectors = [
+        'ul.spec li:first-child span[style*="color:#0f53ff"]',
+        'ul.spec li span[style*="color:#0f53ff"]',
+        '.description',
+        'li:contains("상품요약정보")'
+      ];
+      
+      for (const selector of descriptionSelectors) {
+        const descriptionElement = productElement.find(selector);
+        if (descriptionElement.length > 0) {
+          description = descriptionElement.text().trim();
+          if (description) {
+            break;
+          }
+        }
+      }
+      
+      // 설명에서 "상품요약정보" 텍스트 제거
+      description = description.replace(/^상품요약정보/, '').trim();
+      
+      // 카드 코드 추출
+      let extractedCardCode = null;
+      const codeMatch = description.match(/([A-Z]+-[A-Z]+\d+)/);
+      if (codeMatch && codeMatch[1]) {
+        extractedCardCode = codeMatch[1];
+      } else {
+        const codeMatch2 = title.match(/([A-Z]+-[A-Z]+\d+)/);
+        if (codeMatch2 && codeMatch2[1]) {
+          extractedCardCode = codeMatch2[1];
+        }
+      }
+      
+      // 레어도 정보 추출
+      let rarity = '알 수 없음';
+      let rarityCode = 'UNK';
+      
+      // 제목과 설명에서 레어도 관련 단어 찾기
+      const fullText = title + ' ' + description;
+      
+      // crawler의 parseRarity 함수를 사용하여 레어도 파싱
+      const rarityInfo = parseRarity(fullText);
+      rarity = rarityInfo.rarity;
+      rarityCode = rarityInfo.rarityCode;
+      
+      // 언어 정보 추출
+      let language = '알 수 없음';
+      if (extractedCardCode) {
+        language = detectLanguageFromCardCode(extractedCardCode);
+      }
+      
+      if (language === '알 수 없음') {
+        if (fullText.includes('한글') || fullText.includes('한국어')) {
+          language = '한글판';
+        } else if (fullText.includes('일본') || fullText.includes('일본어')) {
+          language = '일본판';
+        } else if (fullText.includes('영문') || fullText.includes('영어')) {
+          language = '영문판';
+        }
+      }
+      
+      // 상태 정보 (노멀, 데미지 등)
+      const condition = parseCondition(fullText);
+      
+      // 검색 결과 추가
+      items.push({
+        title,
+        url: fullUrl,
+        condition,
+        rarity,
+        rarityCode,
+        language,
+        cardCode: extractedCardCode,
+        price,
+        site: 'OnlyYugioh',
+        available: true // 품절 상품은 위에서 필터링되었으므로 항상 true
       });
-    } else if (Array.isArray(productElements)) {
-      // 배열인 경우 forEach로 처리
-      productElements.forEach(element => {
-        processProductElement($(element), cardName, items, $);
-      });
-    }
+    });
     
     return items;
   } catch (error) {
     console.error('[ERROR] OnlyYugioh 크롤링 오류:', error);
     return [];
   }
-}
-
-/**
- * 상품 요소를 처리하는 헬퍼 함수
- * @param {Object} el - Cheerio 요소
- * @param {string} cardName - 카드 이름
- * @param {Array} items - 결과 배열
- * @param {Object} $ - Cheerio 객체
- */
-function processProductElement(el, cardName, items, $) {
-  // 품절 상품인지 확인
-  const isSoldOut = el.find('img[alt="품절"]').length > 0 ||
-                   el.text().includes('품절');
-  
-  if (isSoldOut) {
-    return; // 품절 상품은 처리하지 않음
-  }
-  
-  // 상품명 및 링크 - 여러 선택자 시도
-  let title = '';
-  let titleElement;
-  
-  // 여러 선택자 시도
-  const titleSelectors = [
-    'strong.name a span:not(.title)',
-    'strong.name a',
-    '.name a',
-    '.prdName a'
-  ];
-  
-  for (const selector of titleSelectors) {
-    titleElement = el.find(selector);
-    if (titleElement.length > 0) {
-      title = titleElement.text().trim();
-      if (title) {
-        break;
-      }
-    }
-  }
-  
-  // 상품명에서 "상품명" 텍스트 제거 - 보다 확실하게 제거
-  title = title.replace(/^상품명/, '').trim();
-  
-  // 카드 이름이 포함된 상품만 처리
-  if (!title || !title.toLowerCase().includes(cardName.toLowerCase())) {
-    return;
-  }
-  
-  // 상품 URL 추출
-  let detailUrl = '';
-  const detailUrlElement = el.find('strong.name a, .name a');
-  if (detailUrlElement.length > 0) {
-    detailUrl = detailUrlElement.attr('href');
-  }
-  
-  const fullUrl = detailUrl && detailUrl.startsWith('http') 
-    ? detailUrl 
-    : `https://www.onlyyugioh.com${detailUrl}`;
-  
-  // 가격 정보 추출 - 여러 선택자 시도
-  let price = 0;
-  const priceSelectors = [
-    'ul.spec li:contains("판매가") span:last-child',
-    'li:contains("판매가") span',
-    '.price',
-    'span:contains("원")'
-  ];
-  
-  for (const selector of priceSelectors) {
-    const priceElement = el.find(selector);
-    if (priceElement.length > 0) {
-      const rawPriceText = priceElement.text().trim();
-      
-      const priceText = rawPriceText.replace(/[^0-9]/g, '');
-      if (priceText) {
-        // 모든 가격에서 앞의 두 자리 제거
-        let parsedPrice;
-        if (priceText.length > 2) {
-          const correctedPrice = priceText.substring(2);
-          parsedPrice = parseInt(correctedPrice);
-        } else {
-          parsedPrice = parseInt(priceText);
-        }
-        price = parsedPrice;
-        break;
-      }
-    }
-  }
-  
-  // 상품 요약 정보에서 카드 코드, 레어도 등 추출
-  let description = '';
-  const descriptionSelectors = [
-    'ul.spec li:first-child span[style*="color:#0f53ff"]',
-    'ul.spec li span[style*="color:#0f53ff"]',
-    '.description',
-    'li:contains("상품요약정보")'
-  ];
-  
-  for (const selector of descriptionSelectors) {
-    const descriptionElement = el.find(selector);
-    if (descriptionElement.length > 0) {
-      description = descriptionElement.text().trim();
-      if (description) {
-        break;
-      }
-    }
-  }
-  
-  // 설명에서 "상품요약정보" 텍스트 제거
-  description = description.replace(/^상품요약정보/, '').trim();
-  
-  // 카드 코드 추출
-  let cardCode = null;
-  const codeMatch = description.match(/([A-Z]+-[A-Z]+\d+)/);
-  if (codeMatch && codeMatch[1]) {
-    cardCode = codeMatch[1];
-  } else {
-    const codeMatch2 = title.match(/([A-Z]+-[A-Z]+\d+)/);
-    if (codeMatch2 && codeMatch2[1]) {
-      cardCode = codeMatch2[1];
-    }
-  }
-  
-  // 레어도 정보 추출
-  let rarity = '알 수 없음';
-  let rarityCode = 'UNK';
-  
-  // 제목과 설명에서 레어도 관련 단어 찾기
-  const fullText = title + ' ' + description;
-  
-  // crawler의 parseRarity 함수를 사용하여 레어도 파싱
-  const rarityInfo = parseRarity(fullText);
-  rarity = rarityInfo.rarity;
-  rarityCode = rarityInfo.rarityCode;
-  
-  // 언어 정보 추출
-  let language = '알 수 없음';
-  if (cardCode) {
-    language = detectLanguageFromCardCode(cardCode);
-  }
-  
-  if (language === '알 수 없음') {
-    if (fullText.includes('한글') || fullText.includes('한국어')) {
-      language = '한글판';
-    } else if (fullText.includes('일본') || fullText.includes('일본어')) {
-      language = '일본판';
-    } else if (fullText.includes('영문') || fullText.includes('영어')) {
-      language = '영문판';
-    }
-  }
-  
-  // 상태 정보 (노멀, 데미지 등)
-  const condition = parseCondition(fullText);
-  
-  // 검색 결과 추가
-  items.push({
-    title,
-    url: fullUrl,
-    condition,
-    rarity,
-    rarityCode,
-    language,
-    cardCode,
-    price,
-    site: 'OnlyYugioh',
-    available: true // 품절 상품은 위에서 필터링되었으므로 항상 true
-  });
 }
 
 /**

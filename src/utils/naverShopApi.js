@@ -4,7 +4,7 @@ const { Op } = require('sequelize');
 // rarityUtil.js에서 레어도 파싱 함수를 가져옵니다
 const { parseRarity } = require('./rarityUtil');
 // crawler.js에서 나머지 파싱 함수들을 가져옵니다
-const { parseLanguage, parseCondition, extractCardCode, testRarityParsing } = require('./crawler');
+const { parseLanguage, parseCondition, extractCardCode} = require('./crawler');
 
 /**
  * 지정된 시간(ms) 동안 실행을 지연시키는 함수
