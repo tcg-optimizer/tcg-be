@@ -40,10 +40,14 @@ function encodeEUCKR(cardName) {
 function detectLanguageFromCardCode(cardCode) {
   if (!cardCode) return '알 수 없음';
   
-  // 카드 코드에서 언어 코드 추출 (두 글자만 확인)
-  if (cardCode.includes('KR')) return '한글판';
-  if (cardCode.includes('JP')) return '일본판';
-  if (cardCode.includes('EN')) return '영문판';
+  // 카드 코드에서 하이픈(-) 뒤의 국가 코드 두 글자만 추출
+  const match = cardCode.match(/-([A-Z]{2})/);
+  if (match && match[1]) {
+    const countryCode = match[1];
+    if (countryCode === 'KR') return '한글판';
+    if (countryCode === 'JP') return '일본판';
+    if (countryCode === 'EN') return '영문판';
+  }
   
   return '알 수 없음';
 }

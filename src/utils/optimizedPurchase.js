@@ -1030,7 +1030,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
   const shippingRegion = options.shippingRegion || 'default';
   console.log('\n[개선된 탐욕 알고리즘 실행] 배송 지역:', shippingRegion);
   
-  // 각 카드별로 상위 10개의 판매처만 고려 (성능/품질 트레이드오프 조절 가능)
+  // 각 카드별로 상위 30개의 판매처만 고려 (성능/품질 트레이드오프 조절 가능)
   const reducedCardsList = filterTopSellers(cardsList, 30);
   
   // 판매처 정보 준비
@@ -1152,7 +1152,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
   // 2. 두 번째 단계: 배송비 최적화 - 여러 번 반복하여 최적화
   let improved = true;
   let iterations = 0;
-  const MAX_ITERATIONS = 10;
+  const MAX_ITERATIONS = 20;
   
   while (improved && iterations < MAX_ITERATIONS) {
     improved = false;

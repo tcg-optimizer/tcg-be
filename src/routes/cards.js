@@ -10,7 +10,6 @@ router.get('/search/naver-api', cardController.searchNaverShopApi);
 router.get('/search/tcgshop', cardController.searchTCGShop);
 router.get('/search/carddc', cardController.searchCardDC);
 router.get('/search/onlyyugioh', cardController.searchOnlyYugioh);
-router.get('/lowest', cardController.getLowestPrice);
 
 
 // 레어도별 가격 검색
