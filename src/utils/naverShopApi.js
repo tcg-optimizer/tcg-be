@@ -7,6 +7,42 @@ const { parseRarity } = require('./rarityUtil');
 const { parseLanguage, parseCondition, extractCardCode} = require('./crawler');
 
 /**
+ * 상품명에서 직접 언어 정보를 추출합니다. 이 함수는 기존 parseLanguage보다 더 엄격한 매칭을 사용합니다.
+ * @param {string} title - 상품 제목
+ * @returns {string|null} - 추출된 언어 정보 또는 null (매칭되지 않을 경우)
+ */
+function extractLanguageFromTitle(title) {
+  if (!title) return null;
+  
+  // 명확한 언어 표현을 정규식으로 찾기
+  if (/(한글판|한국어판)/.test(title)) return '한글판';
+  if (/(일본판|일어판|일본어판|일판)/.test(title)) return '일본판';
+  if (/(영문판|영어판|영판)/.test(title)) return '영문판';
+  
+  return null; // 명확한 표현이 없으면 null 반환
+}
+
+/**
+ * 카드 코드에서 언어 정보를 추출합니다.
+ * @param {string} cardCode - 카드 코드 (예: ROTA-KR024)
+ * @returns {string} - 언어 정보 (한글판, 일본판, 영문판)
+ */
+function detectLanguageFromCardCode(cardCode) {
+  if (!cardCode) return '알 수 없음';
+  
+  // 카드 코드에서 하이픈(-) 뒤의 국가 코드 두 글자만 추출
+  const match = cardCode.match(/-([A-Z]{2})/);
+  if (match && match[1]) {
+    const countryCode = match[1];
+    if (countryCode === 'KR') return '한글판';
+    if (countryCode === 'JP') return '일본판';
+    if (countryCode === 'EN') return '영문판';
+  }
+  
+  return '알 수 없음';
+}
+
+/**
  * 지정된 시간(ms) 동안 실행을 지연시키는 함수
  * @param {number} ms - 지연 시간 (밀리초)
  * @returns {Promise} - 지정된 시간 후 해결되는 Promise
@@ -66,9 +102,25 @@ async function searchNaverShop(cardName) {
           
           // 레어도, 언어, 상태 정보 파싱
           const rarityInfo = parseRarity(title);
-          const language = parseLanguage(title);
           const condition = parseCondition(title);
           const cardCode = extractCardCode(title);
+          
+          // 언어 정보 추출 (우선순위: 직접 상품명 > crawler.js의 parseLanguage > 카드코드)
+          let language;
+          
+          // 1. 상품명에서 직접 추출 시도 (최우선)
+          const titleLanguage = extractLanguageFromTitle(title);
+          if (titleLanguage) {
+            language = titleLanguage;
+          } else {
+            // 2. crawler.js의 parseLanguage 사용
+            language = parseLanguage(title);
+            
+            // 3. 여전히 알 수 없는 경우 카드코드에서 추출 시도
+            if (language === '알 수 없음' && cardCode && cardCode.fullCode) {
+              language = detectLanguageFromCardCode(cardCode.fullCode);
+            }
+          }
           
           return {
             title: title,
@@ -88,7 +140,10 @@ async function searchNaverShop(cardName) {
           };
         });
         
-        allItems = [...allItems, ...items];
+        // 언어가 '알 수 없음'인 상품을 필터링
+        const filteredItems = items.filter(item => item.language !== '알 수 없음');
+        
+        allItems = [...allItems, ...filteredItems];
         retryCount = 0; // 성공하면 재시도 카운트 초기화
         
         // 100개 미만의 결과를 받았거나 최대 개수에 도달했다면 더 이상 요청하지 않음
@@ -226,5 +281,7 @@ async function searchAndSaveCardPricesApi(cardName) {
 
 module.exports = {
   searchNaverShop,
-  searchAndSaveCardPricesApi
+  searchAndSaveCardPricesApi,
+  detectLanguageFromCardCode,
+  extractLanguageFromTitle
 }; 
