@@ -467,7 +467,12 @@ exports.getPricesByRarity = async (req, res) => {
       let normalizedRarityPrices = {};
       
       try {
-        const rarityPrices = cachedResult.rarityPrices;
+        let rarityPrices;
+        try {
+          rarityPrices = JSON.parse(cachedResult.rarityPrices);
+        } catch (error) {
+          rarityPrices = cachedResult.rarityPrices;
+        }
         
         // 1. 정규화된 데이터 구조인지 확인 (언어 -> 레어도 -> {image, prices} 형태)
         const isNormalizedFormat = Object.values(rarityPrices).some(lang => 
