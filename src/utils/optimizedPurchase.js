@@ -13,12 +13,39 @@ const { getShippingInfo } = require('./shippingInfo');
  */
 function filterTopSellers(cardsList, topN = 5) {
   return cardsList.map(card => {
+    // 상품 목록이 없거나 비어있는 경우 처리
+    if (!card.products) {
+      console.log(`경고: '${card.cardName}' 카드의 상품 목록(products)이 없습니다.`);
+      return {
+        ...card,
+        products: []
+      };
+    }
+    
+    // products가 배열이 아닌 경우 체크 (prices 필드가 있는 형태)
+    let productsList = card.products;
+    
+    // products 객체가 배열이 아니고 prices 속성을 가지고 있는 경우 (캐시된 형식)
+    if (!Array.isArray(productsList) && productsList.prices) {
+      console.log(`정보: '${card.cardName}' 카드의 상품 목록이 {prices: [...]} 형태로 되어 있어 변환합니다.`);
+      productsList = productsList.prices; // prices 배열을 사용
+    }
+    
+    // 배열이 아닌 경우 빈 배열로 처리
+    if (!Array.isArray(productsList)) {
+      console.log(`경고: '${card.cardName}' 카드의 상품 목록이 유효한 형식이 아닙니다:`, productsList);
+      return {
+        ...card,
+        products: []
+      };
+    }
+    
     // 기본 상품 목록
-    let filteredProducts = card.products;
+    let filteredProducts = productsList;
     
     // 레어도 조건이 있는 경우 해당 조건에 맞는 상품만 필터링
     if (card.desiredRarity) {
-      filteredProducts = card.products.filter(product => {
+      filteredProducts = productsList.filter(product => {
         // 레어도 일치 확인 (대소문자 무시)
         const productRarity = (product.rarity || '').toLowerCase();
         const desiredRarity = card.desiredRarity.toLowerCase();

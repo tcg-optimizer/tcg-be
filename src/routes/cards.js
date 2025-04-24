@@ -14,7 +14,7 @@ router.get('/search/onlyyugioh', cardController.searchOnlyYugioh);
 
 // 레어도별 가격 검색
 router.get('/rarity-prices', cardController.getPricesByRarity);
-
+ 
 // 최적 구매 조합 계산
 router.post('/optimal-purchase', cardController.getOptimalPurchaseCombination);
 

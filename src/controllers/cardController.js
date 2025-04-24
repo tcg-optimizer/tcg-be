@@ -250,6 +250,10 @@ exports.getPricesByRarity = async (req, res) => {
           // 캐시에서 데이터를 찾지 못한 것처럼 다음 단계로 진행
         }
         
+        // 캐시 ID와 만료 시간을 응답에 추가
+        responseData.cacheId = cachedResult.id;
+        responseData.cacheExpiresAt = cachedResult.expiresAt;
+        
         return res.status(200).json(responseData);
       } catch (error) {
         console.error(`[ERROR] 캐시 데이터 정규화 중 오류 발생: ${error.message}`);
@@ -895,7 +899,15 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
             // 언어 선택이 있는 경우
             if (card.language && rarityPrices[card.language] && rarityPrices[card.language][card.rarity]) {
               // 선택된 언어와 레어도에 해당하는 상품 가져오기
-              products = rarityPrices[card.language][card.rarity];
+              let selectedProduct = rarityPrices[card.language][card.rarity];
+              
+              // 형식 확인 - products가 {image, prices} 형태인 경우
+              if (selectedProduct && typeof selectedProduct === 'object' && !Array.isArray(selectedProduct) && selectedProduct.prices) {
+                console.log(`'${card.name}' 카드의 상품 데이터가 {image, prices} 형태입니다. prices 배열을 사용합니다.`);
+                products = selectedProduct.prices;
+              } else {
+                products = selectedProduct;
+              }
             } 
             // 언어 선택이 없는 경우
             else if (!card.language) {
@@ -903,7 +915,14 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
               products = [];
               Object.keys(rarityPrices).forEach(language => {
                 if (rarityPrices[language][card.rarity]) {
-                  products = products.concat(rarityPrices[language][card.rarity]);
+                  let rarityProduct = rarityPrices[language][card.rarity];
+                  
+                  // 형식 확인 - products가 {image, prices} 형태인 경우
+                  if (rarityProduct && typeof rarityProduct === 'object' && !Array.isArray(rarityProduct) && rarityProduct.prices) {
+                    products = products.concat(rarityProduct.prices);
+                  } else {
+                    products = products.concat(rarityProduct);
+                  }
                 }
               });
             }
@@ -1177,6 +1196,37 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
       optimalCombination.sellers.forEach(seller => {
         if (sellerCardsMap[seller.name]) {
           sellerCardsMap[seller.name].shippingCost = seller.shippingCost || 0;
+        }
+      });
+    }
+    
+    // 배송비 정보 추가 (수정된 부분)
+    if (optimalCombination.sellerDetails) {
+      // sellerDetails 사용 - 판매자 정보가 더 자세한 경우
+      optimalCombination.sellerDetails.forEach(sellerDetail => {
+        if (sellerCardsMap[sellerDetail.name]) {
+          sellerCardsMap[sellerDetail.name].shippingCost = sellerDetail.shippingCost || 0;
+        }
+      });
+    } else if (optimalCombination.purchaseDetails) {
+      // purchaseDetails 사용 - 직접 판매자별 배송비 정보 접근
+      Object.keys(optimalCombination.purchaseDetails).forEach(sellerName => {
+        if (sellerCardsMap[sellerName]) {
+          const details = optimalCombination.purchaseDetails[sellerName];
+          sellerCardsMap[sellerName].shippingCost = details.shippingFee || 0;
+        }
+      });
+    } else if (optimalCombination.sellers && Array.isArray(optimalCombination.sellers)) {
+      // sellers 배열 사용 (기존 코드) - 배열에 문자열만 있는 경우 (판매자 이름)
+      optimalCombination.sellers.forEach(sellerName => {
+        if (typeof sellerName === 'string' && sellerCardsMap[sellerName]) {
+          // 각 판매자별 배송비 정보를 판매처별 총 금액과 소계 차이로 계산
+          // 또는 기존에 저장된 전체 배송비를 판매자 수로 나눠서 배분 (임시 해결책)
+          const totalShippingCost = optimalCombination.totalShippingCost || 0;
+          const sellerCount = optimalCombination.sellers.length;
+          if (sellerCount > 0) {
+            sellerCardsMap[sellerName].shippingCost = totalShippingCost / sellerCount;
+          }
         }
       });
     }
