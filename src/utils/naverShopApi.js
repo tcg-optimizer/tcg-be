@@ -78,7 +78,7 @@ async function searchNaverShop(cardName) {
     let allItems = [];
     let start = 1;
     let hasMoreItems = true;
-    const maxItems = 1000; // 최대 1000개까지 가져오기
+    const maxItems = 1000; // 최적화: 최대 200개로 제한하여 검색 속도 향상
     let retryCount = 0;
     const maxRetries = 3;
     
@@ -87,8 +87,8 @@ async function searchNaverShop(cardName) {
       const apiUrl = `https://openapi.naver.com/v1/search/shop.json?query=${query}&display=${display}&start=${start}&sort=${sort}`;
       
       try {
-        // API 요청 전 지연 추가 (1초 대기)
-        await delay(1000);
+        // API 요청 전 지연 시간
+        await delay(100);
         
         // API 요청 - 타임아웃 5초 설정
         const response = await axios.get(apiUrl, { 
@@ -141,7 +141,14 @@ async function searchNaverShop(cardName) {
         });
         
         // 언어가 '알 수 없음'인 상품을 필터링
-        const filteredItems = items.filter(item => item.language !== '알 수 없음');
+        const filteredItems = items.filter(item => item.language !== '알 수 없음' && item.rarity !== '알 수 없음');
+        
+        // 충분한 결과를 찾았거나 필터링으로 인해 모든 결과가 제외된 경우
+        if (filteredItems.length === 0 && items.length > 0) {
+          console.log('[INFO] 모든 아이템이 필터링되었습니다. 다음 페이지로 이동합니다.');
+          start += display;
+          continue;
+        }
         
         allItems = [...allItems, ...filteredItems];
         retryCount = 0; // 성공하면 재시도 카운트 초기화
@@ -155,8 +162,8 @@ async function searchNaverShop(cardName) {
       } catch (error) {
         // 429 에러(너무 많은 요청)가 발생한 경우 더 오래 대기한 후 재시도
         if (error.response && error.response.status === 429) {
-          console.log('[WARN] 네이버 API 요청 한도 초과. 3초 대기 후 재시도합니다.');
-          await delay(3000);
+          console.log('[WARN] 네이버 API 요청 한도 초과. 2초 대기 후 재시도합니다.');
+          await delay(2000);
         } else if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') {
           // 소켓 오류나 타임아웃 처리
           retryCount++;
