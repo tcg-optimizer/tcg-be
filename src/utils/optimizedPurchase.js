@@ -76,8 +76,8 @@ function filterTopSellers(cardsList, topN = 5) {
       const aInfo = getShippingInfo(getSellerId(a.site));
       const bInfo = getShippingInfo(getSellerId(b.site));
       
-      // 배송비 비교 (제주 지역 배송비 고려)
-      return aInfo.jejuShippingFee - bInfo.jejuShippingFee;
+      // 일반 배송비로 비교
+      return aInfo.shippingFee - bInfo.shippingFee;
     });
     
     // 이미 포함된 판매처 추적
@@ -98,48 +98,6 @@ function filterTopSellers(cardsList, topN = 5) {
       products: filteredBySellerProducts
     };
   });
-}
-
-/**
- * 판매처별 제품 목록과 판매처 정보 구성
- * @param {Array<Object>} cardsList - 카드 목록
- * @returns {Object} - 판매처 정보
- */
-function prepareSellerInfo(cardsList) {
-  // 1. 각 판매처별로 구매 가능한 카드 목록을 정리
-  const sellerCards = {};
-  const uniqueSellers = new Set();
-  
-  // 각 카드에 대해 판매처별 가격 정보 수집
-  cardsList.forEach(cardInfo => {
-    const { cardName, products } = cardInfo;
-    
-    products.forEach(product => {
-      const sellerName = product.site;
-      uniqueSellers.add(sellerName);
-      
-      if (!sellerCards[sellerName]) {
-        sellerCards[sellerName] = [];
-      }
-      
-      sellerCards[sellerName].push({
-        cardName,
-        price: product.price,
-        productInfo: product
-      });
-    });
-  });
-  
-  // 모든 판매처 목록
-  const sellersList = Array.from(uniqueSellers);
-  
-  // 각 판매처의 배송비 정보
-  const sellerShippingInfo = {};
-  sellersList.forEach(seller => {
-    sellerShippingInfo[seller] = getShippingInfo(seller);
-  });
-  
-  return { sellersList, sellerCards, sellerShippingInfo, uniqueSellers };
 }
 
 /**
