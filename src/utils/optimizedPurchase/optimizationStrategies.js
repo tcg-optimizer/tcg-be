@@ -178,9 +178,8 @@ function tryMultipleCardsMove(targetSeller, gapToThreshold, purchaseDetails, sel
   // (완전 탐색은 너무 비용이 높으므로)
   
   // 최대 3개까지의 카드 조합 시도 (더 많은 경우도 가능하지만 연산 비용 고려)
-  const maxCardsToMove = Math.min(5, allCandidateCards.length);
+  const maxCardsToMove = allCandidateCards.length;
   let bestCombination = [];
-  let bestGapDifference = Infinity;
   let bestTotalCost = Infinity;
   
   // 싱글 카드 이동 (이미 tryMoveCardsToReachThreshold에서 시도했으므로 건너뜀)
@@ -188,8 +187,8 @@ function tryMultipleCardsMove(targetSeller, gapToThreshold, purchaseDetails, sel
   // 2~3개 카드 조합 시도 (효율적인 카드 중에서)
   for (let numCards = 2; numCards <= maxCardsToMove; numCards++) {
     // 가능한 모든 카드 조합에 대해 시뮬레이션
-    // 효율성 상위 8개 카드 중에서만 조합 시도 (성능 최적화)
-    const topCards = allCandidateCards.slice(0, Math.min(8, allCandidateCards.length));
+    // 제한 없이 모든 후보 카드 사용
+    const topCards = allCandidateCards;
     
     // 조합 생성 (재귀 함수 사용)
     const combinations = [];
@@ -245,11 +244,8 @@ function tryMultipleCardsMove(targetSeller, gapToThreshold, purchaseDetails, sel
       
       // 새로운 가격이 무료배송 임계값에 얼마나 가까운지 확인
       const newTargetSubtotal = originalTargetDetails.subtotal + combinationTargetPrice;
-      const newGapDifference = Math.abs(sellerShippingInfo[targetSeller].freeShippingThreshold - newTargetSubtotal);
-      
-      // 이 조합으로 무료배송을 달성할 수 있는지 확인
-      const newTargetShippingFee = 
-        newTargetSubtotal >= sellerShippingInfo[targetSeller].freeShippingThreshold ? 0 : sellerShippingInfo[targetSeller].shippingFee;
+      // 배송비 계산
+      const newTargetShippingFee = newTargetSubtotal >= sellerShippingInfo[targetSeller].freeShippingThreshold ? 0 : sellerShippingInfo[targetSeller].shippingFee;
       
       // 소스 판매처들의 새 배송비 계산
       let totalSourceNewShippingFee = 0;
@@ -272,8 +268,7 @@ function tryMultipleCardsMove(targetSeller, gapToThreshold, purchaseDetails, sel
           .reduce((sum, c) => sum + (c.currentPrice * c.quantity), 0);
           
         const newSubtotal = currentSubtotal - allCardsPrice;
-        const newShippingFee = newSubtotal > 0 ? 
-          (newSubtotal >= sourceThreshold ? 0 : sourceShippingFee) : 0;
+        const newShippingFee = newSubtotal > 0 ? (newSubtotal >= sourceThreshold ? 0 : sourceShippingFee) : 0;
         
         totalSourceOldShippingFee += currentShippingFee;
         totalSourceNewShippingFee += newShippingFee;
@@ -288,9 +283,7 @@ function tryMultipleCardsMove(targetSeller, gapToThreshold, purchaseDetails, sel
       });
       
       // 총 비용 변화 계산
-      const oldTotalCost = originalTargetDetails.total + 
-        combination.reduce((sum, card) => sum + originalDetails[card.seller].total, 0);
-        
+      const oldTotalCost = originalTargetDetails.total + combination.reduce((sum, card) => sum + originalDetails[card.seller].total, 0);
       const newTargetTotal = newTargetSubtotal + newTargetShippingFee;
       
       // 소스 판매처들의 새 총액 계산
@@ -311,9 +304,8 @@ function tryMultipleCardsMove(targetSeller, gapToThreshold, purchaseDetails, sel
           .reduce((sum, c) => sum + (c.currentPrice * c.quantity), 0);
           
         const newSubtotal = currentSubtotal - allCardsPrice;
-        const newShippingFee = newSubtotal > 0 ? 
-          (newSubtotal >= sellerShippingInfo[seller].freeShippingThreshold ? 0 : sellerShippingInfo[seller].shippingFee) : 0;
-          
+        const newShippingFee = newSubtotal > 0 ? (newSubtotal >= sellerShippingInfo[seller].freeShippingThreshold ? 0 : sellerShippingInfo[seller].shippingFee) : 0;
+        
         const newTotal = newSubtotal + newShippingFee;
         newSourceTotals += newTotal;
         
@@ -326,14 +318,9 @@ function tryMultipleCardsMove(targetSeller, gapToThreshold, purchaseDetails, sel
       
       const newTotalCost = newTargetTotal + newSourceTotals;
       
-      // 기존 결과보다 나은 경우 저장
-      if (
-        (newTargetShippingFee === 0 && originalTargetDetails.shippingFee > 0) || // 무료배송 달성
-        (newGapDifference < bestGapDifference && newTotalCost <= oldTotalCost) || // 더 가깝고 비용 증가 없음
-        (newTotalCost < bestTotalCost) // 전체 비용 감소
-      ) {
+      // 총 비용이 더 적을 때만 최적 조합 갱신
+      if (newTotalCost < bestTotalCost) {
         bestCombination = combination;
-        bestGapDifference = newGapDifference;
         bestTotalCost = newTotalCost;
       }
     }
@@ -557,11 +544,8 @@ function trySellersConsolidation(purchaseDetails, sellerShippingInfo, cardsOptim
       // 소스 판매처는 비어질 것이므로 비용은 0
       const newTotalCost = newTargetTotal;
       
-      // 이동하는 것이 이득이거나 최대 5% 비용 증가만 발생하는 경우 이동
-      // (판매처 수 감소는 사용자 편의성 측면에서 약간의 비용 증가를 감수할 가치가 있음)
-      const costIncreaseTolerance = originalCost * 0.05; // 5% 허용
-      
-      if (newTotalCost <= originalCost + costIncreaseTolerance) {
+      // 실제 비용 감소인 경우에만 이동
+      if (newTotalCost < originalCost) {
         console.log(`[개선된 탐욕] 판매처 통합: ${sourceSellerName}의 모든 카드(${moves.length}개)를 ${bestTargetSeller}로 이동 (비용 변화: ${newTotalCost - originalCost}원)`);
         
         // 모든 카드 이동 실행

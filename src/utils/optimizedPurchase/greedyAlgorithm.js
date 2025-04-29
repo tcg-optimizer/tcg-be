@@ -547,10 +547,41 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
         // 카드 이미지 수집
         if (!cardImagesMap[card.cardName]) {
           const cardInfo = reducedCardsList.find(c => c.cardName === card.cardName);
-          if (cardInfo && cardInfo.products && cardInfo.products.length > 0) {
-            // 첫 번째 상품의 이미지 사용 또는 제품에 이미지 필드가 있으면 사용
+          
+          // 우선순위: 1. 카드 자체의 image 속성
+          if (cardInfo && cardInfo.image) {
+            console.log(`[INFO] "${card.cardName}" 카드의 이미지를 카드 객체에서 찾았습니다: ${cardInfo.image.substring(0, 30)}...`);
+            cardImagesMap[card.cardName] = cardInfo.image;
+          }
+          // 2. 카드의 products 배열이 존재하고 이미지가 있는 경우
+          else if (cardInfo && cardInfo.products && cardInfo.products.length > 0) {
+            // 제품에 이미지 필드가 있으면 사용 (첫 번째 상품)
             const firstProduct = cardInfo.products[0];
-            cardImagesMap[card.cardName] = firstProduct.image || null;
+            
+            if (firstProduct.image) {
+              console.log(`[INFO] "${card.cardName}" 카드의 이미지를 products[0].image에서 찾았습니다`);
+              cardImagesMap[card.cardName] = firstProduct.image;
+            }
+            // 선택된 상품에 이미지가 있으면 사용
+            else if (card.product && card.product.image) {
+              console.log(`[INFO] "${card.cardName}" 카드의 이미지를 선택된 상품에서 찾았습니다`);
+              cardImagesMap[card.cardName] = card.product.image;
+            }
+            else {
+              // 모든 상품을 검사하여 이미지 찾기
+              const productWithImage = cardInfo.products.find(p => p.image);
+              if (productWithImage) {
+                console.log(`[INFO] "${card.cardName}" 카드의 이미지를 다른 상품에서 찾았습니다`);
+                cardImagesMap[card.cardName] = productWithImage.image;
+              } else {
+                cardImagesMap[card.cardName] = null;
+                console.log(`[WARN] "${card.cardName}" 카드의 이미지를 찾을 수 없습니다.`);
+              }
+            }
+          }
+          else {
+            cardImagesMap[card.cardName] = null;
+            console.log(`[WARN] "${card.cardName}" 카드의 이미지 정보가 없습니다.`);
           }
         }
         

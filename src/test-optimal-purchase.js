@@ -276,6 +276,8 @@ async function findOptimalCardsPurchase(cardList, options = {}) {
         console.log(`소계: ${storeInfo.productCost.toLocaleString()}원`);
         console.log(`배송비: ${storeInfo.shippingCost.toLocaleString()}원`);
         console.log(`총액: ${storeInfo.finalPrice.toLocaleString()}원`);
+        console.log(`적립금: ${storeInfo.pointsEarned.toLocaleString()}원`);
+        console.log(`실질 결제액: ${(storeInfo.finalPrice - storeInfo.pointsEarned).toLocaleString()}원`);
         
         console.log('\n구매 카드 목록:');
         storeInfo.cards.forEach((card, index) => {
@@ -324,6 +326,8 @@ async function findOptimalCardsPurchase(cardList, options = {}) {
         console.log(`소계: ${details.subtotal.toLocaleString()}원`);
         console.log(`배송비: ${details.shippingFee.toLocaleString()}원`);
         console.log(`총액: ${details.total.toLocaleString()}원`);
+        console.log(`적립금: ${details.points.toLocaleString()}원`);
+        console.log(`실질 결제액: ${(details.total - details.points).toLocaleString()}원`);
         
         console.log('\n구매 카드 목록:');
         details.cards.forEach((card, index) => {
@@ -600,9 +604,9 @@ function parseCommandLineArgs() {
     maxSellersPerCard: 50, // 기본값
     useDefaultCards: args.length === 0 || args.includes('--use-default'),
     // 서버 API 명명 규칙과 일치하도록 변경
-    tcgshopPoints: false,
-    carddcPoints: false,
-    naverBasicPoints: false,
+    tcgshopPoints: true,
+    carddcPoints: true,
+    naverBasicPoints: true,
     naverBankbookPoints: false,
     naverMembershipPoints: false,
     naverHyundaiCardPoints: false
