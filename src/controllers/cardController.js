@@ -78,7 +78,7 @@ exports.getPricesByRarity = async (req, res) => {
         success: true,
         source: 'cache',
         data: {
-          name: cachedResult.cardName,
+          cardName: cachedResult.cardName,
           image: cachedResult.image
         }
       };
@@ -830,8 +830,10 @@ exports.getCachedPrices = async (req, res) => {
       success: true,
       data: {
         cardName: priceCache.cardName,
-        rarityPrices: priceCache.rarityPrices
+        image: priceCache.image,
+        totalProducts: calculateTotalProducts(priceCache.rarityPrices)
       },
+      rarityPrices: priceCache.rarityPrices,
       cacheId: priceCache.id,
       cacheExpiresAt: priceCache.expiresAt
     });
@@ -845,6 +847,29 @@ exports.getCachedPrices = async (req, res) => {
     });
   }
 };
+
+/**
+ * 레어도별 가격 정보에서 총 상품 개수 계산
+ * @param {Object} rarityPrices - 레어도별 가격 정보
+ * @returns {number} 총 상품 개수
+ */
+function calculateTotalProducts(rarityPrices) {
+  let totalProducts = 0;
+  
+  // rarityPrices가 문자열이면 JSON으로 파싱
+  const prices = typeof rarityPrices === 'string' ? JSON.parse(rarityPrices) : rarityPrices;
+  
+  // 언어별, 레어도별 상품 개수 합산
+  Object.keys(prices).forEach(language => {
+    Object.keys(prices[language]).forEach(rarity => {
+      if (prices[language][rarity] && prices[language][rarity].prices) {
+        totalProducts += prices[language][rarity].prices.length;
+      }
+    });
+  });
+  
+  return totalProducts;
+}
 
 /**
  * 여러 카드의 최적 구매 조합 계산
