@@ -170,14 +170,55 @@ async function findOptimalCardsPurchase(cardList, options = {}) {
   try {
     console.log('카드 검색 시작...\n');
     
-    // 기본 옵션 설정
-    const defaultOptions = {
-      shippingRegion: 'default', // 기본 배송 지역
-      algorithm: 'greedy', // 기본 알고리즘을 그리디로 변경
-      maxSellersPerCard: 10 // 카드 당 고려할 판매처 수
+    // 서버 API 명명 규칙과 일치하도록 변경
+    const pointsOptions = {
+      tcgshop: options.tcgshopPoints || false,
+      carddc: options.carddcPoints || false,
+      naverBasic: options.naverBasicPoints || false,
+      naverBankbook: options.naverBankbookPoints || false,
+      naverMembership: options.naverMembershipPoints || false,
+      naverHyundaiCard: options.naverHyundaiCardPoints || false
     };
     
-    const mergedOptions = { ...defaultOptions, ...options };
+    // 가장 일반적인 판매처 이름 매핑 (실제 판매처 이름 -> 적립금 계산용 이름)
+    const sellerNameMapping = {
+      '티씨지샵': 'tcgshop',
+      '티씨지숍': 'tcgshop',
+      'tcgshop': 'tcgshop',
+      '티씨지스카이': 'naver',
+      '티씨지헤븐': 'naver',
+      '티씨지하우스': 'naver',
+      '카드디씨': 'carddc',
+      '카드dc': 'carddc',
+      'carddc': 'carddc',
+      '인카드': 'naver',
+      '네이버': 'naver'
+    };
+
+    // 판매처 이름을 적립금 계산에 사용되는 표준 이름으로 매핑하는 함수
+    function getNormalizedSellerName(sellerName) {
+      // 소문자로 변환 후 공백 제거
+      const normalizedName = String(sellerName).toLowerCase().trim();
+      
+      // 매핑 테이블에서 정규화된 이름 찾기
+      for (const [key, value] of Object.entries(sellerNameMapping)) {
+        if (normalizedName.includes(key.toLowerCase())) {
+          return value;
+        }
+      }
+      
+      // 매핑이 없으면 원래 이름 반환
+      return sellerName;
+    }
+    
+    // 최적화 옵션 설정
+    const optimizationOptions = {
+      shippingRegion: options.shippingRegion || 'default',
+      maxSellersPerCard: options.maxSellersPerCard || 30, 
+      algorithm: 'greedy', // 항상 그리디 알고리즘 사용
+      pointsOptions, // pointsUtils.js에서 사용하는 형식으로 변환
+      normalizeSellerName: getNormalizedSellerName // 판매처 이름 정규화 함수 전달
+    };
     
     // 각 카드를 순차적으로 검색하여 API 요청 속도 제한
     const cardsSearchResults = [];
@@ -188,6 +229,19 @@ async function findOptimalCardsPurchase(cardList, options = {}) {
         card.language,
         card.quantity || 1
       );
+      
+      // 각 상품의 판매처 이름을 정규화하여 적립금 계산이 올바르게 되도록 수정
+      if (result.products && result.products.length > 0) {
+        result.products.forEach(product => {
+          if (product.site) {
+            // 원본 사이트 이름 저장
+            product.originalSite = product.site;
+            // 적립금 계산을 위한 정규화된 사이트 이름 추가
+            product.normalizedSite = getNormalizedSellerName(product.site);
+          }
+        });
+      }
+      
       cardsSearchResults.push(result);
       
       // 다음 카드 검색 전 지연 (1초)
@@ -229,58 +283,114 @@ async function findOptimalCardsPurchase(cardList, options = {}) {
       console.log(`주의: ${cardList.length - validCardsResults.length}개 카드에 대한 정보를 찾지 못했습니다.`);
     }
     
-    // 3. 최적 구매 조합 찾기 - 선택한 알고리즘 사용
+    // 3. 최적 구매 조합 찾기
     console.log('\n최적 구매 조합 계산 중...');
-    console.log(`사용 알고리즘: ${mergedOptions.algorithm}`);
+    console.log(`사용 알고리즘: ${optimizationOptions.algorithm}`);
     console.time('최적화 계산 시간');
     const startMemory = process.memoryUsage().heapUsed / 1024 / 1024;
     const optimalCombination = findOptimalPurchaseCombination(
       validCardsResults, 
-      { ...mergedOptions }
+      optimizationOptions
     );
     const endMemory = process.memoryUsage().heapUsed / 1024 / 1024;
     console.timeEnd('최적화 계산 시간');
     console.log(`메모리 사용량: ${(endMemory - startMemory).toFixed(2)} MB`);
     
     // 4. 결과 출력
-    if (!optimalCombination.success) {
-      console.log('최적 구매 조합을 찾지 못했습니다:', optimalCombination.message);
-      return optimalCombination;
+    if (!optimalCombination || !optimalCombination.success) {
+      console.log('최적 구매 조합을 찾지 못했습니다:', optimalCombination?.message || '알 수 없는 오류');
+      return optimalCombination || { success: false, message: '알 수 없는 오류' };
     }
     
     // 5. 결과 정보 구성
     console.log('\n=== 최적 구매 조합 결과 ===');
-    console.log(`총 비용: ${optimalCombination.totalCost.toLocaleString()}원`);
-    console.log(`판매처 수: ${optimalCombination.sellers.length}개 (${optimalCombination.sellers.join(', ')})`);
+    console.log(`총 비용: ${optimalCombination.totalCost?.toLocaleString() || 0}원`);
     
-    console.log('\n=== 판매처별 구매 내역 ===');
-    for (const seller of optimalCombination.sellers) {
-      // seller가 문자열인지 객체인지 확인
-      const sellerKey = getSellerId(seller);
-      const details = optimalCombination.purchaseDetails[sellerKey];
+    // API 응답 구조 변경 - cardsOptimalPurchase가 객체이고 sellers 속성이 없는 경우 처리
+    // cardsOptimalPurchase가 객체 형태인 경우 (greedyAlgorithm.js의 최신 버전에서 반환)
+    if (optimalCombination.cardsOptimalPurchase && typeof optimalCombination.cardsOptimalPurchase === 'object' && !Array.isArray(optimalCombination.cardsOptimalPurchase)) {
+      const sellerKeys = Object.keys(optimalCombination.cardsOptimalPurchase);
+      console.log(`판매처 수: ${sellerKeys.length}개 (${sellerKeys.join(', ')})`);
       
-      if (!details || !details.cards) {
-        console.log(`\n[${sellerKey || '알 수 없는 판매처'}]`);
-        console.log('구매 내역을 표시할 수 없습니다.');
-        continue;
+      console.log('\n=== 판매처별 구매 내역 ===');
+      for (const sellerKey of sellerKeys) {
+        const storeInfo = optimalCombination.cardsOptimalPurchase[sellerKey];
+        
+        console.log(`\n[${sellerKey}]`);
+        console.log(`카드 수: ${storeInfo.cards.length}개`);
+        console.log(`소계: ${storeInfo.productCost.toLocaleString()}원`);
+        console.log(`배송비: ${storeInfo.shippingCost.toLocaleString()}원`);
+        console.log(`총액: ${storeInfo.finalPrice.toLocaleString()}원`);
+        console.log(`적립금: ${storeInfo.pointsEarned.toLocaleString()}원`);
+        console.log(`실질 결제액: ${(storeInfo.finalPrice - storeInfo.pointsEarned).toLocaleString()}원`);
+        
+        console.log('\n구매 카드 목록:');
+        storeInfo.cards.forEach((card, index) => {
+          console.log(`${index + 1}. ${card.cardName}: ${card.price.toLocaleString()}원 x ${card.quantity || 1}장 = ${(card.price * (card.quantity || 1)).toLocaleString()}원 ${card.product && card.product.rarity ? `(${card.product.rarity})` : ''}`);
+        });
       }
       
-      console.log(`\n[${sellerKey}]`);
-      console.log(`카드 수: ${details.cards.length}개`);
-      console.log(`소계: ${details.subtotal.toLocaleString()}원`);
-      console.log(`배송비: ${details.shippingFee.toLocaleString()}원`);
-      console.log(`총액: ${details.total.toLocaleString()}원`);
+      console.log('\n=== 카드별 최적 구매처 ===');
+      // 카드별로 구매처 정보 재구성
+      const cardList = [];
+      for (const sellerKey of sellerKeys) {
+        const storeInfo = optimalCombination.cardsOptimalPurchase[sellerKey];
+        storeInfo.cards.forEach(card => {
+          cardList.push({
+            cardName: card.cardName,
+            seller: sellerKey,
+            price: card.price,
+            quantity: card.quantity || 1,
+            product: card.product
+          });
+        });
+      }
       
-      console.log('\n구매 카드 목록:');
-      details.cards.forEach((card, index) => {
-        console.log(`${index + 1}. ${card.cardName}: ${card.price.toLocaleString()}원 x ${card.quantity || 1}장 = ${(card.price * (card.quantity || 1)).toLocaleString()}원 ${card.product && card.product.rarity ? `(${card.product.rarity})` : ''}`);
+      cardList.forEach((card, index) => {
+        console.log(`${index + 1}. ${card.cardName}: ${card.seller} - ${card.price.toLocaleString()}원 x ${card.quantity}장 = ${(card.price * card.quantity).toLocaleString()}원 ${card.product && card.product.rarity ? `(${card.product.rarity})` : ''}`);
       });
+    } 
+    // cardsOptimalPurchase가 배열 형태인 경우 (이전 버전 호환)
+    else if (optimalCombination.sellers && Array.isArray(optimalCombination.sellers)) {
+      console.log(`판매처 수: ${optimalCombination.sellers.length}개 (${optimalCombination.sellers.join(', ')})`);
+      
+      console.log('\n=== 판매처별 구매 내역 ===');
+      for (const seller of optimalCombination.sellers) {
+        // seller가 문자열인지 객체인지 확인
+        const sellerKey = getSellerId(seller);
+        const details = optimalCombination.purchaseDetails?.[sellerKey];
+        
+        if (!details || !details.cards) {
+          console.log(`\n[${sellerKey || '알 수 없는 판매처'}]`);
+          console.log('구매 내역을 표시할 수 없습니다.');
+          continue;
+        }
+        
+        console.log(`\n[${sellerKey}]`);
+        console.log(`카드 수: ${details.cards.length}개`);
+        console.log(`소계: ${details.subtotal.toLocaleString()}원`);
+        console.log(`배송비: ${details.shippingFee.toLocaleString()}원`);
+        console.log(`총액: ${details.total.toLocaleString()}원`);
+        console.log(`적립금: ${details.points.toLocaleString()}원`);
+        console.log(`실질 결제액: ${(details.total - details.points).toLocaleString()}원`);
+        
+        console.log('\n구매 카드 목록:');
+        details.cards.forEach((card, index) => {
+          console.log(`${index + 1}. ${card.cardName}: ${card.price.toLocaleString()}원 x ${card.quantity || 1}장 = ${(card.price * (card.quantity || 1)).toLocaleString()}원 ${card.product && card.product.rarity ? `(${card.product.rarity})` : ''}`);
+        });
+      }
+      
+      console.log('\n=== 카드별 최적 구매처 ===');
+      if (Array.isArray(optimalCombination.cardsOptimalPurchase)) {
+        optimalCombination.cardsOptimalPurchase.forEach((card, index) => {
+          console.log(`${index + 1}. ${card.cardName}: ${card.seller} - ${card.price.toLocaleString()}원 x ${card.quantity || 1}장 = ${(card.price * (card.quantity || 1)).toLocaleString()}원 ${card.product && card.product.rarity ? `(${card.product.rarity})` : ''}`);
+        });
+      } else {
+        console.log('카드별 최적 구매 정보를 표시할 수 없습니다.');
+      }
+    } else {
+      console.log('판매처 정보를 표시할 수 없습니다.');
     }
-    
-    console.log('\n=== 카드별 최적 구매처 ===');
-    optimalCombination.cardsOptimalPurchase.forEach((card, index) => {
-      console.log(`${index + 1}. ${card.cardName}: ${card.seller} - ${card.price.toLocaleString()}원 x ${card.quantity || 1}장 = ${(card.price * (card.quantity || 1)).toLocaleString()}원 ${card.product && card.product.rarity ? `(${card.product.rarity})` : ''}`);
-    });
     
     return optimalCombination;
   } catch (error) {
@@ -310,12 +420,7 @@ function getSellerId(seller) {
  */
 async function getOptimalPurchaseCombination(req, res) {
   try {
-    // 요청 데이터 확인
-    const { 
-      cards, 
-      shippingRegion = 'default',
-      algorithm = 'greedy'
-    } = req.body;
+    const { cards, ...purchaseOptions } = req.body;
     
     if (!cards || !Array.isArray(cards) || cards.length === 0) {
       return res.status(400).json({
@@ -325,18 +430,10 @@ async function getOptimalPurchaseCombination(req, res) {
     }
 
     // 지역 유효성 검사
-    if (!['default', 'jeju', 'island'].includes(shippingRegion)) {
+    if (purchaseOptions.shippingRegion && !['default', 'jeju', 'island'].includes(purchaseOptions.shippingRegion)) {
       return res.status(400).json({
         success: false,
         message: '유효하지 않은 배송 지역입니다. default, jeju, island 중 하나여야 합니다.'
-      });
-    }
-    
-    // 알고리즘 유효성 검사
-    if (algorithm !== 'greedy') {
-      return res.status(400).json({
-        success: false,
-        message: '유효하지 않은 알고리즘입니다. greedy만 지원합니다.'
       });
     }
     
@@ -350,65 +447,118 @@ async function getOptimalPurchaseCombination(req, res) {
       });
     }
     
-    console.log(`${cards.length}개 유형의 카드에 대한 최적 구매 조합 계산 요청 (배송지역: ${shippingRegion}, 알고리즘: ${algorithm})`);
+    console.log(`${cards.length}개 유형의 카드에 대한 최적 구매 조합 계산 요청`);
+    
+    // 기본 옵션 설정 - 서버 API와 일관성 유지
+    const options = {
+      maxSellersPerCard: 30,
+      maxIterations: 50,
+      shippingRegion: purchaseOptions.shippingRegion || 'default',
+      pointsOptions: {
+        tcgshop: purchaseOptions.tcgshopPoints || false, // 티씨지샵 기본 적립금 (10%)
+        carddc: purchaseOptions.carddcPoints || false, // 카드디씨 기본 적립금 (10%)
+        naverBasic: purchaseOptions.naverBasicPoints || false, // 네이버 기본 적립금 (2.5%, 리뷰 적립금 포함)
+        naverBankbook: purchaseOptions.naverBankbookPoints || false, // 네이버 제휴통장 적립금 (0.5%)
+        naverMembership: purchaseOptions.naverMembershipPoints || false, // 네이버 멤버십 적립금 (4%)
+        naverHyundaiCard: purchaseOptions.naverHyundaiCardPoints || false // 네이버 현대카드 적립금 (7%)
+      }
+    };
+    
+    // 적립금 옵션 로그 출력
+    const enabledPointsOptions = Object.entries(options.pointsOptions)
+      .filter(([_, value]) => value)
+      .map(([key]) => key);
+    
+    if (enabledPointsOptions.length > 0) {
+      console.log(`활성화된 적립금 옵션: ${enabledPointsOptions.join(', ')}`);
+    }
+    
+    console.log('계산 옵션:', {
+      maxSellersPerCard: options.maxSellersPerCard,
+      maxIterations: options.maxIterations,
+      shippingRegion: options.shippingRegion,
+      pointsOptions: options.pointsOptions
+    });
     
     // 최적 구매 조합 계산
-    const options = { shippingRegion, algorithm };
     const optimalCombination = await findOptimalCardsPurchase(cards, options);
     
     // 결과 반환
-    if (!optimalCombination.success) {
+    if (!optimalCombination || !optimalCombination.success) {
       return res.status(404).json({
         success: false,
         message: '최적 구매 조합을 찾지 못했습니다.',
-        error: optimalCombination.message
+        error: optimalCombination?.message || '알 수 없는 오류'
       });
     }
     
     // 판매자별 카드 정보 재구성
     const sellerCardsMap = {};
     
-    // 카드별 최적 구매 정보 처리
-    optimalCombination.cardsOptimalPurchase.forEach(card => {
-      const seller = getSellerId(card.seller);
-      const product = card.product ? {
-        price: card.product.price,
-        rarity: card.product.rarity,
-        language: card.product.language,
-        site: card.product.site,
-        url: card.product.url,
-        cardCode: card.product.cardCode
-      } : null;
-      
-      if (!sellerCardsMap[seller]) {
+    // 새로운 형식(객체) 또는 이전 형식(배열)에 따라 처리 방식 분기
+    // cardsOptimalPurchase가 객체인 경우 (새 버전)
+    if (optimalCombination.cardsOptimalPurchase && typeof optimalCombination.cardsOptimalPurchase === 'object' && !Array.isArray(optimalCombination.cardsOptimalPurchase)) {
+      // 이미 형식이 맞으므로 그대로 사용
+      Object.entries(optimalCombination.cardsOptimalPurchase).forEach(([seller, info]) => {
         sellerCardsMap[seller] = {
-          cards: [],
-          subtotal: 0,
-          shippingCost: 0
+          cards: info.cards.map(card => ({
+            cardName: card.cardName,
+            price: card.price,
+            quantity: card.quantity || 1,
+            totalPrice: card.price * (card.quantity || 1),
+            product: card.product
+          })),
+          subtotal: info.productCost,
+          shippingCost: info.shippingCost
         };
+      });
+    }
+    // cardsOptimalPurchase가 배열인 경우 (이전 버전)
+    else if (Array.isArray(optimalCombination.cardsOptimalPurchase)) {
+      // 카드별 최적 구매 정보 처리
+      optimalCombination.cardsOptimalPurchase.forEach(card => {
+        const seller = getSellerId(card.seller);
+        const product = card.product ? {
+          price: card.product.price,
+          rarity: card.product.rarity,
+          language: card.product.language,
+          site: card.product.site,
+          url: card.product.url,
+          cardCode: card.product.cardCode
+        } : null;
+        
+        if (!sellerCardsMap[seller]) {
+          sellerCardsMap[seller] = {
+            cards: [],
+            subtotal: 0,
+            shippingCost: 0
+          };
+        }
+        
+        const processedCard = {
+          cardName: card.cardName,
+          price: card.price,
+          quantity: card.quantity || 1,
+          totalPrice: card.price * (card.quantity || 1),
+          product: product
+        };
+        
+        sellerCardsMap[seller].cards.push(processedCard);
+        sellerCardsMap[seller].subtotal += processedCard.totalPrice;
+      });
+      
+      // 배송비 정보 추가
+      if (optimalCombination.sellers && Array.isArray(optimalCombination.sellers)) {
+        optimalCombination.sellers.forEach(seller => {
+          const sellerKey = getSellerId(seller);
+          
+          if (sellerCardsMap[sellerKey]) {
+            const details = optimalCombination.purchaseDetails?.[sellerKey];
+            sellerCardsMap[sellerKey].shippingCost = details ? details.shippingFee : 0;
+          }
+        });
       }
-      
-      const processedCard = {
-        cardName: card.cardName,
-        price: card.price,
-        quantity: card.quantity || 1,
-        totalPrice: card.price * (card.quantity || 1),
-        product: product
-      };
-      
-      sellerCardsMap[seller].cards.push(processedCard);
-      sellerCardsMap[seller].subtotal += processedCard.totalPrice;
-    });
-    
-    // 배송비 정보 추가
-    optimalCombination.sellers.forEach(seller => {
-      const sellerKey = getSellerId(seller);
-      
-      if (sellerCardsMap[sellerKey]) {
-        const details = optimalCombination.purchaseDetails[sellerKey];
-        sellerCardsMap[sellerKey].shippingCost = details ? details.shippingFee : 0;
-      }
-    });
+    }
     
     // 응답 구성
     return res.json({
@@ -416,8 +566,9 @@ async function getOptimalPurchaseCombination(req, res) {
       totalPrice: optimalCombination.totalProductCost || 0,
       totalShippingCost: optimalCombination.totalShippingCost || 0,
       finalPrice: optimalCombination.totalCost || 0,
-      shippingRegion: optimalCombination.shippingRegion || shippingRegion,
-      algorithm: algorithm,
+      totalPointsEarned: optimalCombination.totalPointsEarned || 0,
+      shippingRegion: optimalCombination.shippingRegion || options.shippingRegion,
+      pointsOptions: optimalCombination.pointsOptions || options.pointsOptions,
       cardsOptimalPurchase: sellerCardsMap
     });
     
@@ -495,9 +646,15 @@ function parseCommandLineArgs() {
   const options = {
     cardList: [], // 초기에는 빈 배열
     shippingRegion: 'default',
-    algorithm: 'greedy', // 기본 알고리즘을 그리디로 변경
-    maxSellersPerCard: 10, // 기본값
-    useDefaultCards: args.length === 0 || args.includes('--use-default')
+    maxSellersPerCard: 50, // 기본값
+    useDefaultCards: args.length === 0 || args.includes('--use-default'),
+    // 서버 API 명명 규칙과 일치하도록 변경
+    tcgshopPoints: true,
+    carddcPoints: true,
+    naverBasicPoints: true,
+    naverBankbookPoints: false,
+    naverMembershipPoints: false,
+    naverHyundaiCardPoints: false
   };
   
   for (let i = 0; i < args.length; i++) {
@@ -512,6 +669,25 @@ function parseCommandLineArgs() {
       options.shippingRegion = arg.substring(9);
     } else if (arg.startsWith('--max-sellers=')) {
       options.maxSellersPerCard = parseInt(arg.substring(14), 10);
+    } else if (arg === '--points-tcgshop') {
+      options.tcgshopPoints = true;
+    } else if (arg === '--points-carddc') {
+      options.carddcPoints = true;
+    } else if (arg === '--points-naver-basic') {
+      options.naverBasicPoints = true;
+    } else if (arg === '--points-naver-bankbook') {
+      options.naverBankbookPoints = true;
+    } else if (arg === '--points-naver-membership') {
+      options.naverMembershipPoints = true;
+    } else if (arg === '--points-naver-hyundai') {
+      options.naverHyundaiCardPoints = true;
+    } else if (arg === '--points-all') {
+      options.tcgshopPoints = true;
+      options.carddcPoints = true;
+      options.naverBasicPoints = true;
+      options.naverBankbookPoints = true;
+      options.naverMembershipPoints = true;
+      options.naverHyundaiCardPoints = true;
     } else if (arg.startsWith('--card=')) {
       // --card="카드이름:레어도:언어:수량" 형식 처리
       const cardInfo = arg.substring(7).split(':');
@@ -552,17 +728,27 @@ function showHelp() {
   console.log('  --region=REGION             배송 지역 지정 (default, jeju, island)');
   console.log('  --max-sellers=NUMBER        판매처별 고려할 카드 당 최대 판매처 수 (기본값: 10)');
   console.log('  --use-default               코드에 정의된 기본 카드 목록 사용 (다른 카드와 함께 사용 가능)');
+  console.log('\n적립금 관련 옵션:');
+  console.log('  --points-tcgshop            TCGShop 적립금(10%) 고려');
+  console.log('  --points-carddc             CardDC 적립금(10%) 고려');
+  console.log('  --points-naver-basic        네이버 기본 적립금(2.5%) 및 리뷰 적립금 고려');
+  console.log('  --points-naver-bankbook     네이버 제휴통장 적립금(0.5%) 고려');
+  console.log('  --points-naver-membership   네이버 멤버십 적립금(4%) 고려');
+  console.log('  --points-naver-hyundai      네이버 현대카드 적립금(7%) 고려');
+  console.log('  --points-all                모든 적립금 옵션 활성화');
   console.log('\n사용 예시:');
   console.log('  node src/test-optimal-purchase.js                   # 기본 카드 목록 사용');
   console.log('  node src/test-optimal-purchase.js --use-default     # 기본 카드 목록 사용');
   console.log('  node src/test-optimal-purchase.js --card="블랙 마제스틱:울트라 레어:한국어:2"');
   console.log('  node src/test-optimal-purchase.js --max-sellers=5   # 적은 판매처만 고려하여 메모리 사용량 감소');
   console.log('  node src/test-optimal-purchase.js --use-default "화염검귀"  # 기본 목록에 카드 추가');
+  console.log('  node src/test-optimal-purchase.js --points-tcgshop --points-carddc  # TCGShop과 CardDC 적립금 고려');
+  console.log('  node src/test-optimal-purchase.js --points-all      # 모든 적립금 옵션 활성화');
 }
 
 // 메인 함수 수정
 async function main() {
-  const { cardList, shippingRegion, algorithm, maxSellersPerCard } = parseCommandLineArgs();
+  const { cardList, shippingRegion, maxSellersPerCard, tcgshopPoints, carddcPoints, naverBasicPoints, naverBankbookPoints, naverMembershipPoints, naverHyundaiCardPoints } = parseCommandLineArgs();
 
   if (cardList.length === 0) {
     console.log('사용법: node src/test-optimal-purchase.js [카드 정보...]');
@@ -577,10 +763,32 @@ async function main() {
   });
   console.log('');
 
+  // 적립금 설정 정보 출력
+  console.log('적립금 설정:');
+  console.log(`  TCGShop 적립금(10%): ${tcgshopPoints ? '활성화' : '비활성화'}`);
+  console.log(`  CardDC 적립금(10%): ${carddcPoints ? '활성화' : '비활성화'}`);
+  console.log(`  네이버 기본 적립금(2.5%): ${naverBasicPoints ? '활성화' : '비활성화'}`);
+  console.log(`  네이버 제휴통장 적립금(0.5%): ${naverBankbookPoints ? '활성화' : '비활성화'}`);
+  console.log(`  네이버 멤버십 적립금(4%): ${naverMembershipPoints ? '활성화' : '비활성화'}`);
+  console.log(`  네이버 현대카드 적립금(7%): ${naverHyundaiCardPoints ? '활성화' : '비활성화'}`);
+  console.log('');
+
   try {
     // 단일 알고리즘으로 계산
     console.log(`그리디 알고리즘 사용 중...`);
-    await findOptimalCardsPurchase(cardList, { shippingRegion, algorithm, maxSellersPerCard });
+    await findOptimalCardsPurchase(cardList, { 
+      shippingRegion, 
+      maxSellersPerCard, 
+      // 각 적립금 옵션을, pointsOptions 객체로 명시적으로 묶어 전달
+      pointsOptions: {
+        tcgshop: tcgshopPoints,
+        carddc: carddcPoints,
+        naverBasic: naverBasicPoints,
+        naverBankbook: naverBankbookPoints,
+        naverMembership: naverMembershipPoints,
+        naverHyundaiCard: naverHyundaiCardPoints
+      }
+    });
   } catch (error) {
     console.error('최적 구매 조합 검색 중 오류 발생:', error);
     process.exit(1);

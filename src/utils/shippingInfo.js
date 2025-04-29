@@ -8,7 +8,7 @@ const shippingInfo = {
     shippingFee: 3000,            // 기본 배송비
     jejuShippingFee: 5000,        // 제주 지역 배송비
     islandShippingFee: 7000,      // 도서 지역 배송비
-    freeShippingThreshold: 30000  // 무료배송 기준금액
+    freeShippingThreshold: 50000  // 무료배송 기준금액
   },
   
   // TCGShop 배송비 정보
