@@ -74,7 +74,7 @@ function tryMoveCardsToReachThreshold(targetSeller, gapToThreshold, purchaseDeta
       const newSourceShippingFee = newSourceSubtotal > 0 ? 
         (newSourceSubtotal >= sourceThreshold ? 0 : sourceShippingFee) : 0;
       // 타겟의 배송비 계산 - 임계값을 초과하는 경우에만 무료 배송
-      const newTargetShippingFee = newTargetSubtotal >= targetThreshold ? 0 : targetShippingFee;
+      const newTargetShippingFee = (newTargetSubtotal >= targetThreshold && targetThreshold !== Infinity) ? 0 : targetShippingFee;
       
       // 현재 비용과 새 비용 비교
       const newSourceTotal = newSourceSubtotal + newSourceShippingFee;
@@ -245,7 +245,7 @@ function tryMultipleCardsMove(targetSeller, gapToThreshold, purchaseDetails, sel
       // 새로운 가격이 무료배송 임계값에 얼마나 가까운지 확인
       const newTargetSubtotal = originalTargetDetails.subtotal + combinationTargetPrice;
       // 배송비 계산
-      const newTargetShippingFee = newTargetSubtotal >= sellerShippingInfo[targetSeller].freeShippingThreshold ? 0 : sellerShippingInfo[targetSeller].shippingFee;
+      const newTargetShippingFee = (newTargetSubtotal >= sellerShippingInfo[targetSeller].freeShippingThreshold && sellerShippingInfo[targetSeller].freeShippingThreshold !== Infinity) ? 0 : sellerShippingInfo[targetSeller].shippingFee;
       
       // 소스 판매처들의 새 배송비 계산
       let totalSourceNewShippingFee = 0;
@@ -268,7 +268,7 @@ function tryMultipleCardsMove(targetSeller, gapToThreshold, purchaseDetails, sel
           .reduce((sum, c) => sum + (c.currentPrice * c.quantity), 0);
           
         const newSubtotal = currentSubtotal - allCardsPrice;
-        const newShippingFee = newSubtotal > 0 ? (newSubtotal >= sourceThreshold ? 0 : sourceShippingFee) : 0;
+        const newShippingFee = newSubtotal > 0 ? (newSubtotal >= sourceThreshold && sourceThreshold !== Infinity ? 0 : sourceShippingFee) : 0;
         
         totalSourceOldShippingFee += currentShippingFee;
         totalSourceNewShippingFee += newShippingFee;
@@ -304,7 +304,7 @@ function tryMultipleCardsMove(targetSeller, gapToThreshold, purchaseDetails, sel
           .reduce((sum, c) => sum + (c.currentPrice * c.quantity), 0);
           
         const newSubtotal = currentSubtotal - allCardsPrice;
-        const newShippingFee = newSubtotal > 0 ? (newSubtotal >= sellerShippingInfo[seller].freeShippingThreshold ? 0 : sellerShippingInfo[seller].shippingFee) : 0;
+        const newShippingFee = newSubtotal > 0 ? (newSubtotal >= sellerShippingInfo[seller].freeShippingThreshold && sellerShippingInfo[seller].freeShippingThreshold !== Infinity ? 0 : sellerShippingInfo[seller].shippingFee) : 0;
         
         const newTotal = newSubtotal + newShippingFee;
         newSourceTotals += newTotal;
@@ -411,7 +411,7 @@ function tryMultipleCardsMove(targetSeller, gapToThreshold, purchaseDetails, sel
     // 타겟 판매처 배송비 재계산
     const { shippingFee, freeShippingThreshold } = sellerShippingInfo[targetSeller];
     purchaseDetails[targetSeller].shippingFee = 
-      purchaseDetails[targetSeller].subtotal >= freeShippingThreshold ? 0 : shippingFee;
+      purchaseDetails[targetSeller].subtotal >= freeShippingThreshold && freeShippingThreshold !== Infinity ? 0 : shippingFee;
     
     // 총액 업데이트
     purchaseDetails[targetSeller].total = 
@@ -538,7 +538,7 @@ function trySellersConsolidation(purchaseDetails, sellerShippingInfo, cardsOptim
       const { shippingFee: targetShippingFee, freeShippingThreshold: targetThreshold } = 
         sellerShippingInfo[bestTargetSeller];
         
-      const newTargetShippingFee = newTargetSubtotal >= targetThreshold ? 0 : targetShippingFee;
+      const newTargetShippingFee = (newTargetSubtotal >= targetThreshold && targetThreshold !== Infinity) ? 0 : targetShippingFee;
       const newTargetTotal = newTargetSubtotal + newTargetShippingFee;
       
       // 소스 판매처는 비어질 것이므로 비용은 0

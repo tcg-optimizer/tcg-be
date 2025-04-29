@@ -39,31 +39,33 @@ function calculateNaverPoints(seller, productPrice, quantity, reviewedProducts, 
   
   // 1. 네이버 기본 적립금 (2.5%)
   if (pointsOptions.naverBasic) {
-    totalPoints += totalProductPrice * pointsInfo.naverBasic.rate;
-    
-    // 네이버 기본 적립금이 활성화되어 있으면 리뷰 적립금도 자동 적용
-    // 2. 네이버 리뷰 적립금 (3000원 이상 제품당 150원, 동일 제품은 1번만)
-    if (productPrice >= pointsInfo.naverReview.minPrice && 
-        productId && 
-        !reviewedProducts.has(productId)) {
-      totalPoints += pointsInfo.naverReview.amount;
-      reviewedProducts.add(productId); // 리뷰 작성한 제품 추가
-    }
+    totalPoints += Math.round(totalProductPrice * pointsInfo.naverBasic.rate);
+  }
+  
+  // 2. 네이버 리뷰 적립금 (3000원 이상 제품당 150원, 동일 제품은 1번만)
+  // naverBasic 옵션이 활성화된 경우에만 리뷰 적립금 적용
+  if (pointsOptions.naverBasic && 
+      productPrice >= pointsInfo.naverReview.minPrice && 
+      productId && 
+      !reviewedProducts.has(productId)) {
+    totalPoints += pointsInfo.naverReview.amount;
+    console.log(`[리뷰 적립금] ${productId}에 대한 리뷰 적립금 ${pointsInfo.naverReview.amount}원 추가 (상품가격: ${productPrice}원)`);
+    reviewedProducts.add(productId); // 리뷰 작성한 제품 추가
   }
   
   // 3. 네이버 제휴통장 적립금 (0.5%)
   if (pointsOptions.naverBankbook) {
-    totalPoints += totalProductPrice * pointsInfo.naverBankbook.rate;
+    totalPoints += Math.round(totalProductPrice * pointsInfo.naverBankbook.rate);
   }
   
   // 4. 네이버 멤버십 적립금 (4%)
   if (pointsOptions.naverMembership) {
-    totalPoints += totalProductPrice * pointsInfo.naverMembership.rate;
+    totalPoints += Math.round(totalProductPrice * pointsInfo.naverMembership.rate);
   }
   
   // 5. 네이버 현대카드 적립금 (7%)
   if (pointsOptions.naverHyundaiCard) {
-    totalPoints += totalProductPrice * pointsInfo.naverHyundaiCard.rate;
+    totalPoints += Math.round(totalProductPrice * pointsInfo.naverHyundaiCard.rate);
   }
   
   return totalPoints;
@@ -113,11 +115,11 @@ function calculatePointsAmount(seller, productPrice, quantity, productId, review
   const sellerLower = seller.toLowerCase();
   
   if (sellerLower === 'tcgshop' && pointsOptions.tcgshop) {
-    return productPrice * quantity * pointsInfo.tcgshop.rate;
+    return Math.round(productPrice * quantity * pointsInfo.tcgshop.rate);
   }
   
   if (sellerLower === 'carddc' && pointsOptions.carddc) {
-    return productPrice * quantity * pointsInfo.carddc.rate;
+    return Math.round(productPrice * quantity * pointsInfo.carddc.rate);
   }
   
   // 네이버 스토어 관련 적립금 계산

@@ -180,12 +180,44 @@ async function findOptimalCardsPurchase(cardList, options = {}) {
       naverHyundaiCard: options.naverHyundaiCardPoints || false
     };
     
+    // 가장 일반적인 판매처 이름 매핑 (실제 판매처 이름 -> 적립금 계산용 이름)
+    const sellerNameMapping = {
+      '티씨지샵': 'tcgshop',
+      '티씨지숍': 'tcgshop',
+      'tcgshop': 'tcgshop',
+      '티씨지스카이': 'naver',
+      '티씨지헤븐': 'naver',
+      '티씨지하우스': 'naver',
+      '카드디씨': 'carddc',
+      '카드dc': 'carddc',
+      'carddc': 'carddc',
+      '인카드': 'naver',
+      '네이버': 'naver'
+    };
+
+    // 판매처 이름을 적립금 계산에 사용되는 표준 이름으로 매핑하는 함수
+    function getNormalizedSellerName(sellerName) {
+      // 소문자로 변환 후 공백 제거
+      const normalizedName = String(sellerName).toLowerCase().trim();
+      
+      // 매핑 테이블에서 정규화된 이름 찾기
+      for (const [key, value] of Object.entries(sellerNameMapping)) {
+        if (normalizedName.includes(key.toLowerCase())) {
+          return value;
+        }
+      }
+      
+      // 매핑이 없으면 원래 이름 반환
+      return sellerName;
+    }
+    
     // 최적화 옵션 설정
     const optimizationOptions = {
       shippingRegion: options.shippingRegion || 'default',
       maxSellersPerCard: options.maxSellersPerCard || 30, 
       algorithm: 'greedy', // 항상 그리디 알고리즘 사용
-      pointsOptions // pointsUtils.js에서 사용하는 형식으로 변환
+      pointsOptions, // pointsUtils.js에서 사용하는 형식으로 변환
+      normalizeSellerName: getNormalizedSellerName // 판매처 이름 정규화 함수 전달
     };
     
     // 각 카드를 순차적으로 검색하여 API 요청 속도 제한
@@ -197,6 +229,19 @@ async function findOptimalCardsPurchase(cardList, options = {}) {
         card.language,
         card.quantity || 1
       );
+      
+      // 각 상품의 판매처 이름을 정규화하여 적립금 계산이 올바르게 되도록 수정
+      if (result.products && result.products.length > 0) {
+        result.products.forEach(product => {
+          if (product.site) {
+            // 원본 사이트 이름 저장
+            product.originalSite = product.site;
+            // 적립금 계산을 위한 정규화된 사이트 이름 추가
+            product.normalizedSite = getNormalizedSellerName(product.site);
+          }
+        });
+      }
+      
       cardsSearchResults.push(result);
       
       // 다음 카드 검색 전 지연 (1초)
@@ -731,7 +776,19 @@ async function main() {
   try {
     // 단일 알고리즘으로 계산
     console.log(`그리디 알고리즘 사용 중...`);
-    await findOptimalCardsPurchase(cardList, { shippingRegion, maxSellersPerCard, tcgshopPoints, carddcPoints, naverBasicPoints, naverBankbookPoints, naverMembershipPoints, naverHyundaiCardPoints });
+    await findOptimalCardsPurchase(cardList, { 
+      shippingRegion, 
+      maxSellersPerCard, 
+      // 각 적립금 옵션을, pointsOptions 객체로 명시적으로 묶어 전달
+      pointsOptions: {
+        tcgshop: tcgshopPoints,
+        carddc: carddcPoints,
+        naverBasic: naverBasicPoints,
+        naverBankbook: naverBankbookPoints,
+        naverMembership: naverMembershipPoints,
+        naverHyundaiCard: naverHyundaiCardPoints
+      }
+    });
   } catch (error) {
     console.error('최적 구매 조합 검색 중 오류 발생:', error);
     process.exit(1);

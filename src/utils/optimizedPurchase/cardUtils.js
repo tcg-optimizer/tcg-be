@@ -16,6 +16,9 @@ function getSellerId(seller) {
   }
   
   // 판매처가 객체인 경우, name이나 id 속성 사용
+  if (seller.normalizedSite) {
+    return seller.normalizedSite;
+  }
   return seller.name || seller.id || String(seller);
 }
 

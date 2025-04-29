@@ -201,7 +201,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
         // 배송비 재계산
         const { shippingFee, freeShippingThreshold } = sellerShippingInfo[bestSeller];
         purchaseDetails[bestSeller].shippingFee = 
-          purchaseDetails[bestSeller].subtotal >= freeShippingThreshold && freeShippingThreshold !== Infinity ? 0 : shippingFee;
+          (purchaseDetails[bestSeller].subtotal >= freeShippingThreshold && freeShippingThreshold !== Infinity) ? 0 : shippingFee;
         
         // 총 비용 업데이트 (적립금 고려 시 차감)
         purchaseDetails[bestSeller].total = 
@@ -355,9 +355,9 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
               sellerShippingInfo[targetSellerName];
               
             const newSourceShippingFee = newSourceSubtotal > 0 ? 
-              (newSourceSubtotal >= sourceThreshold ? 0 : sourceShippingFee) : 0;
+              (newSourceSubtotal >= sourceThreshold && sourceThreshold !== Infinity) ? 0 : sourceShippingFee : 0;
             // 타겟의 배송비 계산 - 임계값을 초과하는 경우에만 무료 배송
-            const newTargetShippingFee = newTargetSubtotal >= targetThreshold ? 0 : targetShippingFee;
+            const newTargetShippingFee = (newTargetSubtotal >= targetThreshold && targetThreshold !== Infinity) ? 0 : targetShippingFee;
             
             // 현재 비용과 새 비용 비교
             const newSourceTotal = newSourceSubtotal + newSourceShippingFee - (sourceSeller.points - oldSourcePoints);
@@ -447,12 +447,24 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
     sellersList.forEach(seller => {
       const details = purchaseDetails[seller];
       if (details.subtotal > 0) {
+        // 배송비 한번 더 검증하여 계산
+        const { freeShippingThreshold, shippingFee } = sellerShippingInfo[seller];
+        details.shippingFee = (details.subtotal >= freeShippingThreshold && freeShippingThreshold !== Infinity) ? 0 : shippingFee;
+        details.total = details.subtotal + details.shippingFee - details.points;
+        
         totalCost += details.total;
         totalProductCost += details.subtotal;
         totalShippingCost += details.shippingFee;
         totalPointsEarned += details.points;
       }
     });
+    
+    // 최종 적립금 합계 재계산 (리뷰 적립금이 추가되었을 수 있으므로)
+    totalPointsEarned = sellersList.reduce((sum, seller) => 
+      sum + purchaseDetails[seller].points, 0);
+    
+    // totalCost 재계산 (totalPointsEarned가 업데이트된 값으로)
+    totalCost = totalProductCost + totalShippingCost - totalPointsEarned;
     
     // 현재 전략의 결과가 더 좋으면 저장
     if (totalCost < bestCost) {
@@ -496,6 +508,14 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
               // 중복 제품명 제거 (같은 제품은 한 번만 리뷰 가능)
               const uniqueCardNames = [...new Set(reviewableCards.map(card => card.cardName))];
               const reviewPoints = uniqueCardNames.length * 150;
+              
+              // 수정: 리뷰 적립금을 포인트 합계에 직접 추가
+              if (reviewPoints > 0) {
+                console.log(`[DEBUG] ${seller}에 대한 리뷰 적립금 ${reviewPoints}원 추가 (${uniqueCardNames.length}개 상품)`);
+                details.points += reviewPoints;
+                // 총액에도 적립금 반영
+                details.total = details.subtotal + details.shippingFee - details.points;
+              }
               
               pointsDetails.naverBasic = {
                 basic: basicPoints,
@@ -617,6 +637,13 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
           groupedCardsByStore[seller].pointsEarned = details.points;
         }
       });
+      
+      // 최종 적립금 합계 재계산 (리뷰 적립금이 추가되었을 수 있으므로)
+      totalPointsEarned = usedSellers.reduce((sum, seller) => 
+        sum + finalPurchaseDetails[seller].points, 0);
+      
+      // totalCost 재계산 (totalPointsEarned가 업데이트된 값으로)
+      totalCost = totalProductCost + totalShippingCost - totalPointsEarned;
       
       bestSolution = {
         success: cardsOptimalPurchase.length === reducedCardsList.length,

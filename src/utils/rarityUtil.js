@@ -15,7 +15,7 @@ function parseRarity(title) {
     // 특수 레어 - 띄어쓰기 패턴 다양화 및 케이스 추가
     { pattern: /(엑스트라\s*시크릿\s*레어|엑스트라시크릿레어|엑시크|extra\s*secret\s*rare)/i, rarity: '엑스트라 시크릿 레어', code: 'EXSE' },
     { pattern: /(20th\s*시크릿\s*레어|20시크릿\s*레어|20th\s*secret\s*rare|twentieth\s*secret\s*rare)/i, rarity: '20th 시크릿 레어', code: '20th SE' },
-    { pattern: /(QC\s*시크릿\s*레어|QC 쿼터 시크릿 레어|QC시크릿레어|쿼터\s*센츄리\s*시크릿\s*레어|quarter\s*century\s*secret\s*rare|QC\s*secret\s*rare)/i, rarity: '쿼터 센츄리 시크릿 레어', code: 'QCSE' },
+    { pattern: /(QC\s*시크릿\s*레어|쿼터센츄리|QC 쿼터 시크릿 레어|QC시크릿레어|쿼터\s*센츄리\s*시크릿\s*레어|quarter\s*century\s*secret\s*rare|QC\s*secret\s*rare)/i, rarity: '쿼터 센츄리 시크릿 레어', code: 'QCSE' },
     { pattern: /(홀로그래픽\s*레어|홀로\s*레어|홀로그래픽레어|홀로레어|holographic\s*rare|holographic|holo\s*rare|홀로)/i, rarity: '홀로그래픽 레어', code: 'HR' },
     { pattern: /(프리즈마틱\s*시크릿\s*레어|프리즈매틱\s*시크릿\s*레어|프리즈마틱시크릿레어|프리즈매틱시크릿레어|prismatic\s*secret\s*rare|프리즈마틱|프리즈매틱|prismatic|Prismatic)/i, rarity: '프리즈마틱 시크릿 레어', code: 'PSE' },
     { pattern: /(골드\s*시크릿\s*레어|골드시크릿레어|골시크|gold\s*secret\s*rare|골드\s*secret\s*레어)/i, rarity: '골드 시크릿 레어', code: 'GSE' },
