@@ -339,10 +339,27 @@ exports.getPricesByRarity = async (req, res) => {
       // 모든 가격 정보를 합친 배열
       prices = combinedPrices;
       
-      // 중고 여부 필터링
-      const filteredPrices = includeUsed === 'true' 
-        ? prices 
-        : prices.filter(price => price.condition === '신품');
+      // 상품 제목에 "중고" 키워드가 포함된 제품도 추가 필터링
+      const preFilteredPrices = prices.filter(price => {
+        // 상품 제목이 있는 경우 "중고" 키워드 확인
+        if (price.title && /\[중고\]|\(중고\)|중고|중고품|used|듀얼용|실듀용/i.test(price.title)) {
+          console.log(`[DEBUG] 상품명에 '중고' 또는 '듀얼용' 키워드가 포함되어 필터링됨: ${price.title}`);
+          return false; // 중고 상품 제외
+        }
+        return true;
+      });
+      
+      // 중고 여부 필터링 (condition 필드 기반)
+      const filteredPrices = preFilteredPrices.filter(price => {
+        // condition이 신품이 아닌 경우 필터링
+        if (price.condition !== '신품') {
+          console.log(`[DEBUG] condition이 '신품'이 아니어서 필터링됨: ${price.condition}, 상품명: ${price.title || '제목 없음'}`);
+          return false;
+        }
+        return true;
+      });
+      
+      console.log(`[DEBUG] 중고 상품 필터링: ${prices.length}개 중 ${preFilteredPrices.length}개(1차), ${filteredPrices.length}개(2차) 남음`);
       
       // 판매 사이트가 "네이버"인 경우 제외
       const siteFilteredPrices = filteredPrices.filter(price => 
