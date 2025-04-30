@@ -87,18 +87,18 @@ function extractCardCode(title) {
  */
 function parseCondition(title) {
   // 중고 등급 확인
-  if (/A급|A등급|A품/i.test(title)) {
+  if (/\[A급\]|\(A급\)|A급|A\+|A등급|A품/i.test(title)) {
     return 'A급';
   }
-  if (/B급|B등급|B품/i.test(title)) {
+  if (/\[B급\]|\(B급\)|B급|B등급|B품/i.test(title)) {
     return 'B급';
   }
-  if (/C급|C등급|C품/i.test(title)) {
+  if (/\[C급\]|\(C급\)|C급|C등급|C품/i.test(title)) {
     return 'C급';
   }
   
   // 중고 여부 확인
-  if (/중고|중고품|used/i.test(title)) {
+  if (/\[중고\]|\(중고\)|중고|중고품|used/i.test(title)) {
     return '중고';
   }
   
