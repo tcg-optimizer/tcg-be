@@ -83,7 +83,15 @@ function tryMoveCardsToReachThreshold(targetSeller, gapToThreshold, purchaseDeta
       
       // 비용이 줄어들면 카드 이동
       if (newTotalCost < currentTotalCost) {
-        console.log(`[개선된 탐욕] 무료배송 달성을 위한 카드 이동: ${candidate.cardName} - ${sourceSellerName} → ${targetSeller} (비용 절감: ${currentTotalCost - newTotalCost}원)`);
+        // 비용 절감률 계산
+        const savingsPercentage = (currentTotalCost - newTotalCost) / currentTotalCost * 100;
+        
+        // 비용 절감이 미미한 경우 이동하지 않음
+        if (savingsPercentage < 0.5) {
+          continue;
+        }
+        
+        console.log(`[개선된 탐욕] 무료배송 달성을 위한 카드 이동: ${candidate.cardName} - ${sourceSellerName} → ${targetSeller} (비용 절감: ${(currentTotalCost - newTotalCost).toLocaleString()}원, 절감률: ${savingsPercentage.toFixed(2)}%)`);
         
         // 소스 판매처에서 카드 제거
         const cardIndex = sourceSeller.cards.findIndex(c => c.cardName === candidate.cardName);
@@ -328,7 +336,21 @@ function tryMultipleCardsMove(targetSeller, gapToThreshold, purchaseDetails, sel
   
   // 최적 조합 적용
   if (bestCombination.length > 0 && bestTotalCost < Infinity) {
-    console.log(`[개선된 탐욕] 다중 카드 조합으로 무료배송 최적화 시도: ${bestCombination.length}개 카드 이동`);
+    // 원래 비용 계산
+    const originalCost = bestCombination.reduce((sum, card) => {
+      return sum + originalDetails[card.seller].total;
+    }, originalTargetDetails.total);
+    
+    // 비용 절감률 계산
+    const savingsPercentage = (originalCost - bestTotalCost) / originalCost * 100;
+    
+    // 비용 절감이 미미한 경우 이동하지 않음
+    if (savingsPercentage < 1) {
+      console.log(`[개선된 탐욕] 다중 카드 이동 취소: 비용 절감률(${savingsPercentage.toFixed(2)}%)이 1% 미만`);
+      return false;
+    }
+    
+    console.log(`[개선된 탐욕] 다중 카드 조합으로 무료배송 최적화: ${bestCombination.length}개 카드 이동 (비용 절감: ${(originalCost - bestTotalCost).toLocaleString()}원, 절감률: ${savingsPercentage.toFixed(2)}%)`);
     
     // 판매처별 변경사항 추적
     const sourceUpdates = {};
@@ -546,7 +568,15 @@ function trySellersConsolidation(purchaseDetails, sellerShippingInfo, cardsOptim
       
       // 실제 비용 감소인 경우에만 이동
       if (newTotalCost < originalCost) {
-        console.log(`[개선된 탐욕] 판매처 통합: ${sourceSellerName}의 모든 카드(${moves.length}개)를 ${bestTargetSeller}로 이동 (비용 변화: ${newTotalCost - originalCost}원)`);
+        // 비용 절감이 1% 이상인 경우에만 판매처 통합 실행
+        const savingsPercentage = (originalCost - newTotalCost) / originalCost * 100;
+        
+        if (savingsPercentage < 1) {
+          console.log(`[개선된 탐욕] 판매처 통합 취소: ${sourceSellerName} → ${bestTargetSeller}, 비용 절감률(${savingsPercentage.toFixed(2)}%)이 1% 미만`);
+          continue;
+        }
+        
+        console.log(`[개선된 탐욕] 판매처 통합: ${sourceSellerName}의 모든 카드(${moves.length}개)를 ${bestTargetSeller}로 이동 (비용 변화: ${originalCost - newTotalCost}원, 절감률: ${savingsPercentage.toFixed(2)}%)`);
         
         // 모든 카드 이동 실행
         for (const move of moves) {

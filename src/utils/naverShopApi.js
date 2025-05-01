@@ -140,8 +140,18 @@ async function searchNaverShop(cardName) {
           };
         });
         
-        // 언어가 '알 수 없음'인 상품을 필터링
-        const filteredItems = items.filter(item => item.language !== '알 수 없음' && item.rarity !== '알 수 없음');
+        // 번개장터 및 언어/레어도가 알 수 없음인 상품을 필터링
+        const filteredItems = items.filter(item => 
+          item.language !== '알 수 없음' && 
+          item.rarity !== '알 수 없음' &&
+          !/^번개장터$|^Bunjang$/i.test(item.site) // 번개장터 제외
+        );
+        
+        // 번개장터 필터링 로그
+        const bunjangItemsCount = items.filter(item => /^번개장터$|^Bunjang$/i.test(item.site)).length;
+        if (bunjangItemsCount > 0) {
+          console.log(`[INFO] 번개장터 상품 ${bunjangItemsCount}개가 필터링되었습니다.`);
+        }
         
         // 충분한 결과를 찾았거나 필터링으로 인해 모든 결과가 제외된 경우
         if (filteredItems.length === 0 && items.length > 0) {

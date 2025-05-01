@@ -429,6 +429,14 @@ const naverSellerShippingInfo = {
     islandShippingFee: 6000,
     freeShippingThreshold: 45000
   },
+
+  TCG카드프리덤 : {
+    shippingFee: 3000,
+    jejuShippingFee: 6000,
+    islandShippingFee: 6000,
+    freeShippingThreshold: 50000
+  },
+  
   
   
   

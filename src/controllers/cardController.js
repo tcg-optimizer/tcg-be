@@ -375,8 +375,19 @@ exports.getPricesByRarity = async (req, res) => {
       console.log(`[DEBUG] 품절 상품 필터링: ${siteFilteredPrices.length}개 중 ${availableFilteredPrices.length}개 상품 사용 가능`);
       console.log(`[DEBUG] 사이트별 품절 상품 제외: TCGShop ${tcgshopResult?.prices?.filter(p => p.available === false).length || 0}개, CardDC ${cardDCResult?.prices?.filter(p => p.available === false).length || 0}개, OnlyYugioh ${onlyYugiohResult?.prices?.filter(p => p.available === false).length || 0}개`);
       
+      // 번개장터 상품 제외
+      const bunjangFilteredPrices = availableFilteredPrices.filter(price => {
+        if (price.site && /^번개장터$|^Bunjang$|^Naver_번개장터$/i.test(price.site)) {
+          console.log(`[DEBUG] 번개장터 상품 제외: ${price.title || '제목 없음'}`);
+          return false;
+        }
+        return true;
+      });
+      
+      console.log(`[DEBUG] 번개장터 상품 필터링: ${availableFilteredPrices.length}개 중 ${bunjangFilteredPrices.length}개 상품 남음`);
+      
       // 카드가 아닌 상품 제외 (레어도나 언어가 '알 수 없음'인 카드의 경우에도 최저가 계산이 불가능하기 때문에 제외)
-      const cardFilteredPrices = availableFilteredPrices.filter(price => 
+      const cardFilteredPrices = bunjangFilteredPrices.filter(price => 
         !(price.rarity === '알 수 없음' || price.language === '알 수 없음')
       );
       
@@ -896,7 +907,7 @@ function calculateTotalProducts(rarityPrices) {
  */
 exports.getOptimalPurchaseCombination = async (req, res) => {
   try {
-    const { cards, ...purchaseOptions } = req.body;
+    const { cards, algorithm, ...purchaseOptions } = req.body;
 
     // 입력 데이터 유효성 검사
     if (!cards || !Array.isArray(cards) || cards.length === 0) {
@@ -905,7 +916,18 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
       });
     }
 
-    console.log(`최적 구매 조합 찾기 요청 - ${cards.length}개 카드`);
+    // 알고리즘 타입 설정 (기본값: greedy)
+    if (algorithm) {
+      // 알고리즘 타입 설정 (optional)
+      if (algorithm === 'brute_force' || algorithm === 'greedy') {
+        require('../utils/optimizedPurchase').setAlgorithmType(algorithm);
+        console.log(`알고리즘 타입 설정: ${algorithm}`);
+      } else {
+        console.log(`지원하지 않는 알고리즘 타입: ${algorithm}, 'greedy' 사용`);
+      }
+    }
+
+    console.log(`최적 구매 조합 찾기 요청 - ${cards.length}개 카드, 알고리즘: ${require('../utils/optimizedPurchase').getAlgorithmType()}`);
     
     // cacheId를 사용해 rarityPrices를 조회하고 카드 데이터 보강
     const enhancedCards = await Promise.all(cards.map(async (card) => {
@@ -1065,6 +1087,7 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
     };
 
     console.log('계산 옵션:', {
+      algorithm: require('../utils/optimizedPurchase').getAlgorithmType(),
       maxSellersPerCard: options.maxSellersPerCard,
       maxIterations: options.maxIterations,
       shippingRegion: options.shippingRegion,
@@ -1074,10 +1097,172 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
     // 최적 구매 조합 찾기 - 처리된 카드 배열 사용
     const result = findOptimalPurchaseCombination(processedCards, options);
     
+    // 결과에 사용된 알고리즘 정보 추가
+    result.algorithm = require('../utils/optimizedPurchase').getAlgorithmType();
+    
+    // 결과가 비교 요청인 경우
+    if (algorithm === 'compare') {
+      console.log('그리디 알고리즘과 브루트 포스 알고리즘 비교 요청');
+      
+      // 카드 수 제한 (너무 많으면 브루트 포스가 너무 오래 걸림)
+      const MAX_CARDS_FOR_COMPARE = 8;
+      let cardsForCompare = processedCards;
+      
+      if (processedCards.length > MAX_CARDS_FOR_COMPARE) {
+        console.log(`카드 수가 많아 처음 ${MAX_CARDS_FOR_COMPARE}개 카드만으로 비교합니다.`);
+        cardsForCompare = processedCards.slice(0, MAX_CARDS_FOR_COMPARE);
+      }
+      
+      // 알고리즘 비교 실행
+      const comparisonResult = require('../utils/optimizedPurchase').compareAlgorithms(cardsForCompare, options);
+      
+      // 원래 알고리즘 결과에 비교 결과 추가
+      result.comparison = comparisonResult;
+    }
+    
     return res.status(200).json(result);
   } catch (error) {
     console.error('최적 구매 조합 찾기 오류:', error);
     return res.status(500).json({ error: '최적 구매 조합을 계산하는 중 오류가 발생했습니다.' });
+  }
+};
+
+/**
+ * 그리디 알고리즘과 브루트 포스 알고리즘 비교 디버깅
+ * @param {Object} req - HTTP 요청 객체
+ * @param {Object} res - HTTP 응답 객체
+ * @returns {Promise<void>}
+ */
+exports.debugAlgorithms = async (req, res) => {
+  try {
+    const { cards, ...purchaseOptions } = req.body;
+
+    // 입력 데이터 유효성 검사
+    if (!cards || !Array.isArray(cards) || cards.length === 0) {
+      return res.status(400).json({
+        error: 'Invalid input: cards array is required and must not be empty'
+      });
+    }
+
+    // 디버깅을 위해 카드 수 제한
+    const MAX_CARDS_FOR_DEBUG = 6;
+    let cardsForDebug = cards;
+    
+    if (cards.length > MAX_CARDS_FOR_DEBUG) {
+      console.log(`카드 수가 많아 처음 ${MAX_CARDS_FOR_DEBUG}개 카드만으로 디버깅합니다.`);
+      cardsForDebug = cards.slice(0, MAX_CARDS_FOR_DEBUG);
+    }
+    
+    console.log(`알고리즘 디버깅 요청 - ${cardsForDebug.length}개 카드로 테스트합니다.`);
+    
+    // 카드 데이터 처리 (기존 함수와 동일)
+    const enhancedCards = await Promise.all(cardsForDebug.map(async (card) => {
+      // 이미 rarityPrices가 있으면 그대로 사용
+      if (card.rarityPrices) {
+        return card;
+      }
+      
+      // cacheId가 있으면 캐시에서 데이터 조회
+      if (card.cacheId) {
+        try {
+          console.log(`[INFO] cacheId(${card.cacheId})로 "${card.name || card.cardName}" 카드의 캐시된 가격 정보 조회`);
+          const priceCache = await CardPriceCache.findByPk(card.cacheId);
+          
+          if (priceCache && new Date() <= new Date(priceCache.expiresAt)) {
+            // 캐시된 데이터 설정
+            return {
+              ...card,
+              cardName: card.cardName || card.name || priceCache.cardName,
+              rarityPrices: priceCache.rarityPrices,
+              image: card.image || priceCache.image
+            };
+          }
+        } catch (error) {
+          console.error(`[ERROR] 캐시 데이터 조회 중 오류 발생: ${error.message}`);
+        }
+      }
+      
+      return card;
+    }));
+
+    // 카드 데이터 변환 (기존 함수와 동일)
+    const processedCards = enhancedCards
+      .map(card => {
+        // 필수 필드 확인
+        if (!card.cardName && !card.name) {
+          return null;
+        }
+
+        // cardName 필드 보장
+        if (!card.cardName && card.name) {
+          card.cardName = card.name;
+        }
+        
+        // products 필드 처리
+        if (!card.products && card.rarityPrices) {
+          const prices = typeof card.rarityPrices === 'string' 
+            ? JSON.parse(card.rarityPrices) 
+            : card.rarityPrices;
+          
+          // 지정된 레어도와 언어의 상품만 선택
+          if (card.language && card.rarity && 
+              prices[card.language] && 
+              prices[card.language][card.rarity]) {
+            
+            card.products = prices[card.language][card.rarity].prices;
+          } 
+          // 모든 상품 통합 (디버깅용)
+          else {
+            card.products = [];
+            Object.keys(prices).forEach(language => {
+              Object.keys(prices[language]).forEach(rarity => {
+                card.products = [...card.products, ...prices[language][rarity].prices];
+              });
+            });
+          }
+        }
+        
+        return card;
+      })
+      .filter(card => card !== null && card.products && card.products.length > 0);
+    
+    // 옵션 설정
+    const options = {
+      maxSellersPerCard: 30,
+      maxIterations: 50,
+      shippingRegion: purchaseOptions.shippingRegion || 'default',
+      pointsOptions: {
+        tcgshop: purchaseOptions.tcgshopPoints || false,
+        carddc: purchaseOptions.carddcPoints || false,
+        naverBasic: purchaseOptions.naverBasicPoints || false, 
+        naverBankbook: purchaseOptions.naverBankbookPoints || false,
+        naverMembership: purchaseOptions.naverMembershipPoints || false,
+        naverHyundaiCard: purchaseOptions.naverHyundaiCardPoints || false
+      }
+    };
+
+    // 두 알고리즘 비교 결과
+    const comparisonResult = require('../utils/optimizedPurchase').compareAlgorithms(processedCards, options);
+    
+    return res.status(200).json({
+      success: true,
+      debug: true,
+      comparison: comparisonResult,
+      processedCards: processedCards.map(card => ({
+        cardName: card.cardName,
+        language: card.language,
+        rarity: card.rarity,
+        quantity: card.quantity,
+        productsCount: card.products.length
+      }))
+    });
+  } catch (error) {
+    console.error('알고리즘 디버깅 오류:', error);
+    return res.status(500).json({ 
+      error: '알고리즘 디버깅 중 오류가 발생했습니다.',
+      message: error.message,
+      stack: error.stack
+    });
   }
 };
 
@@ -1091,5 +1276,6 @@ module.exports = {
   searchCardDC: exports.searchCardDC,
   searchOnlyYugioh: exports.searchOnlyYugioh,
   getOptimalPurchaseCombination: exports.getOptimalPurchaseCombination,
-  getCachedPrices: exports.getCachedPrices
+  getCachedPrices: exports.getCachedPrices,
+  debugAlgorithms: exports.debugAlgorithms
 }; 
