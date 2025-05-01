@@ -57,6 +57,14 @@ exports.getPricesByRarity = async (req, res) => {
       });
     }
     
+    // 센터 카드인지 확인 (ST19-KRFC1~4)
+    if (/^ST19-KRFC[1-4]$/i.test(cardName)) {
+      return res.status(404).json({
+        success: false,
+        error: '센터 카드는 실제 유희왕 카드가 아니므로 가격 정보를 제공하지 않습니다.'
+      });
+    }
+    
     console.log(`[DEBUG] 레어도별 가격 정보 검색: "${cardName}", 중고포함=${includeUsed}`);
     
     let card = null;
@@ -333,6 +341,14 @@ exports.getPricesByRarity = async (req, res) => {
         card = { name: cardName };
       }
       
+      // 카드 코드가 ST19-KRFC1~4인 경우 가격 정보를 보내지 않음
+      if (card.cardCode && /^ST19-KRFC[1-4]$/i.test(card.cardCode)) {
+        return res.status(404).json({
+          success: false,
+          error: '센터 카드는 실제 유희왕 카드가 아니므로 가격 정보를 제공하지 않습니다.'
+        });
+      }
+      
       // 검색 소스 설정
       searchSource = 'all_sources';
       
@@ -349,8 +365,13 @@ exports.getPricesByRarity = async (req, res) => {
         return true;
       });
       
+      // 번개장터 상품 필터링
+      const bungaeFilteredPrices = preFilteredPrices.filter(price => 
+        !(price.site && (price.site === 'Naver_번개장터' || price.site.includes('번개장터')))
+      );
+      
       // 중고 여부 필터링 (condition 필드 기반)
-      const filteredPrices = preFilteredPrices.filter(price => {
+      const filteredPrices = bungaeFilteredPrices.filter(price => {
         // condition이 신품이 아닌 경우 필터링
         if (price.condition !== '신품') {
           console.log(`[DEBUG] condition이 '신품'이 아니어서 필터링됨: ${price.condition}, 상품명: ${price.title || '제목 없음'}`);
@@ -387,14 +408,30 @@ exports.getPricesByRarity = async (req, res) => {
         });
       }
       
+      // 모든 가격 정보에서 센터 카드 필터링
+      const centerCardFilteredPrices = cardFilteredPrices.filter(price => 
+        !(price.cardCode && /^ST19-KRFC[1-4]$/i.test(price.cardCode))
+      );
+      
+      if (centerCardFilteredPrices.length !== cardFilteredPrices.length) {
+        console.log(`[DEBUG] 센터 카드 필터링: ${cardFilteredPrices.length - centerCardFilteredPrices.length}개 제외됨`);
+      }
+      
+      if (!centerCardFilteredPrices || centerCardFilteredPrices.length === 0) {
+        return res.status(404).json({ 
+          success: false, 
+          error: '현재 구매 가능한 가격 정보가 없습니다.' 
+        });
+      }
+      
       // 모든 가격 정보를 가격 오름차순으로 정렬
-      const allPricesSorted = [...cardFilteredPrices].sort((a, b) => a.price - b.price);
+      const allPricesSorted = [...centerCardFilteredPrices].sort((a, b) => a.price - b.price);
       
       // 언어별, 레어도별로 가격 정보 그룹화
       const rarityPrices = {};
       
       // 가격들을 언어별, 레어도별로 그룹화
-      cardFilteredPrices.forEach(price => {
+      centerCardFilteredPrices.forEach(price => {
         const language = price.language || '알 수 없음';
         const rarity = price.rarity || '알 수 없음';
         
@@ -842,6 +879,14 @@ exports.getCachedPrices = async (req, res) => {
       });
     }
     
+    // 센터 카드 체크
+    if (/^ST19-KRFC[1-4]$/i.test(priceCache.cardName)) {
+      return res.status(404).json({
+        success: false,
+        message: '센터 카드는 실제 유희왕 카드가 아니므로 가격 정보를 제공하지 않습니다.'
+      });
+    }
+    
     // 응답 반환
     return res.json({
       success: true,
@@ -907,8 +952,33 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
 
     console.log(`최적 구매 조합 찾기 요청 - ${cards.length}개 카드`);
     
+    // 센터 카드 필터링
+    const filteredCards = cards.filter(card => {
+      // cardCode 필드로 센터 카드 확인
+      if (card.cardCode && /^ST19-KRFC[1-4]$/i.test(card.cardCode)) {
+        console.log(`[INFO] 센터 카드(${card.cardCode}) "${card.name || card.cardName}" 제외됨`);
+        return false;
+      }
+      
+      // 카드 이름으로 확인 (코드가 없는 경우)
+      if ((card.name && /^ST19-KRFC[1-4]$/i.test(card.name)) || 
+          (card.cardName && /^ST19-KRFC[1-4]$/i.test(card.cardName))) {
+        console.log(`[INFO] 센터 카드 "${card.name || card.cardName}" 제외됨`);
+        return false;
+      }
+      
+      return true;
+    });
+    
+    if (filteredCards.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: '유효한 카드 정보가 없습니다. 센터 카드가 아닌 카드를 선택해주세요.'
+      });
+    }
+    
     // cacheId를 사용해 rarityPrices를 조회하고 카드 데이터 보강
-    const enhancedCards = await Promise.all(cards.map(async (card) => {
+    const enhancedCards = await Promise.all(filteredCards.map(async (card) => {
       // 이미 rarityPrices가 있으면 그대로 사용
       if (card.rarityPrices) {
         return card;
