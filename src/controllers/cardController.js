@@ -349,8 +349,13 @@ exports.getPricesByRarity = async (req, res) => {
         return true;
       });
       
+      // 번개장터 상품 필터링
+      const bungaeFilteredPrices = preFilteredPrices.filter(price => 
+        !(price.site && (price.site === 'Naver_번개장터' || price.site.includes('번개장터')))
+      );
+      
       // 중고 여부 필터링 (condition 필드 기반)
-      const filteredPrices = preFilteredPrices.filter(price => {
+      const filteredPrices = bungaeFilteredPrices.filter(price => {
         // condition이 신품이 아닌 경우 필터링
         if (price.condition !== '신품') {
           console.log(`[DEBUG] condition이 '신품'이 아니어서 필터링됨: ${price.condition}, 상품명: ${price.title || '제목 없음'}`);

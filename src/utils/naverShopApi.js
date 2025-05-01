@@ -140,8 +140,13 @@ async function searchNaverShop(cardName) {
           };
         });
         
+        // 번개장터 상품을 필터링
+        const bungaeFiltered = items.filter(item => 
+          item.site !== '번개장터' && !item.site.includes('번개장터')
+        );
+        
         // 언어가 '알 수 없음'인 상품을 필터링
-        const filteredItems = items.filter(item => item.language !== '알 수 없음' && item.rarity !== '알 수 없음');
+        const filteredItems = bungaeFiltered.filter(item => item.language !== '알 수 없음' && item.rarity !== '알 수 없음');
         
         // 충분한 결과를 찾았거나 필터링으로 인해 모든 결과가 제외된 경우
         if (filteredItems.length === 0 && items.length > 0) {
@@ -211,6 +216,11 @@ async function searchAndSaveCardPricesApi(cardName) {
       return { message: '검색 결과가 없습니다.', card, count: 0 };
     }
     
+    // 번개장터 상품 필터링
+    const filteredPriceData = priceData.filter(item => 
+      !(item.site === '번개장터' || item.site.includes('번개장터'))
+    );
+    
     // 기존 가격 정보 삭제 (최신 정보로 갱신)
     await CardPrice.destroy({
       where: { 
@@ -220,9 +230,9 @@ async function searchAndSaveCardPricesApi(cardName) {
     });
     
     // 대표 이미지가 없는 경우에만 카드 이미지 업데이트
-    if (!card.image && priceData.length > 0) {
+    if (!card.image && filteredPriceData.length > 0) {
       // 이미지가 있는 첫 번째 상품 찾기
-      const itemWithImage = priceData.find(item => item.image && item.image.trim() !== '');
+      const itemWithImage = filteredPriceData.find(item => item.image && item.image.trim() !== '');
       
       if (itemWithImage) {
         await card.update({ image: itemWithImage.image });
@@ -233,7 +243,7 @@ async function searchAndSaveCardPricesApi(cardName) {
     
     // 새 가격 정보 저장
     const savedPrices = await Promise.all(
-      priceData.map(async (item) => {
+      filteredPriceData.map(async (item) => {
         return CardPrice.create({
           cardId: card.id,
           site: `Naver_${item.site}`,
