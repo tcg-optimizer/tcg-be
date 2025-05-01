@@ -1,15 +1,3 @@
-/**
- * 그리디 알고리즘 기반 최적 구매 조합 모듈
- * 
- * v3.1.0 - 무료배송 조합 우선 고려 알고리즘
- * - 무료배송 임계값에 도달할 수 있는 다양한 카드 조합을 먼저 고려
- * - 가격 차이에 더 높은 가중치 부여 (5%, 10%, 15% 기준)
- * - 무료배송 임계값보다 실제 가격 절감에 우선순위 부여
- * - 다양한 카드 정렬 및 판매처 정렬 전략 추가 (4가지 카드 정렬 전략)
- * - 판매처 통합 시 의미 있는 비용 절감(1% 이상)이 있을 때만 적용
- * - 카드 이동 최적화 시 실질적인 비용 절감이 있을 때만 적용
- */
-
 const { getShippingInfo } = require('../shippingInfo');
 const { getSellerId } = require('./cardUtils');
 const { calculatePointsAmount } = require('./pointsUtils');
@@ -49,20 +37,13 @@ function generateFreeShippingCombinations(sortedCards, seller, freeShippingThres
     };
   });
   
-  // 가격 차이가 큰 카드는 무료 배송 조합에서 제외 (너무 비싼 카드는 다른 상점에서 구매)
-  const reasonablePricedCards = cardsWithPrice.filter(card => {
-    // 가격 차이가 카드 가격의 15% 이상이면 이 상점에서 구매하지 않음
-    const priceThreshold = card.price * 0.15;
-    return card.priceDifference <= priceThreshold;
-  });
-  
   // 다이나믹 프로그래밍으로 무료배송 조건을 만족하는 조합 찾기
   // (배낭 문제와 유사하게 접근)
   const combinations = [];
-  const MAX_COMBINATIONS = 5; // 최대 조합 수 제한 (줄임)
+  const MAX_COMBINATIONS = 100; // 최대 조합 수 제한
   
   // 가격별로 정렬 (가격차이 적은 것부터)
-  reasonablePricedCards.sort((a, b) => a.priceDifference - b.priceDifference);
+  cardsWithPrice.sort((a, b) => a.priceDifference - b.priceDifference);
   
   // 재귀적으로 조합 생성 (백트래킹)
   function findCombinations(current, startIdx, currentSum) {
@@ -78,12 +59,12 @@ function generateFreeShippingCombinations(sortedCards, seller, freeShippingThres
     }
     
     // 남은 모든 카드에 대해 조합 시도
-    for (let i = startIdx; i < reasonablePricedCards.length; i++) {
-      current.push(reasonablePricedCards[i]);
+    for (let i = startIdx; i < cardsWithPrice.length; i++) {
+      current.push(cardsWithPrice[i]);
       const shouldStop = findCombinations(
         current, 
         i + 1, 
-        currentSum + reasonablePricedCards[i].totalPrice
+        currentSum + cardsWithPrice[i].totalPrice
       );
       current.pop();
       
@@ -130,7 +111,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
   };
   
   // 최적화 반복 횟수 고정값 사용
-  const MAX_ITERATIONS = 50; // 고정값: 최적화 반복 횟수
+  const MAX_ITERATIONS = 100; // 고정값: 최적화 반복 횟수
   
   // 다양한 정렬 전략으로 여러 시도 수행
   const sortingStrategies = [
