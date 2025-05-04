@@ -941,7 +941,7 @@ function calculateTotalProducts(rarityPrices) {
  */
 exports.getOptimalPurchaseCombination = async (req, res) => {
   try {
-    const { cards, ...purchaseOptions } = req.body;
+    const { cards, excludedProductIds = [], excludedStores = [], ...purchaseOptions } = req.body;
 
     // 입력 데이터 유효성 검사
     if (!cards || !Array.isArray(cards) || cards.length === 0) {
@@ -951,6 +951,12 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
     }
 
     console.log(`최적 구매 조합 찾기 요청 - ${cards.length}개 카드`);
+    if (excludedProductIds.length > 0) {
+      console.log(`[INFO] ${excludedProductIds.length}개의 상품 ID가 제외 목록에 추가됨`);
+    }
+    if (excludedStores.length > 0) {
+      console.log(`[INFO] ${excludedStores.length}개의 상점이 제외 목록에 추가됨: ${excludedStores.join(', ')}`);
+    }
     
     // 센터 카드 필터링
     const filteredCards = cards.filter(card => {
@@ -1118,6 +1124,39 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
         error: '유효한 카드 정보가 없습니다. 레어도와 언어를 선택했는지 확인해주세요.'
       });
     }
+    
+    // 제외할 상품 ID와 상점 기반으로 필터링 적용
+    const filteredCardsData = processedCards.map(card => {
+      // 제외 목록을 기반으로 상품 필터링
+      const beforeFilterCount = card.products.length;
+      const filteredProducts = card.products.filter(product => 
+        !excludedProductIds.includes(product.id) && 
+        !excludedStores.includes(product.site)
+      );
+      
+      const afterFilterCount = filteredProducts.length;
+      if (beforeFilterCount !== afterFilterCount) {
+        console.log(`[INFO] "${card.cardName}" 카드: ${beforeFilterCount - afterFilterCount}개 상품이 제외 목록에 따라 필터링됨`);
+      }
+      
+      return {
+        ...card,
+        products: filteredProducts
+      };
+    }).filter(card => card.products.length > 0);
+    
+    // 필터링 후 유효한 카드가 없는 경우
+    if (filteredCardsData.length === 0) {
+      return res.status(400).json({
+        success: false, 
+        error: '모든 카드의 상품이 제외 목록에 의해 필터링되었습니다. 제외 목록을 다시 확인해주세요.'
+      });
+    }
+    
+    // 필터링으로 제외된 카드가 있는 경우 로그
+    if (filteredCardsData.length < processedCards.length) {
+      console.log(`[WARN] 제외 목록에 의해 ${processedCards.length - filteredCardsData.length}개 카드가 완전히 제외됨`);
+    }
 
     // 기본 옵션 설정 - 고정값 사용
     const options = {
@@ -1141,8 +1180,14 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
       pointsOptions: options.pointsOptions
     });
 
-    // 최적 구매 조합 찾기 - 처리된 카드 배열 사용
-    const result = findOptimalPurchaseCombination(processedCards, options);
+    // 최적 구매 조합 찾기 - 필터링된 카드 배열 사용
+    const result = findOptimalPurchaseCombination(filteredCardsData, options);
+    
+    // 제외 필터 정보 추가
+    result.excludedFilters = {
+      excludedProductIds,
+      excludedStores
+    };
     
     return res.status(200).json(result);
   } catch (error) {
