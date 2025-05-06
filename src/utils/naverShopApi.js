@@ -127,7 +127,7 @@ async function searchNaverShop(cardName) {
             price: parseInt(item.lprice), // 최저가
             site: item.mallName,
             url: item.link,
-            productId: item.productId,
+            productId: item.productId.toString(), // productId를 문자열로 변환
             image: item.image, // 이미지 URL 추가
             condition: condition,
             rarity: rarityInfo.rarity,
@@ -254,7 +254,8 @@ async function searchAndSaveCardPricesApi(cardName) {
           language: item.language,
           available: item.available,
           cardCode: item.cardCode,
-          lastUpdated: new Date()
+          lastUpdated: new Date(),
+          productId: item.productId
         });
       })
     );

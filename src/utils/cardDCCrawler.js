@@ -8,9 +8,10 @@ const { encodeEUCKR, detectLanguageFromCardCode } = require('./tcgshopCrawler');
 /**
  * CardDC에서 카드 가격 정보를 크롤링합니다.
  * @param {string} cardName - 검색할 카드 이름
+ * @param {string} [cardId] - 카드 ID (선택적)
  * @returns {Promise<Array>} - 크롤링된 가격 정보 배열
  */
-async function crawlCardDC(cardName) {
+async function crawlCardDC(cardName, cardId) {
   try {
     // EUC-KR로 인코딩된 검색어 생성
     const encodedQuery = encodeEUCKR(cardName);
@@ -72,6 +73,20 @@ async function crawlCardDC(cardName) {
         const fullUrl = detailUrl && detailUrl.startsWith('http') 
           ? detailUrl 
           : `https://www.carddc.co.kr/${detailUrl}`;
+        
+        // URL에서 상품 ID 추출
+        let productId = null;
+        // productId=123 형식 추출 시도
+        const productIdMatch = fullUrl.match(/productId=(\d+)/);
+        if (productIdMatch && productIdMatch[1]) {
+          productId = productIdMatch[1]; // 숫자가 아닌 문자열로 유지
+        } else {
+          // 상품코드가 URL에 포함된 다른 형식 추출 시도
+          const otherIdMatch = fullUrl.match(/\/([a-zA-Z0-9_-]+)\.html/);
+          if (otherIdMatch && otherIdMatch[1]) {
+            productId = otherIdMatch[1];
+          }
+        }
         
         // 카드 코드 추출 - li.pro_info_t2
         const extractedCardCode = productCell.find('li.pro_info_t2').text().trim();
@@ -139,7 +154,9 @@ async function crawlCardDC(cardName) {
           price,
           originalPrice,
           site: 'CardDC',
-          available: true // 여기서는 항상 true (품절상품은 위에서 필터링됨)
+          available: true, // 여기서는 항상 true (품절상품은 위에서 필터링됨)
+          cardId,
+          productId
         });
       });
     });
@@ -160,7 +177,7 @@ async function crawlCardDC(cardName) {
 async function searchAndSaveCardDCPrices(cardName, cardId) {
   try {
     // CardDC 크롤링
-    const priceData = await crawlCardDC(cardName);
+    const priceData = await crawlCardDC(cardName, cardId);
     
     if (priceData.length === 0) {
       return { 
@@ -200,8 +217,25 @@ async function searchAndSaveCardDCPrices(cardName, cardId) {
             language: item.language,
             available: item.available,
             cardCode: item.cardCode,
-            lastUpdated: new Date()
+            lastUpdated: new Date(),
+            productId: item.productId || null // 추출한 productId가 있으면 사용, 없으면 null 사용
           });
+          
+          // product 객체에 id 필드 추가
+          const productWithId = {
+            id: (item.productId || "").toString(), // productId를 id로 사용 (문자열로 변환)
+            url: item.url,
+            site: 'CardDC',
+            price: item.price,
+            available: item.available,
+            cardCode: item.cardCode,
+            condition: item.condition,
+            language: item.language,
+            rarity: item.rarity
+          };
+          
+          // savedPrice에 product 필드 추가
+          savedPrice.dataValues.product = productWithId;
           
           prices.push(savedPrice);
           return savedPrice;
@@ -213,7 +247,23 @@ async function searchAndSaveCardDCPrices(cardName, cardId) {
       message: `CardDC에서 ${priceData.length}개의 가격 정보를 찾았습니다.`,
       cardId: cardId,
       count: priceData.length,
-      prices: cardId ? prices : priceData
+      prices: cardId ? prices : priceData.map(item => {
+        // 직접 product 객체 생성하여 반환
+        return {
+          ...item,
+          product: {
+            id: (item.productId || "").toString(), // productId를 문자열로 변환 (null이면 빈 문자열)
+            url: item.url,
+            site: 'CardDC',
+            price: item.price,
+            available: item.available,
+            cardCode: item.cardCode,
+            condition: item.condition,
+            language: item.language,
+            rarity: item.rarity
+          }
+        };
+      })
     };
   } catch (error) {
     console.error('[ERROR] CardDC 가격 검색 및 저장 오류:', error);

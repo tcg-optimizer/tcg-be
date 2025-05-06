@@ -343,7 +343,8 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
               totalPrice: price * quantity,
               quantity,
               points: earnablePoints,
-              product
+              product,
+              cardId: product.cardId
             });
           }
           
@@ -433,7 +434,8 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
           totalPrice: bestProduct.price * quantity,
           quantity,
           points: earnablePoints,  // 적립 예정 포인트
-          product: bestProduct
+          product: bestProduct,
+          cardId: bestProduct.cardId
         });
       }
     });
@@ -564,7 +566,8 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
                       totalPrice: price * quantity,
                       quantity,
                       points: earnablePoints,
-                      product
+                      product,
+                      cardId: product.cardId
                     };
                   }
                 }
@@ -720,7 +723,8 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
                   totalPrice: alt.price * alt.quantity,
                   quantity: alt.quantity,
                   points: newTargetPoints,
-                  product: alt.product
+                  product: alt.product,
+                  cardId: alt.product.cardId
                 };
               }
               
@@ -941,8 +945,20 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
           price: card.price,
           quantity: card.quantity,
           totalPrice: card.totalPrice,
-          product: card.product,
-          image: cardImagesMap[card.cardName]
+          product: {
+            id: (card.product?.id || card.productId || (card.url && card.url.match(/goodsIdx=(\d+)/) ? card.url.match(/goodsIdx=(\d+)/)[1] : `tcg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`)).toString(),
+            url: card.url || card.product?.url,
+            site: card.site || card.product?.site,
+            price: card.price,
+            available: card.available || card.product?.available,
+            cardCode: card.cardCode || card.product?.cardCode,
+            condition: card.condition || card.product?.condition,
+            language: card.language || card.product?.language,
+            rarity: card.rarity || card.product?.rarity,
+            cardId: card.cardId // product에 cardId 추가
+          },
+          image: cardImagesMap[card.cardName],
+          cardId: card.cardId // 카드 자체에도 cardId 추가
         });
       });
       

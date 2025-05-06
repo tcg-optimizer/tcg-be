@@ -8,9 +8,10 @@ const { encodeEUCKR, detectLanguageFromCardCode } = require('./tcgshopCrawler');
 /**
  * OnlyYugioh에서 카드 가격 정보를 크롤링합니다.
  * @param {string} cardName - 검색할 카드 이름
+ * @param {string} [cardId] - 카드 ID (선택적)
  * @returns {Promise<Array>} - 크롤링된 가격 정보 배열
  */
-async function crawlOnlyYugioh(cardName) {
+async function crawlOnlyYugioh(cardName, cardId) {
   try {
     // URL 인코딩된 검색어 생성
     const encodedQuery = encodeURIComponent(cardName).replace(/%20/g, '+');
@@ -118,6 +119,20 @@ async function crawlOnlyYugioh(cardName) {
         ? detailUrl 
         : `https://www.onlyyugioh.com${detailUrl}`;
       
+      // URL에서 상품 ID 추출
+      let productId = null;
+      // product/12345 형식 추출 시도
+      const productIdMatch = fullUrl.match(/product\/(\d+)/);
+      if (productIdMatch && productIdMatch[1]) {
+        productId = productIdMatch[1]; // 숫자가 아닌 문자열로 유지
+      } else {
+        // 상품코드가 URL에 포함된 다른 형식 추출 시도
+        const otherIdMatch = fullUrl.match(/product_no=(\d+)/);
+        if (otherIdMatch && otherIdMatch[1]) {
+          productId = otherIdMatch[1]; // 숫자가 아닌 문자열로 유지
+        }
+      }
+      
       // 가격 정보 추출 - 여러 선택자 시도
       let price = 0;
       const priceSelectors = [
@@ -224,7 +239,9 @@ async function crawlOnlyYugioh(cardName) {
         cardCode: extractedCardCode,
         price,
         site: 'OnlyYugioh',
-        available: true // 품절 상품은 위에서 필터링되었으므로 항상 true
+        available: true, // 품절 상품은 위에서 필터링되었으므로 항상 true
+        cardId,
+        productId
       });
     });
     
@@ -244,7 +261,7 @@ async function crawlOnlyYugioh(cardName) {
 async function searchAndSaveOnlyYugiohPrices(cardName, cardId) {
   try {
     // OnlyYugioh 크롤링
-    const priceData = await crawlOnlyYugioh(cardName);
+    const priceData = await crawlOnlyYugioh(cardName, cardId);
     
     if (priceData.length === 0) {
       return { 
@@ -284,8 +301,25 @@ async function searchAndSaveOnlyYugiohPrices(cardName, cardId) {
             language: item.language,
             available: item.available,
             cardCode: item.cardCode,
-            lastUpdated: new Date()
+            lastUpdated: new Date(),
+            productId: item.productId || null // 추출한 productId가 있으면 사용, 없으면 null 사용
           });
+          
+          // product 객체에 id 필드 추가
+          const productWithId = {
+            id: item.productId.toString(), // productId를 id로 사용 (문자열로 변환)
+            url: item.url,
+            site: 'OnlyYugioh',
+            price: item.price,
+            available: item.available,
+            cardCode: item.cardCode,
+            condition: item.condition,
+            language: item.language,
+            rarity: item.rarity
+          };
+          
+          // savedPrice에 product 필드 추가
+          savedPrice.dataValues.product = productWithId;
           
           prices.push(savedPrice);
           return savedPrice;
@@ -297,7 +331,23 @@ async function searchAndSaveOnlyYugiohPrices(cardName, cardId) {
       message: `OnlyYugioh에서 ${priceData.length}개의 가격 정보를 찾았습니다.`,
       cardId: cardId,
       count: priceData.length,
-      prices: cardId ? prices : priceData
+      prices: cardId ? prices : priceData.map(item => {
+        // 직접 product 객체 생성하여 반환
+        return {
+          ...item,
+          product: {
+            id: (item.productId || "").toString(), // productId를 문자열로 변환 (null이면 빈 문자열)
+            url: item.url,
+            site: 'OnlyYugioh',
+            price: item.price,
+            available: item.available,
+            cardCode: item.cardCode,
+            condition: item.condition,
+            language: item.language,
+            rarity: item.rarity
+          }
+        };
+      })
     };
   } catch (error) {
     console.error('[ERROR] OnlyYugioh 가격 검색 및 저장 오류:', error);

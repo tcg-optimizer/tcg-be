@@ -1114,6 +1114,57 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
         return null;
       }
       
+      // 각 상품에 대해 product 객체에 id 필드가 있는지 확인하고 없으면 추가
+      if (card.products && card.products.length > 0) {
+        card.products = card.products.map(product => {
+          // product 객체가 없는 경우 새로 생성
+          if (!product.product) {
+            // URL에서 TCGShop의 goodsIdx 추출 시도
+            let productId = null;
+            if (product.url && product.url.includes('tcgshop.co.kr') && product.url.includes('goodsIdx=')) {
+              const match = product.url.match(/goodsIdx=(\d+)/);
+              if (match && match[1]) {
+                productId = match[1];
+                console.log(`[INFO] TCGShop URL에서 상품 ID 추출: ${productId}`);
+              }
+            }
+            
+            product.product = {
+              id: (product.id || product.productId || productId || 
+                  `generated-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`).toString(),
+              url: product.url,
+              site: product.site,
+              price: product.price,
+              available: product.available,
+              cardCode: product.cardCode,
+              condition: product.condition,
+              language: product.language,
+              rarity: product.rarity
+            };
+          } 
+          // product 객체가 있지만 id가 없는 경우
+          else if (product.product && !product.product.id) {
+            // URL에서 TCGShop의 goodsIdx 추출 시도
+            let productId = null;
+            if (product.product.url && product.product.url.includes('tcgshop.co.kr') && product.product.url.includes('goodsIdx=')) {
+              const match = product.product.url.match(/goodsIdx=(\d+)/);
+              if (match && match[1]) {
+                productId = match[1];
+                console.log(`[INFO] TCGShop URL에서 상품 ID 추출: ${productId}`);
+              }
+            }
+            
+            product.product.id = (product.id || product.productId || productId || 
+                                `generated-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`).toString();
+          }
+          // id가 숫자인 경우 문자열로 변환
+          else if (product.product && product.product.id && typeof product.product.id === 'number') {
+            product.product.id = product.product.id.toString();
+          }
+          return product;
+        });
+      }
+      
       return card;
     }).filter(card => card !== null && card.products && card.products.length > 0);
     
@@ -1188,6 +1239,74 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
       excludedProductIds,
       excludedStores
     };
+    
+    // 모든 판매처에 product.id가 있는지 확인하고 없으면 추가
+    const processSellerDetails = (sellerDetails) => {
+      if (!sellerDetails) return sellerDetails;
+      
+      Object.entries(sellerDetails).forEach(([sellerName, details]) => {
+        if (details && details.cards && Array.isArray(details.cards)) {
+          details.cards = details.cards.map(card => {
+            // product 객체가 없으면 새로 생성
+            if (!card.product) {
+              // URL에서 TCGShop의 goodsIdx 추출 시도
+              let productId = null;
+              if (card.url && card.url.includes('tcgshop.co.kr') && card.url.includes('goodsIdx=')) {
+                const match = card.url.match(/goodsIdx=(\d+)/);
+                if (match && match[1]) {
+                  productId = match[1];
+                  console.log(`[INFO] TCGShop URL에서 상품 ID 추출: ${productId}`);
+                }
+              }
+              
+              card.product = {
+                id: (card.id || card.productId || productId || 
+                    `generated-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`).toString(),
+                url: card.url,
+                site: card.site,
+                price: card.price,
+                available: card.available,
+                cardCode: card.cardCode,
+                condition: card.condition,
+                language: card.language,
+                rarity: card.rarity
+              };
+            }
+            // product 객체가 있지만 id가 없는 경우
+            else if (card.product && !card.product.id) {
+              // URL에서 TCGShop의 goodsIdx 추출 시도
+              let productId = null;
+              if (card.product.url && card.product.url.includes('tcgshop.co.kr') && card.product.url.includes('goodsIdx=')) {
+                const match = card.product.url.match(/goodsIdx=(\d+)/);
+                if (match && match[1]) {
+                  productId = match[1];
+                  console.log(`[INFO] TCGShop URL에서 상품 ID 추출: ${productId}`);
+                }
+              }
+              
+              card.product.id = (card.id || card.productId || productId || 
+                              `generated-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`).toString();
+            }
+            // id가 숫자인 경우 문자열로 변환
+            else if (card.product && card.product.id && typeof card.product.id === 'number') {
+              card.product.id = card.product.id.toString();
+            }
+            return card;
+          });
+        }
+      });
+      return sellerDetails;
+    };
+    
+    // 결과의 최적 판매처 정보에서 product.id 확인 및 추가
+    if (result.optimalSellers) {
+      result.optimalSellers = processSellerDetails(result.optimalSellers);
+    }
+    
+    // 결과의 대안 판매처 정보에서 product.id 확인 및 추가
+    if (result.alternativeSellers) {
+      result.alternativeSellers = processSellerDetails(result.alternativeSellers);
+    }
     
     return res.status(200).json(result);
   } catch (error) {
