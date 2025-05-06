@@ -717,7 +717,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
               const cardPurchaseIndex = cardsOptimalPurchase.findIndex(c => c.cardName === card.cardName);
               if (cardPurchaseIndex !== -1) {
                 cardsOptimalPurchase[cardPurchaseIndex] = {
-                  cardName,
+                  cardName: card.cardName,
                   seller: targetSellerName,
                   price: alt.price,
                   totalPrice: alt.price * alt.quantity,

@@ -1181,7 +1181,7 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
       // 제외 목록을 기반으로 상품 필터링
       const beforeFilterCount = card.products.length;
       const filteredProducts = card.products.filter(product => 
-        !excludedProductIds.includes(product.id) && 
+        !(product.product && product.product.id && excludedProductIds.includes(product.product.id)) && 
         !excludedStores.includes(product.site)
       );
       
