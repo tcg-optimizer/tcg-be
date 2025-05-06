@@ -429,11 +429,57 @@ const naverSellerShippingInfo = {
     islandShippingFee: 6000,
     freeShippingThreshold: 45000
   },
+
+  TCG하우스 : {
+    shippingFee: 3500,
+    jejuShippingFee: 3500,
+    islandShippingFee: 3500,
+    freeShippingThreshold: 40000
+  },
+
+  게임만물상 : {
+    shippingFee: 3000,
+    jejuShippingFee: 3000,
+    islandShippingFee: 3000,
+    freeShippingThreshold: 70000
+  },
+
+  에리어제로스토어 : {
+    shippingFee: 4000,
+    jejuShippingFee: 4000,
+    islandShippingFee: 4000,
+    freeShippingThreshold: 40000
+  },
+
+  카드팝 : {
+    shippingFee: 3000,
+    jejuShippingFee: 3000,
+    islandShippingFee: 3000,
+    freeShippingThreshold: Infinity
+  },
+
+  TCG나라: {
+    shippingFee: 3000,
+    jejuShippingFee: 3000,
+    islandShippingFee: 3000,
+    freeShippingThreshold: 50000
+  },
+
+  아트워키: {
+    shippingFee: 3000,
+    jejuShippingFee: 3000,
+    islandShippingFee: 3000,
+    freeShippingThreshold: Infinity
+  },
+
   
   
+
+
   
   
-  
+
+
   
   
 
