@@ -133,34 +133,93 @@ async function crawlOnlyYugioh(cardName, cardId) {
         }
       }
       
-      // 가격 정보 추출 - 여러 선택자 시도
+      // 가격 정보 추출 - HTML 예시에 직접 맞춰서 구현
       let price = 0;
-      const priceSelectors = [
-        'ul.spec li:contains("판매가") span:last-child',
-        'li:contains("판매가") span',
-        '.price',
-        'span:contains("원")'
-      ];
       
-      for (const selector of priceSelectors) {
-        const priceElement = productElement.find(selector);
-        if (priceElement.length > 0) {
-          const rawPriceText = priceElement.text().trim();
+      try {
+        console.log(`[OnlyYugioh Debug] 상품 이름: ${title}`);
+        
+        
+        // 명확한 선택자로 판매가 포함된 li 요소 선택
+        const specList = productElement.find('ul.xans-element-.xans-search-listitem.spec');
+        
+        if (specList.length > 0) {
+          console.log('[OnlyYugioh Debug] spec 리스트 찾음');
           
-          const priceText = rawPriceText.replace(/[^0-9]/g, '');
-          if (priceText) {
-            // 모든 가격에서 앞의 두 자리 제거
-            let parsedPrice;
-            if (priceText.length > 2) {
-              const correctedPrice = priceText.substring(2);
-              parsedPrice = parseInt(correctedPrice);
+          // 판매가가 포함된 li 요소 찾기
+          const priceLi = specList.find('li:contains("판매가")');
+          
+          if (priceLi.length > 0) {
+            console.log(`[OnlyYugioh Debug] 판매가 li HTML: ${priceLi.html()}`);
+            
+            // 문자열에서 원본 HTML을 직접 분석하여 가격 찾기
+            const html = priceLi.html();
+            // 판매가 다음의 마지막 span 태그 내용을 추출
+            const priceMatch = html.match(/<\/strong>\s*<span[^>]*>([^<]+)<\/span>/i);
+            
+            if (priceMatch && priceMatch[1]) {
+              const rawPriceText = priceMatch[1].trim();
+              console.log(`[OnlyYugioh Debug] 정규식으로 추출한 가격 텍스트: '${rawPriceText}'`);
+              
+              // 숫자만 추출 (쉼표와 '원' 제거)
+              const priceText = rawPriceText.replace(/[^\d]/g, '');
+              console.log(`[OnlyYugioh Debug] 숫자만 추출: '${priceText}'`);
+              
+              if (priceText) {
+                price = parseInt(priceText, 10);
+                console.log(`[OnlyYugioh Debug] 최종 가격: ${price}`);
+              }
             } else {
-              parsedPrice = parseInt(priceText);
+              // 두 번째 방법: 모든 span 중 원을 포함한 span 찾기
+              const priceSpans = priceLi.find('span');
+              priceSpans.each(function(i, elem) {
+                const spanText = $(elem).text().trim();
+                if (spanText.includes('원')) {
+                  console.log(`[OnlyYugioh Debug] 원을 포함한 span 텍스트: '${spanText}'`);
+                  const priceText = spanText.replace(/[^\d]/g, '');
+                  if (priceText) {
+                    price = parseInt(priceText, 10);
+                    console.log(`[OnlyYugioh Debug] 최종 가격: ${price}`);
+                    return false; // each 루프 종료
+                  }
+                }
+              });
             }
-            price = parsedPrice;
-            break;
+          } else {
+            console.log('[OnlyYugioh Debug] 판매가 li를 찾을 수 없음');
+          }
+        } else {
+          console.log('[OnlyYugioh Debug] spec 리스트를 찾을 수 없음');
+        }
+        
+        // 대체 방법: 판매가가 포함된 어떤 li든 찾아서 처리
+        if (price === 0) {
+          console.log('[OnlyYugioh Debug] 대체 방법 시도');
+          const anyPriceLi = productElement.find('li:contains("판매가")');
+          if (anyPriceLi.length > 0) {
+            const allText = anyPriceLi.text().trim();
+            console.log(`[OnlyYugioh Debug] 판매가 li 전체 텍스트: '${allText}'`);
+            
+            // "판매가" 이후의, "원"을 포함한 부분 추출 시도
+            const priceMatch = allText.match(/판매가[^0-9]*([0-9,]+원)/);
+            if (priceMatch && priceMatch[1]) {
+              const rawPrice = priceMatch[1];
+              console.log(`[OnlyYugioh Debug] 정규식으로 추출한 가격: '${rawPrice}'`);
+              const priceNum = rawPrice.replace(/[^\d]/g, '');
+              if (priceNum) {
+                price = parseInt(priceNum, 10);
+                console.log(`[OnlyYugioh Debug] 대체 방법으로 파싱한 최종 가격: ${price}`);
+              }
+            }
           }
         }
+      } catch (error) {
+        console.error(`[OnlyYugioh Error] 가격 파싱 중 오류: ${error.message}`);
+      }
+      
+      // 가격이 0인 경우 로그 출력
+      if (price === 0) {
+        console.log(`[OnlyYugioh Warning] 가격이 0원으로 감지되었습니다. 상품명: ${title}`);
       }
       
       // 상품 요약 정보에서 카드 코드, 레어도 등 추출

@@ -83,17 +83,21 @@ function extractCardCode(title) {
 /**
  * 상품 상태(신품/중고)를 파싱합니다.
  * @param {string} title - 상품 제목
- * @returns {string} - 파싱된 상품 상태 (A급, B급, C급, 신품)
+ * @returns {string} - 파싱된 상품 상태 (S급, A급, B급, C급, 신품)
  */
 function parseCondition(title) {
-  // 중고 등급 확인
-  if (/\[A급\]|\(A급\)|A급|A\+|A등급|A품/i.test(title)) {
+
+  if (/\[S급\]|\(S급\)|S급|S\+|S등급|S-급/i.test(title)) {
+    return 'S급';
+  }
+  
+  if (/\[A급\]|\(A급\)|A급|A\+|A등급/i.test(title)) {
     return 'A급';
   }
-  if (/\[B급\]|\(B급\)|B급|B등급|B품/i.test(title)) {
+  if (/\[B급\]|\(B급\)|B급|B등급/i.test(title)) {
     return 'B급';
   }
-  if (/\[C급\]|\(C급\)|C급|C등급|C품/i.test(title)) {
+  if (/\[C급\]|\(C급\)|C급|C등급/i.test(title)) {
     return 'C급';
   }
   
