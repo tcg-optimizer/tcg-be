@@ -12,15 +12,13 @@
 function parseRarity(title) {
   // 레어도 우선순위(더 구체적인 것이 먼저 매칭되도록)
   const rarityPatterns = [
-    // 특수 레어 - 띄어쓰기 패턴 다양화 및 케이스 추가
     { pattern: /(엑스트라\s*시크릿\s*레어|엑스트라시크릿레어|엑시크|extra\s*secret\s*rare)/i, rarity: '엑스트라 시크릿 레어', code: 'EXSE' },
     { pattern: /(20th\s*시크릿\s*레어|20시크릿\s*레어|20th\s*secret\s*rare|twentieth\s*secret\s*rare)/i, rarity: '20th 시크릿 레어', code: '20th SE' },
-    { pattern: /(QC\s*시크릿\s*레어|쿼터센츄리시크|QC 쿼터 시크릿 레어|QC시크릿레어|쿼터\s*센츄리\s*시크릿\s*레어|quarter\s*century\s*secret\s*rare|QC\s*secret\s*rare)/i, rarity: '쿼터 센츄리 시크릿 레어', code: 'QCSE' },
+    { pattern: /(QC\s*시크릿\s*레어|쿼터\s*센츄리\s*시크|QC\s*쿼터\s*시크릿\s*레어|QC시크릿레어|쿼터\s*시크릿|쿼터\s*센츄리\s*시크릿\s*레어|quarter\s*century\s*secret\s*rare|QC\s*secret\s*rare)/i, rarity: '쿼터 센츄리 시크릿 레어', code: 'QCSE' },
     { pattern: /(홀로그래픽\s*레어|홀로\s*레어|홀로그래픽레어|홀로레어|holographic\s*rare|holographic|holo\s*rare|홀로)/i, rarity: '홀로그래픽 레어', code: 'HR' },
     { pattern: /(프리즈마틱\s*시크릿\s*레어|프리즈매틱\s*시크릿\s*레어|프리즈마틱시크릿레어|프리즈매틱시크릿레어|prismatic\s*secret\s*rare|프리즈마틱\s*시크릿|프리즈매틱\s*시크릿|prismatic|Prismatic)/i, rarity: '프리즈마틱 시크릿 레어', code: 'PSE' },
     { pattern: /(골드\s*시크릿\s*레어|골드시크릿레어|골시크|gold\s*secret\s*rare|골드\s*secret\s*레어)/i, rarity: '골드 시크릿 레어', code: 'GSE' },
     { pattern: /(밀레니엄\s*레어|밀\s*레어|밀레니엄레어|밀레어|밀레니엄|millennium\s*rare|millennium)/i, rarity: '밀레니엄 레어', code: 'M' },
-    // 일반 레어도 - 띄어쓰기 패턴 다양화
     { pattern: /(시크릿\s*레어|시크릿레어|\[시크릿\]|secret\s*rare|secret)/i, rarity: '시크릿 레어', code: 'SE' },
     { pattern: /(울트라\s*레어|울트라레어|울트|울트라|울레|ultra\s*rare|ultra)/i, rarity: '울트라 레어', code: 'UR' },
     { pattern: /(슈퍼\s*레어|슈퍼레어|수퍼\s*레어|슈레|\[슈퍼\]|super\s*rare|super)/i, rarity: '슈퍼 레어', code: 'SR' },
@@ -31,8 +29,8 @@ function parseRarity(title) {
     { pattern: /(골드\s*레어|골드레어|gold\s*rare)/i, rarity: '골드 레어', code: 'GR' },
     
     // 기본 레어도
-    { pattern: /(?<![가-힣\w])(레어|rare)(?![가-힣\w])/i, rarity: '레어', code: 'R' },
     { pattern: /(노멀|노멀레어|normal|노말)/i, rarity: '노멀', code: 'N' },
+    { pattern: /(?<![가-힣\w])(레어|rare)(?![가-힣\w])/i, rarity: '레어', code: 'R' },
   ];
 
   // 일반 패턴 매칭

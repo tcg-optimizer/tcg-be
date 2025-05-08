@@ -55,9 +55,10 @@ function detectLanguageFromCardCode(cardCode) {
 /**
  * TCGShop에서 카드 가격 정보를 크롤링합니다.
  * @param {string} cardName - 검색할 카드 이름
+ * @param {string} [cardId] - 카드 ID (선택적)
  * @returns {Promise<Array>} - 크롤링된 가격 정보 배열
  */
-async function crawlTCGShop(cardName) {
+async function crawlTCGShop(cardName, cardId) {
   try {
     // EUC-KR로 인코딩된 검색어 생성
     const encodedQuery = encodeEUCKR(cardName);
@@ -105,12 +106,6 @@ async function crawlTCGShop(cardName) {
       const cleanTitle = title.replace(/[-=\s]/g, '').toLowerCase();
       
       if (!title || !cleanTitle.includes(cleanCardName)) return;
-      
-      // 상품 URL
-      const detailUrl = productLink.attr('href');
-      const fullUrl = detailUrl && detailUrl.startsWith('http') 
-        ? detailUrl 
-        : `http://www.tcgshop.co.kr/${detailUrl}`;
       
       // 상품 행 (tr) 찾기
       const productRow = productCell.closest('tr');
@@ -192,6 +187,26 @@ async function crawlTCGShop(cardName) {
         available = true;
       }
       
+      const detailUrl = productLink.attr('href');
+      const fullUrl = detailUrl && detailUrl.startsWith('http') 
+        ? detailUrl 
+        : `http://www.tcgshop.co.kr/${detailUrl}`;
+      
+      // URL에서 상품 ID(goodsIdx) 추출
+      let productId = null;
+      const goodsIdxMatch = fullUrl.match(/goodsIdx=(\d+)/);
+      if (goodsIdxMatch && goodsIdxMatch[1]) {
+        productId = goodsIdxMatch[1]; // 숫자가 아닌 문자열로 유지
+      }
+      
+      // goodsIdx가 없는 경우, URL에서 해시를 생성하여 고유 ID 생성
+      if (!productId) {
+        const urlHash = fullUrl.split('').reduce((acc, char) => {
+          return (acc << 5) - acc + char.charCodeAt(0) | 0;
+        }, 0);
+        productId = `tcgshop-${Math.abs(urlHash)}`;
+      }
+      
       items.push({
         title,
         url: fullUrl,
@@ -202,7 +217,9 @@ async function crawlTCGShop(cardName) {
         cardCode: extractedCardCode,
         price,
         site: 'TCGShop',
-        available
+        available,
+        cardId,
+        productId  // 추출한 goodsIdx를 productId로 사용
       });
     });
     
@@ -221,7 +238,7 @@ async function crawlTCGShop(cardName) {
 async function searchAndSaveTCGShopPrices(cardName, cardId) {
   try {
     // TCGShop 크롤링
-    const priceData = await crawlTCGShop(cardName);
+    const priceData = await crawlTCGShop(cardName, cardId);
     
     if (priceData.length === 0) {
       return { 
@@ -261,8 +278,25 @@ async function searchAndSaveTCGShopPrices(cardName, cardId) {
             language: item.language,
             available: item.available,
             cardCode: item.cardCode,
-            lastUpdated: new Date()
+            lastUpdated: new Date(),
+            productId: item.productId // productId는 항상 존재함
           });
+          
+          // product 객체에 id 필드 추가
+          const productWithId = {
+            id: item.productId.toString(), // productId를 id로 사용 (문자열로 변환)
+            url: item.url,
+            site: 'TCGShop',
+            price: item.price,
+            available: item.available,
+            cardCode: item.cardCode,
+            condition: item.condition,
+            language: item.language,
+            rarity: item.rarity
+          };
+          
+          // savedPrice에 product 필드 추가
+          savedPrice.dataValues.product = productWithId;
           
           prices.push(savedPrice);
           return savedPrice;
@@ -274,7 +308,23 @@ async function searchAndSaveTCGShopPrices(cardName, cardId) {
       message: `TCGShop에서 ${priceData.length}개의 가격 정보를 찾았습니다.`,
       cardId: cardId,
       count: priceData.length,
-      prices: cardId ? prices : priceData
+      prices: cardId ? prices : priceData.map(item => {
+        // 직접 product 객체 생성하여 반환
+        return {
+          ...item,
+          product: {
+            id: item.productId.toString(), // productId를 문자열로 변환
+            url: item.url,
+            site: 'TCGShop',
+            price: item.price,
+            available: item.available,
+            cardCode: item.cardCode,
+            condition: item.condition,
+            language: item.language,
+            rarity: item.rarity
+          }
+        };
+      })
     };
   } catch (error) {
     console.error('[ERROR] TCGShop 가격 검색 및 저장 오류:', error);

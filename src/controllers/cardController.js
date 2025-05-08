@@ -941,7 +941,7 @@ function calculateTotalProducts(rarityPrices) {
  */
 exports.getOptimalPurchaseCombination = async (req, res) => {
   try {
-    const { cards, ...purchaseOptions } = req.body;
+    const { cards, excludedProductIds = [], excludedStores = [], ...purchaseOptions } = req.body;
 
     // 입력 데이터 유효성 검사
     if (!cards || !Array.isArray(cards) || cards.length === 0) {
@@ -951,6 +951,12 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
     }
 
     console.log(`최적 구매 조합 찾기 요청 - ${cards.length}개 카드`);
+    if (excludedProductIds.length > 0) {
+      console.log(`[INFO] ${excludedProductIds.length}개의 상품 ID가 제외 목록에 추가됨`);
+    }
+    if (excludedStores.length > 0) {
+      console.log(`[INFO] ${excludedStores.length}개의 상점이 제외 목록에 추가됨: ${excludedStores.join(', ')}`);
+    }
     
     // 센터 카드 필터링
     const filteredCards = cards.filter(card => {
@@ -1108,6 +1114,57 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
         return null;
       }
       
+      // 각 상품에 대해 product 객체에 id 필드가 있는지 확인하고 없으면 추가
+      if (card.products && card.products.length > 0) {
+        card.products = card.products.map(product => {
+          // product 객체가 없는 경우 새로 생성
+          if (!product.product) {
+            // URL에서 TCGShop의 goodsIdx 추출 시도
+            let productId = null;
+            if (product.url && product.url.includes('tcgshop.co.kr') && product.url.includes('goodsIdx=')) {
+              const match = product.url.match(/goodsIdx=(\d+)/);
+              if (match && match[1]) {
+                productId = match[1];
+                console.log(`[INFO] TCGShop URL에서 상품 ID 추출: ${productId}`);
+              }
+            }
+            
+            product.product = {
+              id: (product.id || product.productId || productId || 
+                  `generated-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`).toString(),
+              url: product.url,
+              site: product.site,
+              price: product.price,
+              available: product.available,
+              cardCode: product.cardCode,
+              condition: product.condition,
+              language: product.language,
+              rarity: product.rarity
+            };
+          } 
+          // product 객체가 있지만 id가 없는 경우
+          else if (product.product && !product.product.id) {
+            // URL에서 TCGShop의 goodsIdx 추출 시도
+            let productId = null;
+            if (product.product.url && product.product.url.includes('tcgshop.co.kr') && product.product.url.includes('goodsIdx=')) {
+              const match = product.product.url.match(/goodsIdx=(\d+)/);
+              if (match && match[1]) {
+                productId = match[1];
+                console.log(`[INFO] TCGShop URL에서 상품 ID 추출: ${productId}`);
+              }
+            }
+            
+            product.product.id = (product.id || product.productId || productId || 
+                                `generated-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`).toString();
+          }
+          // id가 숫자인 경우 문자열로 변환
+          else if (product.product && product.product.id && typeof product.product.id === 'number') {
+            product.product.id = product.product.id.toString();
+          }
+          return product;
+        });
+      }
+      
       return card;
     }).filter(card => card !== null && card.products && card.products.length > 0);
     
@@ -1117,6 +1174,39 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
         success: false, 
         error: '유효한 카드 정보가 없습니다. 레어도와 언어를 선택했는지 확인해주세요.'
       });
+    }
+    
+    // 제외할 상품 ID와 상점 기반으로 필터링 적용
+    const filteredCardsData = processedCards.map(card => {
+      // 제외 목록을 기반으로 상품 필터링
+      const beforeFilterCount = card.products.length;
+      const filteredProducts = card.products.filter(product => 
+        !(product.product && product.product.id && excludedProductIds.includes(product.product.id)) && 
+        !excludedStores.includes(product.site)
+      );
+      
+      const afterFilterCount = filteredProducts.length;
+      if (beforeFilterCount !== afterFilterCount) {
+        console.log(`[INFO] "${card.cardName}" 카드: ${beforeFilterCount - afterFilterCount}개 상품이 제외 목록에 따라 필터링됨`);
+      }
+      
+      return {
+        ...card,
+        products: filteredProducts
+      };
+    }).filter(card => card.products.length > 0);
+    
+    // 필터링 후 유효한 카드가 없는 경우
+    if (filteredCardsData.length === 0) {
+      return res.status(400).json({
+        success: false, 
+        error: '모든 카드의 상품이 제외 목록에 의해 필터링되었습니다. 제외 목록을 다시 확인해주세요.'
+      });
+    }
+    
+    // 필터링으로 제외된 카드가 있는 경우 로그
+    if (filteredCardsData.length < processedCards.length) {
+      console.log(`[WARN] 제외 목록에 의해 ${processedCards.length - filteredCardsData.length}개 카드가 완전히 제외됨`);
     }
 
     // 기본 옵션 설정 - 고정값 사용
@@ -1141,8 +1231,82 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
       pointsOptions: options.pointsOptions
     });
 
-    // 최적 구매 조합 찾기 - 처리된 카드 배열 사용
-    const result = findOptimalPurchaseCombination(processedCards, options);
+    // 최적 구매 조합 찾기 - 필터링된 카드 배열 사용
+    const result = findOptimalPurchaseCombination(filteredCardsData, options);
+    
+    // 제외 필터 정보 추가
+    result.excludedFilters = {
+      excludedProductIds,
+      excludedStores
+    };
+    
+    // 모든 판매처에 product.id가 있는지 확인하고 없으면 추가
+    const processSellerDetails = (sellerDetails) => {
+      if (!sellerDetails) return sellerDetails;
+      
+      Object.entries(sellerDetails).forEach(([sellerName, details]) => {
+        if (details && details.cards && Array.isArray(details.cards)) {
+          details.cards = details.cards.map(card => {
+            // product 객체가 없으면 새로 생성
+            if (!card.product) {
+              // URL에서 TCGShop의 goodsIdx 추출 시도
+              let productId = null;
+              if (card.url && card.url.includes('tcgshop.co.kr') && card.url.includes('goodsIdx=')) {
+                const match = card.url.match(/goodsIdx=(\d+)/);
+                if (match && match[1]) {
+                  productId = match[1];
+                  console.log(`[INFO] TCGShop URL에서 상품 ID 추출: ${productId}`);
+                }
+              }
+              
+              card.product = {
+                id: (card.id || card.productId || productId || 
+                    `generated-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`).toString(),
+                url: card.url,
+                site: card.site,
+                price: card.price,
+                available: card.available,
+                cardCode: card.cardCode,
+                condition: card.condition,
+                language: card.language,
+                rarity: card.rarity
+              };
+            }
+            // product 객체가 있지만 id가 없는 경우
+            else if (card.product && !card.product.id) {
+              // URL에서 TCGShop의 goodsIdx 추출 시도
+              let productId = null;
+              if (card.product.url && card.product.url.includes('tcgshop.co.kr') && card.product.url.includes('goodsIdx=')) {
+                const match = card.product.url.match(/goodsIdx=(\d+)/);
+                if (match && match[1]) {
+                  productId = match[1];
+                  console.log(`[INFO] TCGShop URL에서 상품 ID 추출: ${productId}`);
+                }
+              }
+              
+              card.product.id = (card.id || card.productId || productId || 
+                              `generated-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`).toString();
+            }
+            // id가 숫자인 경우 문자열로 변환
+            else if (card.product && card.product.id && typeof card.product.id === 'number') {
+              card.product.id = card.product.id.toString();
+            }
+            return card;
+          });
+        }
+      });
+      return sellerDetails;
+    };
+    
+    // 결과의 최적 판매처 정보에서 product.id 확인 및 추가
+    if (result.optimalSellers) {
+      result.optimalSellers = processSellerDetails(result.optimalSellers);
+    }
+    
+    // 결과의 대안 판매처 정보에서 product.id 확인 및 추가
+    if (result.alternativeSellers) {
+      result.alternativeSellers = processSellerDetails(result.alternativeSellers);
+    }
     
     return res.status(200).json(result);
   } catch (error) {

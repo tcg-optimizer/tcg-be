@@ -66,6 +66,11 @@ const CardPrice = sequelize.define('CardPrice', {
   lastUpdated: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
+  },
+  productId: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: '연결된 상품 ID (최저가 조합 계산에 사용)'
   }
 }, {
   timestamps: true,

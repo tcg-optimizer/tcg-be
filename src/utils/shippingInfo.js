@@ -429,11 +429,57 @@ const naverSellerShippingInfo = {
     islandShippingFee: 6000,
     freeShippingThreshold: 45000
   },
+
+  TCG하우스 : {
+    shippingFee: 3500,
+    jejuShippingFee: 3500,
+    islandShippingFee: 3500,
+    freeShippingThreshold: 40000
+  },
+
+  게임만물상 : {
+    shippingFee: 3000,
+    jejuShippingFee: 3000,
+    islandShippingFee: 3000,
+    freeShippingThreshold: 70000
+  },
+
+  에리어제로스토어 : {
+    shippingFee: 4000,
+    jejuShippingFee: 4000,
+    islandShippingFee: 4000,
+    freeShippingThreshold: 40000
+  },
+
+  카드팝 : {
+    shippingFee: 3000,
+    jejuShippingFee: 3000,
+    islandShippingFee: 3000,
+    freeShippingThreshold: Infinity
+  },
+
+  TCG나라: {
+    shippingFee: 3000,
+    jejuShippingFee: 3000,
+    islandShippingFee: 3000,
+    freeShippingThreshold: 50000
+  },
+
+  아트워키: {
+    shippingFee: 3000,
+    jejuShippingFee: 3000,
+    islandShippingFee: 3000,
+    freeShippingThreshold: Infinity
+  },
+
   
   
+
+
   
   
-  
+
+
   
   
 
@@ -518,8 +564,15 @@ function getShippingInfo(site) {
   } else if (siteLower === 'onlyyugioh') {
     return shippingInfo.onlyyugioh;
   } else {
-    // 네이버 판매자인 경우 정규화된 이름으로 비교
-    const normalizedSellerName = normalizeSellerName(siteStr);
+    // 네이버 판매자인 경우 'Naver_' 접두사 제거
+    let sellerName = siteStr;
+    if (sellerName.startsWith('Naver_')) {
+      sellerName = sellerName.substring(6); // 'Naver_' 접두사 제거
+      console.log(`[DEBUG] 네이버 판매자 이름 변환: '${siteStr}' → '${sellerName}'`);
+    }
+    
+    // 정규화된 이름으로 비교
+    const normalizedSellerName = normalizeSellerName(sellerName);
     
     // 모든 판매자 키를 확인하면서 정규화된 이름과 일치하는지 검사
     for (const seller in naverSellerShippingInfo) {
@@ -529,6 +582,7 @@ function getShippingInfo(site) {
     }
     
     // 일치하는 판매자가 없으면 기본 배송비 정보 반환
+    console.log(`[INFO] 판매자 '${sellerName}'의 배송비 정보가 없습니다. 기본값 사용.`);
     return shippingInfo.naverDefault;
   }
 }
