@@ -1,4 +1,15 @@
 const { Sequelize } = require('sequelize');
+const Redis = require('ioredis');
+
+// Redis 클라이언트 생성
+const redisClient = process.env.REDIS_URL 
+  ? new Redis(process.env.REDIS_URL)
+  : new Redis({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: process.env.REDIS_PORT || 6379,
+      password: process.env.REDIS_PASSWORD || '',
+      db: process.env.REDIS_DB || 0
+    });
 
 // Sequelize 인스턴스 생성
 const sequelize = new Sequelize(
@@ -36,4 +47,4 @@ const connectDB = async () => {
   }
 };
 
-module.exports = { sequelize, connectDB }; 
+module.exports = { sequelize, connectDB, redisClient }; 

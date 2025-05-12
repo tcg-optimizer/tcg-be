@@ -21,12 +21,12 @@ const Card = sequelize.define('Card', {
   updatedAt: 'updatedAt'
 });
 
-// 가격 정보를 위한 모델
 const CardPrice = sequelize.define('CardPrice', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
-    autoIncrement: true
+    autoIncrement: true,
+    comment: '검색 결과 고유의 ID'
   },
   site: {
     type: DataTypes.STRING,
@@ -81,27 +81,5 @@ const CardPrice = sequelize.define('CardPrice', {
 // 관계 설정
 Card.hasMany(CardPrice, { foreignKey: 'cardId', as: 'prices' });
 CardPrice.belongsTo(Card, { foreignKey: 'cardId' });
-
-// 최저가 계산 메소드
-Card.prototype.getLowestPrice = async function() {
-  try {
-    const prices = await CardPrice.findAll({
-      where: {
-        cardId: this.id,
-        available: true
-      },
-      order: [['price', 'ASC']]
-    });
-    
-    if (prices.length === 0) {
-      return null;
-    }
-    
-    return prices[0];
-  } catch (error) {
-    console.error('최저가 조회 오류:', error);
-    return null;
-  }
-};
 
 module.exports = { Card, CardPrice };   

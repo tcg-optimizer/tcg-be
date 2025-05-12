@@ -3,7 +3,6 @@
  */
 
 const shippingInfo = {
-  // 네이버 상점의 기본 배송비 정보
   naverDefault: {
     shippingFee: 3000,            // 기본 배송비
     jejuShippingFee: 5000,        // 제주 지역 배송비
@@ -11,7 +10,6 @@ const shippingInfo = {
     freeShippingThreshold: 50000  // 무료배송 기준금액
   },
   
-  // TCGShop 배송비 정보
   tcgshop: {
     shippingFee: 2500,
     jejuShippingFee: 2500,
@@ -19,7 +17,6 @@ const shippingInfo = {
     freeShippingThreshold: 30000
   },
   
-  // CardDC 배송비 정보
   carddc: {
     shippingFee: 2500,
     jejuShippingFee: 2500,
@@ -27,7 +24,6 @@ const shippingInfo = {
     freeShippingThreshold: 30000
   },
   
-  // OnlyYugioh 배송비 정보
   onlyyugioh: {
     shippingFee: 2500,
     jejuShippingFee: 2500,
@@ -36,7 +32,7 @@ const shippingInfo = {
   }
 };
 
-// 네이버 쇼핑몰의 판매자별 배송비 정보 (직접 입력 가능)
+// 네이버 쇼핑몰의 판매자별 배송비 정보
 const naverSellerShippingInfo = {
   카드킹덤 : { 
     shippingFee: 2800, 
@@ -472,29 +468,12 @@ const naverSellerShippingInfo = {
     freeShippingThreshold: Infinity
   },
 
-  
-  
-
-
-  
-  
-
-
-  
-  
-
-
-  
-
-
-  // 예: '판매자명': { shippingFee: 3000, freeShippingThreshold: 30000 }
 };
 
-// 지역 타입 상수
 const REGION_TYPES = {
-  DEFAULT: 'default',  // 기본 지역
-  JEJU: 'jeju',        // 제주 지역
-  ISLAND: 'island'     // 도서 지역
+  DEFAULT: 'default', 
+  JEJU: 'jeju', 
+  ISLAND: 'island'
 };
 
 // 최저가 계산 시 스킵해야 하는 마켓플레이스 목록

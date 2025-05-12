@@ -946,7 +946,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
           quantity: card.quantity,
           totalPrice: card.totalPrice,
           product: {
-            id: (card.product?.id || card.productId || (card.url && card.url.match(/goodsIdx=(\d+)/) ? card.url.match(/goodsIdx=(\d+)/)[1] : `tcg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`)).toString(),
+            id: generateConsistentProductId(card),
             url: card.url || card.product?.url,
             site: card.site || card.product?.site,
             price: card.price,
@@ -1018,6 +1018,131 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
   }
   
   return bestSolution;
+}
+
+/**
+ * 상품의 일관된 ID 생성 함수
+ * 사이트별로 다른 접두어를 사용하여 동일 상품이 항상 같은 ID를 갖도록 합니다
+ * @param {Object} card - 카드 정보 객체
+ * @returns {string} 일관된 상품 ID
+ */
+function generateConsistentProductId(card) {
+  const site = card.site || card.product?.site;
+  const url = card.url || card.product?.url;
+  const existingId = card.product?.id || card.productId;
+  
+  // 카드 고유 정보
+  const cardName = card.cardName || '';
+  const rarity = card.rarity || card.product?.rarity || '';
+  const language = card.language || card.product?.language || '';
+  const cardCode = card.cardCode || card.product?.cardCode || '';
+
+  // 이미 일관된 ID 형식을 가진 경우 그대로 반환
+  if (existingId && typeof existingId === 'string' && (
+      existingId.startsWith('tcg-') || 
+      existingId.startsWith('carddc-') || 
+      existingId.startsWith('onlyyugioh-'))) {
+    return existingId;
+  }
+
+  // TCGShop 상품의 경우
+  if (site === 'TCGShop') {
+    // URL에서 goodsIdx 추출 시도
+    if (url && url.includes('goodsIdx=')) {
+      const match = url.match(/goodsIdx=(\d+)/);
+      if (match && match[1]) {
+        return `tcg-${match[1]}`; // TCGShop 상품은 tcg- 접두어 사용
+      }
+    }
+    
+    // 기존 ID가 있는 경우 접두어 추가
+    if (existingId) {
+      return `tcg-${existingId}`;
+    }
+    
+    // 카드 정보로 해시 생성 (URL이 없는 경우)
+    const cardIdentity = `${cardName}-${rarity}-${language}-${cardCode}`.toLowerCase();
+    const hashCode = simpleStringHash(cardIdentity);
+    return `tcg-${hashCode}`;
+  }
+  
+  // CardDC 상품의 경우
+  if (site === 'CardDC') {
+    // 기존 ID가 있는 경우 접두어 추가
+    if (existingId) {
+      return `carddc-${existingId}`;
+    }
+    
+    // URL에서 상품 ID 추출 시도
+    if (url && url.includes('item_id=')) {
+      const match = url.match(/item_id=(\d+)/);
+      if (match && match[1]) {
+        return `carddc-${match[1]}`;
+      }
+    }
+    
+    // 카드 정보로 해시 생성 (URL이 없는 경우)
+    const cardIdentity = `${cardName}-${rarity}-${language}-${cardCode}`.toLowerCase();
+    const hashCode = simpleStringHash(cardIdentity);
+    return `carddc-${hashCode}`;
+  }
+  
+  // OnlyYugioh 상품의 경우
+  if (site === 'OnlyYugioh') {
+    // 기존 ID가 있는 경우 접두어 추가
+    if (existingId) {
+      return `onlyyugioh-${existingId}`;
+    }
+    
+    // URL에서 상품 ID 추출 시도
+    if (url) {
+      const productMatch = url.match(/product\/(\d+)/);
+      if (productMatch && productMatch[1]) {
+        return `onlyyugioh-${productMatch[1]}`;
+      }
+      const productNoMatch = url.match(/product_no=(\d+)/);
+      if (productNoMatch && productNoMatch[1]) {
+        return `onlyyugioh-${productNoMatch[1]}`;
+      }
+    }
+    
+    // 카드 정보로 해시 생성 (URL이 없는 경우)
+    const cardIdentity = `${cardName}-${rarity}-${language}-${cardCode}`.toLowerCase();
+    const hashCode = simpleStringHash(cardIdentity);
+    return `onlyyugioh-${hashCode}`;
+  }
+  
+  // 그 외 사이트는 기존 ID 사용 또는 카드 정보 기반 해시 생성
+  if (existingId) {
+    return existingId.toString();
+  }
+  
+  // 카드 정보로 해시 생성
+  const cardIdentity = `${site || 'unknown'}-${cardName}-${rarity}-${language}-${cardCode}`.toLowerCase();
+  const hashCode = simpleStringHash(cardIdentity);
+  return `${site || 'unknown'}-${hashCode}`;
+}
+
+/**
+ * 문자열에서 일관된 해시 코드를 생성하는 간단한 함수
+ * 동일한 입력에 대해 항상 동일한 출력을 보장합니다
+ * @param {string} str - 해시할 문자열
+ * @returns {string} - 해시 코드 (16진수 문자열)
+ */
+function simpleStringHash(str) {
+  let hash = 0;
+  
+  if (!str || str.length === 0) {
+    return hash.toString(16);
+  }
+  
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // 32비트 정수로 변환
+  }
+  
+  return Math.abs(hash).toString(16); // 16진수로 변환하고 절대값 사용
 }
 
 module.exports = {
