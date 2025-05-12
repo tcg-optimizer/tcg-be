@@ -15,7 +15,7 @@ const { cardRequestLimiter } = require('../utils/rateLimiter');
 // 카드 가격 검색 API에 대한 특별 제한 설정
 const cardPriceRateLimiter = rateLimit({
   windowMs: 30 * 1000, // 30초
-  max: 10, // 30초당 10개 요청
+  max: 20, // 30초당 20개 요청
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -30,13 +30,13 @@ const cardPriceRateLimiter = rateLimit({
 
 // 최적 구매 조합 API에 대한 제한 설정
 const optimalPurchaseRateLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1분
-  max: 5, // 1분당 5개 요청
+  windowMs: 30 * 1000, // 30초
+  max: 15, // 30초당 15개 요청
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     success: false,
-    error: '최적 구매 조합 계산 요청이 너무 많습니다. 1분 후에 다시 시도해주세요.'
+    error: '최적 구매 조합 계산 요청이 너무 많습니다. 30초 후에 다시 시도해주세요.'
   }
 });
 
