@@ -48,18 +48,7 @@ function trackCardRequest(ip, cardName) {
     return { isLimited: false, retryAfter: 0 };
   }
   
-  // 1분 내에 같은 카드 10회 이상 요청 제한
-  if (now - requestData.firstRequest < 60000 && requestData.count >= 10) {
-    // 요청 정보 업데이트
-    requestData.lastRequest = now;
-    cardRequestCache.set(key, requestData);
-    
-    // 제한 정보 반환
-    const retryAfter = Math.ceil((60000 - (now - requestData.firstRequest)) / 1000);
-    return { isLimited: true, retryAfter };
-  }
-  
-  // 제한 없으면 카운트 증가
+  // 요청 정보 업데이트
   requestData.count += 1;
   requestData.lastRequest = now;
   cardRequestCache.set(key, requestData);

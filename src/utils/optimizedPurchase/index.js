@@ -13,7 +13,7 @@ const {
 } = require('./optimizationStrategies');
 const { getShippingInfo } = require('../shippingInfo');
 const { calculatePointsAmount } = require('./pointsUtils');
-const { getSellerId } = require('./cardUtils');
+const { getSellerId, isNaverStore } = require('./cardUtils');
 
 /**
  * 카드 구매의 최적 조합을 찾는 함수
@@ -322,6 +322,20 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
                 newPointsEarned = Math.round(newProductCost * 0.1); // CardDC는 10% 적립
               } else if (seller.toLowerCase().includes('tcgshop') || seller.toLowerCase() === 'tcgshop') {
                 newPointsEarned = Math.round(newProductCost * 0.1); // TCGShop도 10% 적립
+              } else if (isNaverStore(seller)) {
+                // 네이버 스토어 적립금 계산
+                const reviewedProducts = new Set(); // 리뷰 작성한 제품 목록
+                // 카드 이름을 ID로 사용
+                const productId = cardToAdd.cardName;
+                
+                newPointsEarned = calculatePointsAmount(
+                  seller, 
+                  cardToAdd.price, 
+                  cardToAdd.quantity, 
+                  productId,
+                  reviewedProducts,
+                  options.pointsOptions || {}
+                );
               }
               // 로그 추가
               console.log(`[DEBUG] ${seller} 판매처의 적립금 재계산: ${newPointsEarned}원 (상품가격: ${newProductCost}원)`);
@@ -438,6 +452,30 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
             pointsEarned = Math.round(result.cardsOptimalPurchase[sellerId].productCost * 0.1);
           } else if (sellerId.toLowerCase().includes('tcgshop') || sellerId.toLowerCase() === 'tcgshop') {
             pointsEarned = Math.round(result.cardsOptimalPurchase[sellerId].productCost * 0.1);
+          } else if (isNaverStore(sellerId)) {
+            // 네이버 스토어 적립금 계산
+            const reviewedProducts = new Set(); // 리뷰 작성한 제품 목록
+            
+            // 각 카드별로 적립금 계산 후 합산
+            let sellerPoints = 0;
+            result.cardsOptimalPurchase[sellerId].cards.forEach(card => {
+              // 카드 이름을 ID로 사용
+              const productId = card.cardName;
+              
+              const cardPoints = calculatePointsAmount(
+                sellerId, 
+                card.price, 
+                card.quantity, 
+                productId,
+                reviewedProducts,
+                options.pointsOptions || {}
+              );
+              
+              sellerPoints += cardPoints;
+            });
+            
+            pointsEarned = sellerPoints;
+            result.cardsOptimalPurchase[sellerId].pointsEarned = sellerPoints; // 판매처 데이터에도 적립금 설정
           }
           
           result.cardsOptimalPurchase[sellerId].pointsEarned = pointsEarned;
@@ -494,6 +532,30 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
               const points = Math.round(sellerData.productCost * 0.1);
               totalPointsEarned += points;
               sellerData.pointsEarned = points; // 판매처 데이터에도 적립금 설정
+            } else if (isNaverStore(seller)) {
+              // 네이버 스토어 적립금 계산
+              const reviewedProducts = new Set(); // 리뷰 작성한 제품 목록
+              
+              // 각 카드별로 적립금 계산 후 합산
+              let sellerPoints = 0;
+              sellerData.cards.forEach(card => {
+                // 카드 이름을 ID로 사용
+                const productId = card.cardName;
+                
+                const cardPoints = calculatePointsAmount(
+                  seller, 
+                  card.price, 
+                  card.quantity, 
+                  productId,
+                  reviewedProducts,
+                  options.pointsOptions || {}
+                );
+                
+                sellerPoints += cardPoints;
+              });
+              
+              totalPointsEarned += sellerPoints;
+              sellerData.pointsEarned = sellerPoints; // 판매처 데이터에도 적립금 설정
             }
           }
         });
