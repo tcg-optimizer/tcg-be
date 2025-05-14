@@ -4,6 +4,7 @@
  */
 
 const { redisClient } = require('./db');
+const { getRandomizedHeaders, getSiteSpecificHeaders } = require('./userAgentUtil');
 
 // 사이트별 초당 최대 요청 수 설정
 const RATE_LIMITS = {
@@ -136,12 +137,14 @@ async function waitForRateLimit(site, maxRetries = 5) {
  */
 function withRateLimit(fn, site) {
   return async (...args) => {
+    // 요청 제한 확인
     const canProceed = await waitForRateLimit(site);
     
     if (!canProceed) {
       throw new Error(`${site} 요청 제한 초과로 크롤링을 진행할 수 없습니다.`);
     }
     
+    // 원래 함수 실행
     return fn(...args);
   };
 }

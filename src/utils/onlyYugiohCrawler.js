@@ -6,6 +6,7 @@ const { parseLanguage, parseCondition, extractCardCode } = require('./crawler');
 const { encodeEUCKR, detectLanguageFromCardCode } = require('./tcgshopCrawler');
 const { Card, CardPrice } = require('../models/Card');
 const { withRateLimit } = require('./rateLimiter');
+const { getSiteSpecificHeaders, createCrawlerConfig } = require('./userAgentUtil');
 
 /**
  * OnlyYugioh에서 일관된 상품 ID를 생성합니다.
@@ -62,16 +63,19 @@ const crawlOnlyYugioh = async (cardName, cardId) => {
     // OnlyYugioh 검색 URL
     const searchUrl = `https://www.onlyyugioh.com/product/search.html?banner_action=&keyword=${encodedQuery}`;
     
-    // User-Agent 설정하여 차단 방지
-    const headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    };
+    // 요청 설정 생성 - createCrawlerConfig 함수 사용
+    const config = createCrawlerConfig('onlyyugioh', {
+      timeoutMs: 20000,
+      additionalHeaders: {
+        'Upgrade-Insecure-Requests': '1',
+        'sec-ch-ua': '"Not?A_Brand";v="8", "Chromium";v="108"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"'
+      }
+    });
     
     // 검색 결과 페이지 요청
-    const response = await axios.get(searchUrl, { 
-      headers, 
-      responseType: 'arraybuffer'
-    });
+    const response = await axios.get(searchUrl, config);
     
     // Cheerio로 HTML 파싱
     const $ = cheerio.load(response.data);

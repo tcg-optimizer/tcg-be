@@ -7,6 +7,8 @@ const { parseRarity } = require('./rarityUtil');
 // crawler.js에서 나머지 파싱 함수들을 가져옵니다
 const { parseLanguage, parseCondition, extractCardCode} = require('./crawler');
 const { withRateLimit } = require('./rateLimiter');
+// User-Agent 유틸리티 추가
+const { getRandomizedHeaders } = require('./userAgentUtil');
 
 /**
  * 상품명에서 직접 언어 정보를 추출합니다. 이 함수는 기존 parseLanguage보다 더 엄격한 매칭을 사용합니다.
@@ -71,12 +73,6 @@ const searchNaverShop = async (cardName) => {
     const display = 100; // 검색 결과 개수 (최대 100)
     const sort = 'sim'; // 정렬 (sim: 정확도순, date: 날짜순, asc: 가격오름차순, dsc: 가격내림차순)
     
-    // API 요청 헤더
-    const headers = {
-      'X-Naver-Client-Id': clientId,
-      'X-Naver-Client-Secret': clientSecret
-    };
-    
     let allItems = [];
     let start = 1;
     let hasMoreItems = true;
@@ -92,9 +88,16 @@ const searchNaverShop = async (cardName) => {
         // API 요청 전 지연 시간
         await delay(100);
         
+        // 네이버 API 인증 헤더와 랜덤 User-Agent 헤더 통합
+        const combinedHeaders = {
+          ...getRandomizedHeaders(false), // 랜덤 헤더 생성
+          'X-Naver-Client-Id': clientId,
+          'X-Naver-Client-Secret': clientSecret
+        };
+        
         // API 요청 - 타임아웃 5초 설정
         const response = await axios.get(apiUrl, { 
-          headers, 
+          headers: combinedHeaders, 
           timeout: 5000 
         });
         

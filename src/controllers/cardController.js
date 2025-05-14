@@ -570,7 +570,7 @@ exports.getPricesByRarity = [cardPriceRateLimiter, cardRequestLimiter, async (re
 
       // 가격 정보를 캐시에 저장하고 ID 발급
       const expiresAt = new Date();
-      expiresAt.setHours(expiresAt.getHours() + 12); //12시간 유효
+      expiresAt.setHours(expiresAt.getHours() + 24); //24시간 유효
       
       const cacheEntry = await CardPriceCache.create({
         cardName: card.name || cardName,
@@ -1171,7 +1171,7 @@ exports.getOptimalPurchaseCombination = [optimalPurchaseRateLimiter, async (req,
               
               // 새 캐시 항목 생성 및 저장
               const expiresAt = new Date();
-              expiresAt.setHours(expiresAt.getHours() + 12); //12시간 유효
+              expiresAt.setHours(expiresAt.getHours() + 24); //24시간 유효
               
               try {
                 // 기존의 만료된 캐시 항목이 있으면 업데이트

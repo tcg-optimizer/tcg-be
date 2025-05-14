@@ -6,6 +6,7 @@ const { parseLanguage, parseCondition, extractCardCode } = require('./crawler');
 const { encodeEUCKR, detectLanguageFromCardCode } = require('./tcgshopCrawler');
 const { Card, CardPrice } = require('../models/Card');
 const { withRateLimit } = require('./rateLimiter');
+const { getSiteSpecificHeaders, createCrawlerConfig } = require('./userAgentUtil');
 
 /**
  * CardDC에서 일관된 상품 ID를 생성합니다.
@@ -61,16 +62,16 @@ const crawlCardDC = async (cardName, cardId) => {
     // CardDC 검색 URL
     const searchUrl = `https://www.carddc.co.kr/product_list.html?search_word=${encodedQuery.replace(/%20/g, '+')}&x=0&y=0`;
     
-    // User-Agent 설정하여 차단 방지
-    const headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    };
+    // 요청 설정 생성 - createCrawlerConfig 함수 사용
+    const config = createCrawlerConfig('carddc', {
+      timeoutMs: 20000,
+      additionalHeaders: {
+        'Upgrade-Insecure-Requests': '1'
+      }
+    });
     
     // 검색 결과 페이지 요청
-    const response = await axios.get(searchUrl, { 
-      headers, 
-      responseType: 'arraybuffer' 
-    });
+    const response = await axios.get(searchUrl, config);
     
     // 응답 디코딩
     const html = iconv.decode(response.data, 'euc-kr');
