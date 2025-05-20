@@ -1,0 +1,25 @@
+name: Develop CI
+
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22' # 사용하는 Node.js 버전에 맞게 수정해주세요.
+          cache: 'npm' # npm 캐시 사용
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run lint
+        run: npm run lint

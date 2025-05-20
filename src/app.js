@@ -42,8 +42,8 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
   message: {
     success: false,
-    error: '너무 많은 요청을 보냈습니다. 잠시 후 다시 시도해주세요.'
-  }
+    error: '너무 많은 요청을 보냈습니다. 잠시 후 다시 시도해주세요.',
+  },
 });
 
 // API 경로에 요청 제한 적용
@@ -56,10 +56,14 @@ app.get('/', (req, res) => {
 
 // 카드 라우트
 const cardRoutes = require('./routes/cards');
-app.use('/api/cards', (req, res, next) => {
-  console.log(`[DEBUG] 요청 수신: ${req.method} ${req.url}`);
-  next();
-}, cardRoutes);
+app.use(
+  '/api/cards',
+  (req, res, next) => {
+    console.log(`[DEBUG] 요청 수신: ${req.method} ${req.url}`);
+    next();
+  },
+  cardRoutes
+);
 
 // 에러 핸들링 미들웨어
 app.use((req, res, next) => {
@@ -72,8 +76,8 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500);
   res.json({
     error: {
-      message: err.message
-    }
+      message: err.message,
+    },
   });
 });
 
@@ -86,4 +90,4 @@ app.listen(PORT, () => {
   console.log('API 요청 제한 설정이 활성화되었습니다:');
 });
 
-module.exports = app; 
+module.exports = app;
