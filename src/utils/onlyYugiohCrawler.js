@@ -4,6 +4,50 @@ const iconv = require('iconv-lite'); // EUC-KR 인코딩 처리를 위해 필요
 const { parseRarity } = require('./rarityUtil');
 const { parseLanguage, parseCondition, extractCardCode } = require('./crawler');
 const { encodeEUCKR, detectLanguageFromCardCode } = require('./tcgshopCrawler');
+const { Card, CardPrice } = require('../models/Card');
+const { withRateLimit } = require('./rateLimiter');
+const { getSiteSpecificHeaders, createCrawlerConfig } = require('./userAgentUtil');
+
+/**
+ * OnlyYugioh에서 일관된 상품 ID를 생성합니다.
+ * 상품 ID에 'onlyyugioh-' 접두어를 붙여 다른 사이트와 구분합니다.
+ * @param {string} url - 상품 URL
+ * @param {string} existingId - 기존 상품 ID (있는 경우)
+ * @returns {string} 일관된 상품 ID 
+ */
+const generateOnlyYugiohProductId = (url, existingId = null) => {
+  // 이미 접두어가 있는 경우 그대로 반환
+  if (existingId && existingId.startsWith('onlyyugioh-')) {
+    return existingId;
+  }
+  
+  // 기존 ID가 있는 경우 접두어 추가
+  if (existingId) {
+    return `onlyyugioh-${existingId}`;
+  }
+  
+  // URL에서 상품 ID 추출
+  if (url) {
+    // product/12345 형식 추출 시도
+    const productIdMatch = url.match(/product\/(\d+)/);
+    if (productIdMatch && productIdMatch[1]) {
+      return `onlyyugioh-${productIdMatch[1]}`;
+    }
+    
+    // product_no=12345 형식 추출 시도
+    const productNoMatch = url.match(/product_no=(\d+)/);
+    if (productNoMatch && productNoMatch[1]) {
+      return `onlyyugioh-${productNoMatch[1]}`;
+    }
+  }
+  
+  // URL 해시 생성
+  const urlHash = (url || '').split('').reduce((acc, char) => {
+    return (acc << 5) - acc + char.charCodeAt(0) | 0;
+  }, 0);
+  
+  return `onlyyugioh-${Math.abs(urlHash) || Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+};
 
 /**
  * OnlyYugioh에서 카드 가격 정보를 크롤링합니다.
@@ -11,7 +55,7 @@ const { encodeEUCKR, detectLanguageFromCardCode } = require('./tcgshopCrawler');
  * @param {string} [cardId] - 카드 ID (선택적)
  * @returns {Promise<Array>} - 크롤링된 가격 정보 배열
  */
-async function crawlOnlyYugioh(cardName, cardId) {
+const crawlOnlyYugioh = async (cardName, cardId) => {
   try {
     // URL 인코딩된 검색어 생성
     const encodedQuery = encodeURIComponent(cardName).replace(/%20/g, '+');
@@ -19,16 +63,19 @@ async function crawlOnlyYugioh(cardName, cardId) {
     // OnlyYugioh 검색 URL
     const searchUrl = `https://www.onlyyugioh.com/product/search.html?banner_action=&keyword=${encodedQuery}`;
     
-    // User-Agent 설정하여 차단 방지
-    const headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    };
+    // 요청 설정 생성 - createCrawlerConfig 함수 사용
+    const config = createCrawlerConfig('onlyyugioh', {
+      timeoutMs: 20000,
+      additionalHeaders: {
+        'Upgrade-Insecure-Requests': '1',
+        'sec-ch-ua': '"Not?A_Brand";v="8", "Chromium";v="108"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"'
+      }
+    });
     
     // 검색 결과 페이지 요청
-    const response = await axios.get(searchUrl, { 
-      headers, 
-      responseType: 'arraybuffer'
-    });
+    const response = await axios.get(searchUrl, config);
     
     // Cheerio로 HTML 파싱
     const $ = cheerio.load(response.data);
@@ -119,19 +166,8 @@ async function crawlOnlyYugioh(cardName, cardId) {
         ? detailUrl 
         : `https://www.onlyyugioh.com${detailUrl}`;
       
-      // URL에서 상품 ID 추출
-      let productId = null;
-      // product/12345 형식 추출 시도
-      const productIdMatch = fullUrl.match(/product\/(\d+)/);
-      if (productIdMatch && productIdMatch[1]) {
-        productId = productIdMatch[1]; // 숫자가 아닌 문자열로 유지
-      } else {
-        // 상품코드가 URL에 포함된 다른 형식 추출 시도
-        const otherIdMatch = fullUrl.match(/product_no=(\d+)/);
-        if (otherIdMatch && otherIdMatch[1]) {
-          productId = otherIdMatch[1]; // 숫자가 아닌 문자열로 유지
-        }
-      }
+      // 일관된 상품 ID 생성
+      const productId = generateOnlyYugiohProductId(fullUrl);
       
       // 가격 정보 추출 - HTML 예시에 직접 맞춰서 구현
       let price = 0;
@@ -309,7 +345,10 @@ async function crawlOnlyYugioh(cardName, cardId) {
     console.error('[ERROR] OnlyYugioh 크롤링 오류:', error);
     return [];
   }
-}
+};
+
+// 요청 제한이 적용된 함수 생성
+const crawlOnlyYugiohWithRateLimit = withRateLimit(crawlOnlyYugioh, 'onlyyugioh');
 
 /**
  * 카드 이름으로 검색하여 OnlyYugioh 가격 정보를 저장합니다.
@@ -317,21 +356,20 @@ async function crawlOnlyYugioh(cardName, cardId) {
  * @param {number} cardId - 카드 ID
  * @returns {Promise<Object>} - 저장된 카드와 가격 정보
  */
-async function searchAndSaveOnlyYugiohPrices(cardName, cardId) {
+const searchAndSaveOnlyYugiohPrices = async (cardName, cardId = null) => {
   try {
-    // OnlyYugioh 크롤링
-    const priceData = await crawlOnlyYugioh(cardName, cardId);
+    console.log(`[INFO] OnlyYugioh에서 "${cardName}" 검색 시작`);
     
-    if (priceData.length === 0) {
+    // 요청 제한이 적용된 함수 호출
+    const results = await crawlOnlyYugiohWithRateLimit(cardName, cardId);
+    
+    if (results.length === 0) {
       return { 
         message: 'OnlyYugioh에서 검색 결과가 없습니다.', 
         cardId: cardId, 
         count: 0 
       };
     }
-    
-    // 모델 불러오기
-    const { CardPrice } = require('../models/Card');
     
     // 기존 OnlyYugioh 가격 정보 삭제 (최신 정보로 갱신)
     if (cardId) {
@@ -349,7 +387,10 @@ async function searchAndSaveOnlyYugiohPrices(cardName, cardId) {
     // 새 가격 정보 저장
     if (cardId) {
       const savedPrices = await Promise.all(
-        priceData.map(async (item) => {
+        results.map(async (item) => {
+          // 일관된 ID 생성
+          const consistentProductId = generateOnlyYugiohProductId(item.url, item.productId);
+          
           const savedPrice = await CardPrice.create({
             cardId: cardId,
             site: 'OnlyYugioh',
@@ -361,12 +402,12 @@ async function searchAndSaveOnlyYugiohPrices(cardName, cardId) {
             available: item.available,
             cardCode: item.cardCode,
             lastUpdated: new Date(),
-            productId: item.productId || null // 추출한 productId가 있으면 사용, 없으면 null 사용
+            productId: consistentProductId
           });
           
           // product 객체에 id 필드 추가
           const productWithId = {
-            id: item.productId.toString(), // productId를 id로 사용 (문자열로 변환)
+            id: consistentProductId,
             url: item.url,
             site: 'OnlyYugioh',
             price: item.price,
@@ -387,15 +428,19 @@ async function searchAndSaveOnlyYugiohPrices(cardName, cardId) {
     }
     
     return { 
-      message: `OnlyYugioh에서 ${priceData.length}개의 가격 정보를 찾았습니다.`,
+      message: `OnlyYugioh에서 ${results.length}개의 가격 정보를 찾았습니다.`,
       cardId: cardId,
-      count: priceData.length,
-      prices: cardId ? prices : priceData.map(item => {
+      count: results.length,
+      prices: cardId ? prices : results.map(item => {
+        // 일관된 ID 생성
+        const consistentProductId = generateOnlyYugiohProductId(item.url, item.productId);
+        
         // 직접 product 객체 생성하여 반환
         return {
           ...item,
+          productId: consistentProductId, // 기존 productId 갱신
           product: {
-            id: (item.productId || "").toString(), // productId를 문자열로 변환 (null이면 빈 문자열)
+            id: consistentProductId,
             url: item.url,
             site: 'OnlyYugioh',
             price: item.price,
@@ -417,9 +462,9 @@ async function searchAndSaveOnlyYugiohPrices(cardName, cardId) {
       error: error.message
     };
   }
-}
+};
 
 module.exports = {
-  crawlOnlyYugioh,
+  crawlOnlyYugioh: crawlOnlyYugiohWithRateLimit,
   searchAndSaveOnlyYugiohPrices
 }; 

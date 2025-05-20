@@ -1,10 +1,14 @@
 const axios = require('axios');
+const cheerio = require('cheerio');
 const { Card, CardPrice } = require('../models/Card');
 const { Op } = require('sequelize');
 // rarityUtil.js에서 레어도 파싱 함수를 가져옵니다
 const { parseRarity } = require('./rarityUtil');
 // crawler.js에서 나머지 파싱 함수들을 가져옵니다
 const { parseLanguage, parseCondition, extractCardCode} = require('./crawler');
+const { withRateLimit } = require('./rateLimiter');
+// User-Agent 유틸리티 추가
+const { getRandomizedHeaders } = require('./userAgentUtil');
 
 /**
  * 상품명에서 직접 언어 정보를 추출합니다. 이 함수는 기존 parseLanguage보다 더 엄격한 매칭을 사용합니다.
@@ -54,7 +58,7 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
  * @param {string} cardName - 검색할 카드 이름
  * @returns {Promise<Array>} - 검색된 상품 정보 배열
  */
-async function searchNaverShop(cardName) {
+const searchNaverShop = async (cardName) => {
   try {
     // 네이버 API 키 설정 (환경 변수에서 가져옴)
     const clientId = process.env.NAVER_CLIENT_ID;
@@ -68,12 +72,6 @@ async function searchNaverShop(cardName) {
     const query = encodeURIComponent(cardName);
     const display = 100; // 검색 결과 개수 (최대 100)
     const sort = 'sim'; // 정렬 (sim: 정확도순, date: 날짜순, asc: 가격오름차순, dsc: 가격내림차순)
-    
-    // API 요청 헤더
-    const headers = {
-      'X-Naver-Client-Id': clientId,
-      'X-Naver-Client-Secret': clientSecret
-    };
     
     let allItems = [];
     let start = 1;
@@ -90,9 +88,16 @@ async function searchNaverShop(cardName) {
         // API 요청 전 지연 시간
         await delay(100);
         
+        // 네이버 API 인증 헤더와 랜덤 User-Agent 헤더 통합
+        const combinedHeaders = {
+          ...getRandomizedHeaders(false), // 랜덤 헤더 생성
+          'X-Naver-Client-Id': clientId,
+          'X-Naver-Client-Secret': clientSecret
+        };
+        
         // API 요청 - 타임아웃 5초 설정
         const response = await axios.get(apiUrl, { 
-          headers, 
+          headers: combinedHeaders, 
           timeout: 5000 
         });
         
@@ -193,31 +198,36 @@ async function searchNaverShop(cardName) {
     console.error('[ERROR] 네이버 쇼핑 API 검색 오류:', error);
     return [];
   }
-}
+};
+
+// 요청 제한이 적용된 함수 생성
+const searchNaverShopWithRateLimit = withRateLimit(searchNaverShop, 'naver');
 
 /**
  * 카드 이름으로 검색하여 가격 정보를 저장합니다.
  * @param {string} cardName - 검색할 카드 이름
  * @returns {Promise<Object>} - 저장된 카드와 가격 정보
  */
-async function searchAndSaveCardPricesApi(cardName) {
+const searchAndSaveCardPricesApi = async (cardName, options = {}) => {
   try {
+    console.log(`[INFO] 네이버 쇼핑 API로 "${cardName}" 검색 시작`);
+    
+    // 요청 제한이 적용된 함수 호출
+    const results = await searchNaverShopWithRateLimit(cardName, options);
+    
     // 카드 찾기 또는 생성
     let [card, created] = await Card.findOrCreate({
       where: { name: cardName },
       defaults: { name: cardName }
     });
     
-    // 네이버 쇼핑 API 검색
-    const priceData = await searchNaverShop(cardName);
-    
     // 검색 결과가 없는 경우
-    if (priceData.length === 0) {
+    if (results.length === 0) {
       return { message: '검색 결과가 없습니다.', card, count: 0 };
     }
     
     // 번개장터 상품 필터링
-    const filteredPriceData = priceData.filter(item => 
+    const filteredPriceData = results.filter(item => 
       !(item.site === '번개장터' || item.site.includes('번개장터'))
     );
     
@@ -261,7 +271,7 @@ async function searchAndSaveCardPricesApi(cardName) {
     );
     
     // 레어도 정보가 있는 상품이 있으면 카드의 기본 레어도 정보도 업데이트
-    const rarityItems = priceData.filter(item => item.rarity !== '알 수 없음');
+    const rarityItems = results.filter(item => item.rarity !== '알 수 없음');
     if (rarityItems.length > 0) {
       // 가장 많이 파싱된 레어도 선택
       const rarityCount = {};
@@ -295,10 +305,10 @@ async function searchAndSaveCardPricesApi(cardName) {
     console.error('카드 가격 저장 오류:', error);
     throw error;
   }
-}
+};
 
 module.exports = {
-  searchNaverShop,
+  searchNaverShop: searchNaverShopWithRateLimit,
   searchAndSaveCardPricesApi,
   detectLanguageFromCardCode,
   extractLanguageFromTitle

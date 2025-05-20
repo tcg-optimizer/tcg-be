@@ -4,11 +4,53 @@ const { searchAndSaveCardPrices } = require('../utils/crawler');
 const { searchAndSaveCardPricesApi } = require('../utils/naverShopApi');
 const { searchAndSaveTCGShopPrices } = require('../utils/tcgshopCrawler');
 const { searchAndSaveCardDCPrices } = require('../utils/cardDCCrawler');
-const { searchAndSaveOnlyYugiohPrices } = require('../utils/onlyYugiohCrawler');
+// const { searchAndSaveOnlyYugiohPrices } = require('../utils/onlyYugiohCrawler'); // 온리유희왕 일시적 영업중단으로 주석처리
 const axios = require('axios');
 const sequelize = require('sequelize');
 const { findOptimalPurchaseCombination } = require('../utils/optimizedPurchase');
 const CardPriceCache = require('../models/CardPriceCache');
+const rateLimit = require('express-rate-limit');
+const { cardRequestLimiter } = require('../utils/rateLimiter');
+
+// 카드 가격 검색 API에 대한 특별 제한 설정
+const cardPriceRateLimiter = rateLimit({
+  windowMs: 30 * 1000, // 30초
+  max: 20, // 30초당 20개 요청
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: '카드 가격 검색 요청이 너무 많습니다. 30초 후에 다시 시도해주세요.'
+  },
+  keyGenerator: (req) => {
+    // IP와 카드 이름을 조합하여 키 생성 (같은 카드 반복 요청 방지)
+    return `${req.ip}:${req.query.cardName || 'unknown'}`;
+  }
+});
+
+// 최적 구매 조합 API에 대한 제한 설정
+const optimalPurchaseRateLimiter = rateLimit({
+  windowMs: 30 * 1000, // 30초
+  max: 15, // 30초당 15개 요청
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: '최적 구매 조합 계산 요청이 너무 많습니다. 30초 후에 다시 시도해주세요.'
+  }
+});
+
+// 카드 검색 API에 대한 제한 설정
+const cardSearchRateLimiter = rateLimit({
+  windowMs: 10 * 1000, // 10초
+  max: 15, // 10초당 15개 요청
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: '카드 검색 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.'
+  }
+});
 
 // 모든 카드 목록 가져오기
 exports.getAllCards = async (req, res) => {
@@ -30,23 +72,8 @@ exports.getAllCards = async (req, res) => {
   }
 };
 
-// 특정 카드의 최저가 정보 가져오기
-exports.getLowestPrice = async (req, res) => {
-  // GET /api/cards/:cardName가 제거되었으므로 레어도별 가격 정보 API로 리다이렉트
-  const { cardName } = req.query;
-  
-  if (!cardName) {
-    return res.status(400).json({
-      success: false,
-      error: '카드 이름은 필수 파라미터입니다. ?cardName=카드이름 형식으로 요청해주세요.'
-    });
-  }
-  
-  return res.redirect(`/api/cards/rarity-prices?cardName=${encodeURIComponent(cardName)}&${new URLSearchParams(req.query).toString().replace(`cardName=${encodeURIComponent(cardName)}&`, '')}`);
-};
-
 // 레어도별 카드 가격 정보 가져오기
-exports.getPricesByRarity = async (req, res) => {
+exports.getPricesByRarity = [cardPriceRateLimiter, cardRequestLimiter, async (req, res) => {
   try {
     const { cardName, includeUsed = 'true' } = req.query; // 쿼리 스트링에서 카드 이름과 중고 상품 포함 여부 가져오기
     
@@ -281,7 +308,7 @@ exports.getPricesByRarity = async (req, res) => {
       console.log(`[DEBUG] "${cardName}" 검색 시작 - 모든 소스에서 병렬 검색`);
       
       // 모든 소스에서 병렬로 검색 (Promise.all 사용)
-      const [naverResult, tcgshopResult, cardDCResult, onlyYugiohResult] = await Promise.all([
+      const [naverResult, tcgshopResult, cardDCResult/* , onlyYugiohResult */] = await Promise.all([
         // 네이버 쇼핑 API 검색
         searchAndSaveCardPricesApi(cardName).catch(error => {
           console.error(`[ERROR] 네이버 API 검색 오류: ${error.message}`);
@@ -300,24 +327,24 @@ exports.getPricesByRarity = async (req, res) => {
           return { count: 0, prices: [] };
         }),
         
-        // OnlyYugioh 검색
-        searchAndSaveOnlyYugiohPrices(cardName, null).catch(error => {
+        // OnlyYugioh 검색 - 일시적 영업 중단으로 주석 처리
+        /* searchAndSaveOnlyYugiohPrices(cardName, null).catch(error => {
           console.error(`[ERROR] OnlyYugioh 검색 오류: ${error.message}`);
           return { count: 0, prices: [] };
-        })
+        }) */
       ]);
       
       console.log(`[DEBUG] 네이버 API 검색 결과: ${naverResult ? naverResult.count : 0}개 상품 발견`);
       console.log(`[DEBUG] TCGShop 검색 결과: ${tcgshopResult ? tcgshopResult.count : 0}개 상품 발견`);
       console.log(`[DEBUG] CardDC 검색 결과: ${cardDCResult ? cardDCResult.count : 0}개 상품 발견`);
-      console.log(`[DEBUG] OnlyYugioh 검색 결과: ${onlyYugiohResult ? onlyYugiohResult.count : 0}개 상품 발견`);
+      // console.log(`[DEBUG] OnlyYugioh 검색 결과: ${onlyYugiohResult ? onlyYugiohResult.count : 0}개 상품 발견`);
       
       // 결과가 하나라도 있는지 확인
       const hasResults = 
         (naverResult && naverResult.count > 0) || 
         (tcgshopResult && tcgshopResult.count > 0) || 
-        (cardDCResult && cardDCResult.count > 0) || 
-        (onlyYugiohResult && onlyYugiohResult.count > 0);
+        (cardDCResult && cardDCResult.count > 0)/* || 
+        (onlyYugiohResult && onlyYugiohResult.count > 0) */;
       
       if (!hasResults) {
         return res.status(404).json({
@@ -330,8 +357,8 @@ exports.getPricesByRarity = async (req, res) => {
       const combinedPrices = [
         ...(naverResult.prices || []), 
         ...(tcgshopResult.prices || []),
-        ...(cardDCResult.prices || []),
-        ...(onlyYugiohResult.prices || [])
+        ...(cardDCResult.prices || [])/* ,
+        ...(onlyYugiohResult.prices || []) */
       ];
       
       // 카드 정보 설정 (네이버 API 결과 우선)
@@ -394,7 +421,7 @@ exports.getPricesByRarity = async (req, res) => {
       });
       
       console.log(`[DEBUG] 품절 상품 필터링: ${siteFilteredPrices.length}개 중 ${availableFilteredPrices.length}개 상품 사용 가능`);
-      console.log(`[DEBUG] 사이트별 품절 상품 제외: TCGShop ${tcgshopResult?.prices?.filter(p => p.available === false).length || 0}개, CardDC ${cardDCResult?.prices?.filter(p => p.available === false).length || 0}개, OnlyYugioh ${onlyYugiohResult?.prices?.filter(p => p.available === false).length || 0}개`);
+      console.log(`[DEBUG] 사이트별 품절 상품 제외: TCGShop ${tcgshopResult?.prices?.filter(p => p.available === false).length || 0}개, CardDC ${cardDCResult?.prices?.filter(p => p.available === false).length || 0}개`);
       
       // 카드가 아닌 상품 제외 (레어도나 언어가 '알 수 없음'인 카드의 경우에도 최저가 계산이 불가능하기 때문에 제외)
       const cardFilteredPrices = availableFilteredPrices.filter(price => 
@@ -543,7 +570,7 @@ exports.getPricesByRarity = async (req, res) => {
 
       // 가격 정보를 캐시에 저장하고 ID 발급
       const expiresAt = new Date();
-      expiresAt.setHours(expiresAt.getHours() + 12); //12시간 유효
+      expiresAt.setHours(expiresAt.getHours() + 24); //24시간 유효
       
       const cacheEntry = await CardPriceCache.create({
         cardName: card.name || cardName,
@@ -553,10 +580,10 @@ exports.getPricesByRarity = async (req, res) => {
       });
 
       // 총 상품 개수 계산
-      let totalProducts = 0;
+      let productsCount = 0;
       Object.keys(rarityPrices).forEach(language => {
         Object.keys(rarityPrices[language]).forEach(rarity => {
-          totalProducts += rarityPrices[language][rarity].prices.length;
+          productsCount += rarityPrices[language][rarity].prices.length;
         });
       });
 
@@ -564,8 +591,8 @@ exports.getPricesByRarity = async (req, res) => {
       const summary = {
         naver: naverResult ? naverResult.count : 0,
         tcgshop: tcgshopResult ? tcgshopResult.count : 0,
-        carddc: cardDCResult ? cardDCResult.count : 0,
-        onlyyugioh: onlyYugiohResult ? onlyYugiohResult.count : 0
+        carddc: cardDCResult ? cardDCResult.count : 0
+        // onlyyugioh: onlyYugiohResult ? onlyYugiohResult.count : 0 // 온리유희왕 일시적 영업 중단으로 주석처리
       };
 
       return res.status(200).json({ 
@@ -575,7 +602,7 @@ exports.getPricesByRarity = async (req, res) => {
           cardId: card.id,
           cardName: card.name,
           image: card.image || null,
-          totalProducts: totalProducts
+          totalProducts: productsCount
         },
         rarityPrices: rarityPrices,
         cacheId: cacheEntry.id, // 캐시 ID 응답에 포함
@@ -596,10 +623,10 @@ exports.getPricesByRarity = async (req, res) => {
       error: error.message 
     });
   }
-};
+}];
 
 // 네이버 스토어에서 카드 가격 크롤링
-exports.crawlNaverStorePrice = async (req, res) => {
+exports.crawlNaverStorePrice = [cardPriceRateLimiter, cardRequestLimiter, async (req, res) => {
   try {
     const { cardName } = req.query;
     
@@ -634,10 +661,10 @@ exports.crawlNaverStorePrice = async (req, res) => {
       error: error.message 
     });
   }
-};
+}];
 
 // 네이버 쇼핑 API를 사용하여 카드 가격 검색
-exports.searchNaverShopApi = async (req, res) => {
+exports.searchNaverShopApi = [cardPriceRateLimiter, cardRequestLimiter, async (req, res) => {
   try {
     const { cardName } = req.query;
     console.log(`[DEBUG] 네이버 쇼핑 API 요청: ${cardName}`);
@@ -676,10 +703,10 @@ exports.searchNaverShopApi = async (req, res) => {
       error: error.message 
     });
   }
-};
+}];
 
 // TCGShop에서 카드 가격 검색
-exports.searchTCGShop = async (req, res) => {
+exports.searchTCGShop = [cardPriceRateLimiter, cardRequestLimiter, async (req, res) => {
   try {
     const { cardName } = req.query;
     console.log(`[DEBUG] TCGShop 검색 요청: ${cardName}`);
@@ -731,10 +758,10 @@ exports.searchTCGShop = async (req, res) => {
       error: error.message 
     });
   }
-};
+}];
 
 // CardDC에서 카드 가격 검색
-exports.searchCardDC = async (req, res) => {
+exports.searchCardDC = [cardPriceRateLimiter, cardRequestLimiter, async (req, res) => {
   try {
     const { cardName } = req.query;
     console.log(`[DEBUG] CardDC 검색 요청: ${cardName}`);
@@ -786,10 +813,11 @@ exports.searchCardDC = async (req, res) => {
       error: error.message 
     });
   }
-};
+}];
 
 // OnlyYugioh에서 카드 가격 검색
-exports.searchOnlyYugioh = async (req, res) => {
+exports.searchOnlyYugioh = [cardPriceRateLimiter, cardRequestLimiter, async (req, res) => {
+  /* 온리유희왕 쇼핑몰 일시적 영업 중단으로 주석 처리
   try {
     const { cardName } = req.query;
     console.log(`[DEBUG] OnlyYugioh 검색 요청: ${cardName}`);
@@ -841,7 +869,14 @@ exports.searchOnlyYugioh = async (req, res) => {
       error: error.message 
     });
   }
-};
+  */
+  
+  // 온리유희왕 일시적 영업 중단으로 검색 불가 안내
+  return res.status(503).json({
+    success: false,
+    message: '온리유희왕이 일시적으로 영업을 중단하여 검색할 수 없습니다.'
+  });
+}];
 
 /**
  * 캐시된 카드 가격 정보 조회
@@ -849,7 +884,7 @@ exports.searchOnlyYugioh = async (req, res) => {
  * @param {Object} res - HTTP 응답 객체
  * @returns {Promise<void>}
  */
-exports.getCachedPrices = async (req, res) => {
+exports.getCachedPrices = [cardSearchRateLimiter, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -908,7 +943,7 @@ exports.getCachedPrices = async (req, res) => {
       error: error.message
     });
   }
-};
+}];
 
 /**
  * 레어도별 가격 정보에서 총 상품 개수 계산
@@ -916,7 +951,7 @@ exports.getCachedPrices = async (req, res) => {
  * @returns {number} 총 상품 개수
  */
 function calculateTotalProducts(rarityPrices) {
-  let totalProducts = 0;
+  let productCount = 0;
   
   // rarityPrices가 문자열이면 JSON으로 파싱
   const prices = typeof rarityPrices === 'string' ? JSON.parse(rarityPrices) : rarityPrices;
@@ -925,12 +960,12 @@ function calculateTotalProducts(rarityPrices) {
   Object.keys(prices).forEach(language => {
     Object.keys(prices[language]).forEach(rarity => {
       if (prices[language][rarity] && prices[language][rarity].prices) {
-        totalProducts += prices[language][rarity].prices.length;
+        productCount += prices[language][rarity].prices.length;
       }
     });
   });
   
-  return totalProducts;
+  return productCount;
 }
 
 /**
@@ -939,7 +974,7 @@ function calculateTotalProducts(rarityPrices) {
  * @param {Object} res - HTTP 응답 객체
  * @returns {Promise<void>}
  */
-exports.getOptimalPurchaseCombination = async (req, res) => {
+exports.getOptimalPurchaseCombination = [optimalPurchaseRateLimiter, async (req, res) => {
   try {
     const { cards, excludedProductIds = [], excludedStores = [], ...purchaseOptions } = req.body;
 
@@ -952,7 +987,7 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
 
     console.log(`최적 구매 조합 찾기 요청 - ${cards.length}개 카드`);
     if (excludedProductIds.length > 0) {
-      console.log(`[INFO] ${excludedProductIds.length}개의 상품 ID가 제외 목록에 추가됨`);
+      console.log(`[INFO] ${excludedProductIds.length}개의 상품 ID가 제외 목록에 추가됨: [${excludedProductIds.join(', ')}]`);
     }
     if (excludedStores.length > 0) {
       console.log(`[INFO] ${excludedStores.length}개의 상점이 제외 목록에 추가됨: ${excludedStores.join(', ')}`);
@@ -1013,7 +1048,7 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
               console.log(`[INFO] "${cardName}" 카드의 가격 정보를 새로 조회합니다.`);
               
               // 모든 소스에서 병렬로 검색 (Promise.all 사용)
-              const [naverResult, tcgshopResult, cardDCResult, onlyYugiohResult] = await Promise.all([
+              const [naverResult, tcgshopResult, cardDCResult/* , onlyYugiohResult */] = await Promise.all([
                 // 네이버 쇼핑 API 검색
                 searchAndSaveCardPricesApi(cardName).catch(error => {
                   console.error(`[ERROR] 네이버 API 검색 오류: ${error.message}`);
@@ -1032,24 +1067,24 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
                   return { count: 0, prices: [] };
                 }),
                 
-                // OnlyYugioh 검색
-                searchAndSaveOnlyYugiohPrices(cardName, null).catch(error => {
+                // OnlyYugioh 검색 - 일시적 영업 중단으로 주석 처리
+                /* searchAndSaveOnlyYugiohPrices(cardName, null).catch(error => {
                   console.error(`[ERROR] OnlyYugioh 검색 오류: ${error.message}`);
                   return { count: 0, prices: [] };
-                })
+                }) */
               ]);
               
               console.log(`[DEBUG] 네이버 API 검색 결과: ${naverResult ? naverResult.count : 0}개 상품 발견`);
               console.log(`[DEBUG] TCGShop 검색 결과: ${tcgshopResult ? tcgshopResult.count : 0}개 상품 발견`);
               console.log(`[DEBUG] CardDC 검색 결과: ${cardDCResult ? cardDCResult.count : 0}개 상품 발견`);
-              console.log(`[DEBUG] OnlyYugioh 검색 결과: ${onlyYugiohResult ? onlyYugiohResult.count : 0}개 상품 발견`);
+              // console.log(`[DEBUG] OnlyYugioh 검색 결과: ${onlyYugiohResult ? onlyYugiohResult.count : 0}개 상품 발견`);
               
               // 결과가 하나라도 있는지 확인
               const hasResults = 
                 (naverResult && naverResult.count > 0) || 
                 (tcgshopResult && tcgshopResult.count > 0) || 
-                (cardDCResult && cardDCResult.count > 0) || 
-                (onlyYugiohResult && onlyYugiohResult.count > 0);
+                (cardDCResult && cardDCResult.count > 0)/* || 
+                (onlyYugiohResult && onlyYugiohResult.count > 0) */;
               
               if (!hasResults) {
                 console.log(`[WARN] "${cardName}" 카드 검색 결과가 없습니다.`);
@@ -1060,8 +1095,8 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
               const combinedPrices = [
                 ...(naverResult.prices || []), 
                 ...(tcgshopResult.prices || []),
-                ...(cardDCResult.prices || []),
-                ...(onlyYugiohResult.prices || [])
+                ...(cardDCResult.prices || [])/* ,
+                ...(onlyYugiohResult.prices || []) */
               ];
               
               // 카드 정보 설정 (네이버 API 결과 우선)
@@ -1144,194 +1179,57 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
               
               // 새 캐시 항목 생성 및 저장
               const expiresAt = new Date();
-              expiresAt.setHours(expiresAt.getHours() + 12); //12시간 유효
+              expiresAt.setHours(expiresAt.getHours() + 24); //24시간 유효
               
-              const cacheEntry = await CardPriceCache.create({
-                cardName: newCard.name || cardName,
-                image: newCard.image || null,
-                rarityPrices,
-                expiresAt
-              });
-              
-              console.log(`[INFO] "${cardName}" 카드의 가격 정보를 새로 조회하여 캐시에 저장했습니다. cacheId: ${cacheEntry.id}`);
-              
-              // 새 데이터 반환
-              return {
-                ...card,
-                cardName: newCard.name || cardName,
-                rarityPrices,
-                image: newCard.image || null,
-                cacheId: cacheEntry.id
-              };
-            } catch (error) {
-              console.error(`[ERROR] "${cardName}" 카드의 가격 정보 새로 조회 중 오류 발생: ${error.message}`);
-              // 오류 발생 시 기존 카드 정보 반환
-              return card;
-            }
-          } else {
-            console.log(`[WARN] "${card.name || card.cardName}" 카드의 cacheId(${card.cacheId})에 해당하는 캐시 데이터를 찾을 수 없습니다. 새로 조회합니다.`);
-            
-            // 캐시 데이터를 찾을 수 없는 경우도 새로 조회
-            const cardName = card.cardName || card.name;
-            if (!cardName) {
-              console.log(`[ERROR] 카드 이름이 없어 검색할 수 없습니다.`);
-              return card;
-            }
-            
-            try {
-              console.log(`[INFO] "${cardName}" 카드의 가격 정보를 새로 조회합니다.`);
-              
-              // 모든 소스에서 병렬로 검색 (Promise.all 사용)
-              const [naverResult, tcgshopResult, cardDCResult, onlyYugiohResult] = await Promise.all([
-                // 네이버 쇼핑 API 검색
-                searchAndSaveCardPricesApi(cardName).catch(error => {
-                  console.error(`[ERROR] 네이버 API 검색 오류: ${error.message}`);
-                  return { count: 0, prices: [] };
-                }),
-                
-                // TCGShop 검색
-                searchAndSaveTCGShopPrices(cardName, null).catch(error => {
-                  console.error(`[ERROR] TCGShop 검색 오류: ${error.message}`);
-                  return { count: 0, prices: [] };
-                }),
-                
-                // CardDC 검색
-                searchAndSaveCardDCPrices(cardName, null).catch(error => {
-                  console.error(`[ERROR] CardDC 검색 오류: ${error.message}`);
-                  return { count: 0, prices: [] };
-                }),
-                
-                // OnlyYugioh 검색
-                searchAndSaveOnlyYugiohPrices(cardName, null).catch(error => {
-                  console.error(`[ERROR] OnlyYugioh 검색 오류: ${error.message}`);
-                  return { count: 0, prices: [] };
-                })
-              ]);
-              
-              console.log(`[DEBUG] 네이버 API 검색 결과: ${naverResult ? naverResult.count : 0}개 상품 발견`);
-              console.log(`[DEBUG] TCGShop 검색 결과: ${tcgshopResult ? tcgshopResult.count : 0}개 상품 발견`);
-              console.log(`[DEBUG] CardDC 검색 결과: ${cardDCResult ? cardDCResult.count : 0}개 상품 발견`);
-              console.log(`[DEBUG] OnlyYugioh 검색 결과: ${onlyYugiohResult ? onlyYugiohResult.count : 0}개 상품 발견`);
-              
-              // 결과가 하나라도 있는지 확인
-              const hasResults = 
-                (naverResult && naverResult.count > 0) || 
-                (tcgshopResult && tcgshopResult.count > 0) || 
-                (cardDCResult && cardDCResult.count > 0) || 
-                (onlyYugiohResult && onlyYugiohResult.count > 0);
-              
-              if (!hasResults) {
-                console.log(`[WARN] "${cardName}" 카드 검색 결과가 없습니다.`);
-                return card;
-              }
-              
-              // 모든 소스의 가격 정보 합치기
-              const combinedPrices = [
-                ...(naverResult.prices || []), 
-                ...(tcgshopResult.prices || []),
-                ...(cardDCResult.prices || []),
-                ...(onlyYugiohResult.prices || [])
-              ];
-              
-              // 카드 정보 설정 (네이버 API 결과 우선)
-              let newCard = null;
-              if (naverResult && naverResult.card) {
-                newCard = naverResult.card;
-              } else {
-                newCard = { name: cardName };
-              }
-              
-              // 현재 이미지 보존
-              if (card.image) {
-                newCard.image = card.image;
-              }
-              
-              // 필터링 및 분류 로직 (getPricesByRarity 함수에서 가져옴)
-              const filteredPrices = combinedPrices.filter(price => 
-                // 중고 상품 제외 
-                !(price.title && /\[중고\]|\(중고\)|중고|중고품|used|듀얼용|실듀용/i.test(price.title)) &&
-                // 번개장터 상품 제외
-                !(price.site && (price.site === 'Naver_번개장터' || price.site.includes('번개장터'))) &&
-                // 신품만 포함
-                price.condition === '신품' &&
-                // 네이버 제외
-                !(!price.site || price.site === "Naver_네이버") &&
-                // 품절 상품 제외
-                price.available !== false &&
-                // 카드가 아닌 상품 제외
-                !(price.rarity === '알 수 없음' || price.language === '알 수 없음') &&
-                // 센터 카드 제외
-                !(price.cardCode && /^ST19-KRFC[1-4]$/i.test(price.cardCode))
-              );
-              
-              if (!filteredPrices || filteredPrices.length === 0) {
-                console.log(`[WARN] "${cardName}" 카드의 필터링 후 구매 가능한 가격 정보가 없습니다.`);
-                return card;
-              }
-              
-              // 언어별, 레어도별로 가격 정보 그룹화
-              const rarityPrices = {};
-              
-              filteredPrices.forEach(price => {
-                const language = price.language || '알 수 없음';
-                const rarity = price.rarity || '알 수 없음';
-                
-                if (!rarityPrices[language]) {
-                  rarityPrices[language] = {};
-                }
-                
-                if (!rarityPrices[language][rarity]) {
-                  rarityPrices[language][rarity] = {
-                    image: null,
-                    prices: []
+              try {
+                // 기존의 만료된 캐시 항목이 있으면 업데이트
+                if (priceCache) {
+                  await priceCache.update({
+                    cardName: newCard.name || cardName,
+                    image: newCard.image || null,
+                    rarityPrices,
+                    expiresAt
+                  });
+                  console.log(`[INFO] "${cardName}" 카드의 기존 캐시(${priceCache.id})를 새 데이터로 업데이트했습니다.`);
+                  
+                  // 새 데이터 반환 (기존 캐시 ID 유지)
+                  return {
+                    ...card,
+                    cardName: newCard.name || cardName,
+                    rarityPrices,
+                    image: newCard.image || null,
+                    cacheId: priceCache.id
+                  };
+                } else {
+                  // 새 캐시 항목 생성
+                  const cacheEntry = await CardPriceCache.create({
+                    cardName: newCard.name || cardName,
+                    image: newCard.image || null,
+                    rarityPrices,
+                    expiresAt
+                  });
+                  
+                  console.log(`[INFO] "${cardName}" 카드의 가격 정보를 새로 조회하여 캐시에 저장했습니다. cacheId: ${cacheEntry.id}`);
+                  
+                  // 새 데이터 반환
+                  return {
+                    ...card,
+                    cardName: newCard.name || cardName,
+                    rarityPrices,
+                    image: newCard.image || null,
+                    cacheId: cacheEntry.id
                   };
                 }
-                
-                rarityPrices[language][rarity].prices.push({
-                  id: price.id,
-                  price: price.price,
-                  site: price.site,
-                  url: price.url,
-                  condition: price.condition,
-                  rarity: price.rarity,
-                  language: price.language,
-                  cardCode: price.cardCode,
-                  available: price.available,
-                  lastUpdated: price.lastUpdated
-                });
-              });
-              
-              // 각 언어와 레어도 그룹 내에서 가격 오름차순 정렬
-              Object.keys(rarityPrices).forEach(language => {
-                Object.keys(rarityPrices[language]).forEach(rarity => {
-                  rarityPrices[language][rarity].prices.sort((a, b) => a.price - b.price);
-                  
-                  // 이미지 설정
-                  rarityPrices[language][rarity].image = newCard.image || null;
-                });
-              });
-              
-              // 새 캐시 항목 생성 및 저장
-              const expiresAt = new Date();
-              expiresAt.setHours(expiresAt.getHours() + 12); //12시간 유효
-              
-              const cacheEntry = await CardPriceCache.create({
-                cardName: newCard.name || cardName,
-                image: newCard.image || null,
-                rarityPrices,
-                expiresAt
-              });
-              
-              console.log(`[INFO] "${cardName}" 카드의 가격 정보를 새로 조회하여 캐시에 저장했습니다. cacheId: ${cacheEntry.id}`);
-              
-              // 새 데이터 반환
-              return {
-                ...card,
-                cardName: newCard.name || cardName,
-                rarityPrices,
-                image: newCard.image || null,
-                cacheId: cacheEntry.id
-              };
+              } catch (cacheError) {
+                console.error(`[ERROR] "${cardName}" 카드의 캐시 업데이트 중 오류 발생: ${cacheError.message}`);
+                // 캐시 저장 실패시에도 데이터는 반환
+                return {
+                  ...card,
+                  cardName: newCard.name || cardName,
+                  rarityPrices,
+                  image: newCard.image || null
+                };
+              }
             } catch (error) {
               console.error(`[ERROR] "${cardName}" 카드의 가격 정보 새로 조회 중 오류 발생: ${error.message}`);
               // 오류 발생 시 기존 카드 정보 반환
@@ -1509,10 +1407,36 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
     const filteredCardsData = processedCards.map(card => {
       // 제외 목록을 기반으로 상품 필터링
       const beforeFilterCount = card.products.length;
-      const filteredProducts = card.products.filter(product => 
-        !(product.product && product.product.id && excludedProductIds.includes(product.product.id)) && 
-        !excludedStores.includes(product.site)
-      );
+      
+      // 디버깅을 위한 로그 추가
+      console.log(`[DEBUG] 카드 "${card.cardName}" 필터링 시작, 상품 ${card.products.length}개, excludedProductIds: [${excludedProductIds.join(', ')}]`);
+      
+      const filteredProducts = card.products.filter(product => {
+        // 상품 ID 확인 (product.product.id 또는 product.id)
+        const productId = product.product && product.product.id ? 
+          String(product.product.id) : 
+          (product.id ? String(product.id) : null);
+        
+        // 제외할 상품인지 확인
+        let isExcluded = false;
+        
+        if (productId) {
+          for (const excludedId of excludedProductIds) {
+            if (String(excludedId) === productId) {
+              isExcluded = true;
+              console.log(`[DEBUG] "${card.cardName}" 카드의 상품 ID "${productId}" 제외됨 (정확히 일치)`);
+              break;
+            }
+          }
+        }
+        
+        // 사이트 제외 확인
+        const siteToCheck = product.site || (product.product && product.product.site);
+        const isSiteExcluded = siteToCheck && excludedStores.includes(siteToCheck);
+        
+        // 제외되지 않은 상품만 통과
+        return !isExcluded && !isSiteExcluded;
+      });
       
       const afterFilterCount = filteredProducts.length;
       if (beforeFilterCount !== afterFilterCount) {
@@ -1561,13 +1485,20 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
     });
 
     // 최적 구매 조합 찾기 - 필터링된 카드 배열 사용
-    const result = findOptimalPurchaseCombination(filteredCardsData, options);
+    const result = findOptimalPurchaseCombination(filteredCardsData, {
+      ...options,
+      excludedProductIds, // 옵션에 excludedProductIds 추가
+      excludedStores      // 옵션에 excludedStores 추가
+    });
     
-    // 제외 필터 정보 추가
-    result.excludedFilters = {
-      excludedProductIds,
-      excludedStores
-    };
+    // 제외 필터 정보가 이미 optimizedPurchase 모듈에서 추가되지만, 
+    // 여기서도 명시적으로 설정 (호환성 유지)
+    if (!result.excludedFilters) {
+      result.excludedFilters = {
+        excludedProductIds,
+        excludedStores
+      };
+    }
     
     // 모든 판매처에 product.id가 있는지 확인하고 없으면 추가
     const processSellerDetails = (sellerDetails) => {
@@ -1642,17 +1573,16 @@ exports.getOptimalPurchaseCombination = async (req, res) => {
     console.error('최적 구매 조합 찾기 오류:', error);
     return res.status(500).json({ error: '최적 구매 조합을 계산하는 중 오류가 발생했습니다.' });
   }
-};
+}];
 
 module.exports = {
   getAllCards: exports.getAllCards,
-  getLowestPrice: exports.getLowestPrice,
   getPricesByRarity: exports.getPricesByRarity,
   crawlNaverStorePrice: exports.crawlNaverStorePrice,
   searchNaverShopApi: exports.searchNaverShopApi,
   searchTCGShop: exports.searchTCGShop,
   searchCardDC: exports.searchCardDC,
-  searchOnlyYugioh: exports.searchOnlyYugioh,
+  // searchOnlyYugioh: exports.searchOnlyYugioh, // 온리유희왕 일시적 영업 중단으로 주석 처리
   getOptimalPurchaseCombination: exports.getOptimalPurchaseCombination,
   getCachedPrices: exports.getCachedPrices
 }; 

@@ -3,6 +3,9 @@ const cheerio = require('cheerio');
 const iconv = require('iconv-lite'); // EUC-KR 인코딩 처리를 위해 필요
 const { parseRarity } = require('./rarityUtil');
 const { parseLanguage, parseCondition, extractCardCode } = require('./crawler');
+const { Card, CardPrice } = require('../models/Card');
+const { withRateLimit } = require('./rateLimiter');
+const { getSiteSpecificHeaders, createCrawlerConfig } = require('./userAgentUtil');
 
 /**
  * 카드 이름을 EUC-KR로 인코딩합니다 (TCGShop은 EUC-KR 인코딩 사용)
@@ -66,16 +69,16 @@ async function crawlTCGShop(cardName, cardId) {
     // 직접 검색 URL
     const searchUrl = `http://www.tcgshop.co.kr/search_result.php?search=meta_str&searchstring=${encodedQuery.replace(/%20/g, '+')}`;
     
-    // User-Agent 설정하여 차단 방지
-    const headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    };
+    // 요청 설정 생성 - createCrawlerConfig 함수 사용
+    const config = createCrawlerConfig('tcgshop', {
+      timeoutMs: 15000,
+      additionalHeaders: {
+        'Upgrade-Insecure-Requests': '1'
+      }
+    });
     
     // 검색 결과 페이지 요청
-    const response = await axios.get(searchUrl, { 
-      headers, 
-      responseType: 'arraybuffer' 
-    });
+    const response = await axios.get(searchUrl, config);
     
     // 응답 디코딩
     const html = iconv.decode(response.data, 'euc-kr');
@@ -196,7 +199,7 @@ async function crawlTCGShop(cardName, cardId) {
       let productId = null;
       const goodsIdxMatch = fullUrl.match(/goodsIdx=(\d+)/);
       if (goodsIdxMatch && goodsIdxMatch[1]) {
-        productId = goodsIdxMatch[1]; // 숫자가 아닌 문자열로 유지
+        productId = `tcg-${goodsIdxMatch[1]}`; // 숫자가 아닌 문자열로 유지하고 접두어 추가
       }
       
       // goodsIdx가 없는 경우, URL에서 해시를 생성하여 고유 ID 생성
@@ -204,7 +207,7 @@ async function crawlTCGShop(cardName, cardId) {
         const urlHash = fullUrl.split('').reduce((acc, char) => {
           return (acc << 5) - acc + char.charCodeAt(0) | 0;
         }, 0);
-        productId = `tcgshop-${Math.abs(urlHash)}`;
+        productId = `tcg-${Math.abs(urlHash)}`;
       }
       
       items.push({
@@ -230,6 +233,9 @@ async function crawlTCGShop(cardName, cardId) {
   }
 }
 
+// crawlTCGShop 함수를 요청 제한으로 래핑
+const crawlTCGShopWithRateLimit = withRateLimit(crawlTCGShop, 'tcgshop');
+
 /**
  * 카드 이름으로 검색하여 TCGShop 가격 정보를 저장합니다.
  * @param {string} cardName - 검색할 카드 이름
@@ -237,8 +243,10 @@ async function crawlTCGShop(cardName, cardId) {
  */
 async function searchAndSaveTCGShopPrices(cardName, cardId) {
   try {
-    // TCGShop 크롤링
-    const priceData = await crawlTCGShop(cardName, cardId);
+    console.log(`[INFO] TCGShop에서 "${cardName}" 검색 시작`);
+    
+    // 요청 제한이 적용된 함수 호출
+    const priceData = await crawlTCGShopWithRateLimit(cardName);
     
     if (priceData.length === 0) {
       return { 
@@ -338,7 +346,7 @@ async function searchAndSaveTCGShopPrices(cardName, cardId) {
 }
 
 module.exports = {
-  crawlTCGShop,
+  crawlTCGShop: crawlTCGShopWithRateLimit,
   searchAndSaveTCGShopPrices,
   encodeEUCKR,
   detectLanguageFromCardCode

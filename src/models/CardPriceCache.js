@@ -1,7 +1,6 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../utils/db');
 
-// 카드 가격 정보 캐싱
 const CardPriceCache = sequelize.define('CardPriceCache', {
   id: {
     type: DataTypes.UUID,
@@ -16,12 +15,12 @@ const CardPriceCache = sequelize.define('CardPriceCache', {
   image: {
     type: DataTypes.STRING,
     allowNull: true,
-    comment: '카드 이미지 URL'
+    comment: '카드 대표 이미지 URL'
   },
   rarityPrices: {
     type: DataTypes.JSON,
     allowNull: false,
-    comment: '레어도별 가격 정보 JSON 객체'
+    comment: '레어도별 가격 정보 JSON 객체' //자세한 JSON 객체 형식은 Notion 참조
   },
   expiresAt: {
     type: DataTypes.DATE,

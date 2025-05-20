@@ -83,26 +83,24 @@ function extractCardCode(title) {
 /**
  * 상품 상태(신품/중고)를 파싱합니다.
  * @param {string} title - 상품 제목
- * @returns {string} - 파싱된 상품 상태 (S급, A급, B급, C급, 신품)
+ * @returns {string} - 파싱된 상품 상태
  */
 function parseCondition(title) {
 
   if (/\[S급\]|\(S급\)|S급|S\+|S등급|S-급/i.test(title)) {
-    return 'S급';
+    return '중고';
   }
   
   if (/\[A급\]|\(A급\)|A급|A\+|A등급/i.test(title)) {
-    return 'A급';
+    return '중고';
   }
   if (/\[B급\]|\(B급\)|B급|B등급/i.test(title)) {
-    return 'B급';
+    return '중고';
   }
   if (/\[C급\]|\(C급\)|C급|C등급/i.test(title)) {
-    return 'C급';
+    return '중고';
   }
-  
-  // 중고 여부 확인
-  if (/\[중고\]|\(중고\)|중고|중고품|used/i.test(title)) {
+  if (/\[중고\]|\(중고\)|^중고[\s:]|\s중고[\s:]|\[used\]|\(used\)|중고품/i.test(title)) {
     return '중고';
   }
   
@@ -182,7 +180,7 @@ async function searchAndSaveCardPrices(cardName) {
           site: `Naver_${item.site}`,
           price: item.price,
           url: item.url,
-          condition: item.condition,
+          condition: parseCondition(item.title || ""),
           rarity: item.rarity,
           language: item.language,
           available: item.available,
