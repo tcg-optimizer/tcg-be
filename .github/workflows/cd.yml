@@ -36,5 +36,9 @@ jobs:
             source ~/.nvm/nvm.sh
             nvm use 22
 
+            NEXT_PUBLIC_FRONT_VERSION=$(git -C ../fe rev-parse --short HEAD) \
+            NEXT_PUBLIC_BACK_VERSION=$(git rev-parse --short HEAD) \
+            pm2 restart yarn --update-env -- start
+
             pm2 reload src/server.js
 
