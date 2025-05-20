@@ -20,22 +20,26 @@ function parseLanguage(title) {
   if (/(영문판|영어판|영문)/i.test(title)) {
     return '영문판';
   }
-  
+
   // 2. 카드 코드에서 언어 코드 추출 (예: PHRA-KR045, QCAC-JP014)
   const cardCodePattern = /\b([A-Z0-9]{2,5})-([A-Z]{2})\d{3,4}\b/i;
   const match = title.match(cardCodePattern);
-  
+
   if (match && match[2]) {
     const languageCode = match[2].toUpperCase();
-    
+
     switch (languageCode) {
-      case 'KR': return '한글판';
-      case 'JP': return '일본판';
-      case 'EN': return '영문판';
-      default: return '기타';
+      case 'KR':
+        return '한글판';
+      case 'JP':
+        return '일본판';
+      case 'EN':
+        return '영문판';
+      default:
+        return '기타';
     }
   }
-  
+
   // 3. 기본값
   return '알 수 없음';
 }
@@ -48,35 +52,35 @@ function parseLanguage(title) {
 function extractCardCode(title) {
   // 일반적인 카드 코드 패턴 (예: ROTA-KR024)
   const standardPattern = /\b([A-Z0-9]{2,5})-([A-Z]{2})(\d{3,4})\b/i;
-  
+
   // 특수한 카드 코드 패턴 (예: SUB1-JPS07)
   const specialPattern = /\b([A-Z0-9]{2,5})-([A-Z]{2,3})([0-9A-Z]{2,4})\b/i;
-  
+
   // 추가 패턴 (예: 코드가 괄호 안에 있는 경우: (ROTA-KR024))
   const parenthesesPattern = /\(([A-Z0-9]{2,5})-([A-Z]{2,3})([0-9A-Z]{2,4})\)/i;
-  
+
   // 우선 일반 패턴으로 시도
   let match = title.match(standardPattern);
-  
+
   // 일반 패턴으로 찾지 못한 경우 특수 패턴으로 시도
   if (!match) {
     match = title.match(specialPattern);
   }
-  
+
   // 괄호 안의 패턴으로 시도
   if (!match) {
     match = title.match(parenthesesPattern);
   }
-  
+
   if (match) {
     return {
       fullCode: match[0].replace(/[()]/g, ''), // 괄호 제거
       setCode: match[1],
       languageCode: match[2],
-      cardNumber: match[3]
+      cardNumber: match[3],
     };
   }
-  
+
   return null;
 }
 
@@ -86,11 +90,10 @@ function extractCardCode(title) {
  * @returns {string} - 파싱된 상품 상태
  */
 function parseCondition(title) {
-
   if (/\[S급\]|\(S급\)|S급|S\+|S등급|S-급/i.test(title)) {
     return '중고';
   }
-  
+
   if (/\[A급\]|\(A급\)|A급|A\+|A등급/i.test(title)) {
     return '중고';
   }
@@ -103,7 +106,7 @@ function parseCondition(title) {
   if (/\[중고\]|\(중고\)|^중고[\s:]|\s중고[\s:]|\[used\]|\(used\)|중고품/i.test(title)) {
     return '중고';
   }
-  
+
   // 기본값 (신품)
   return '신품';
 }
@@ -115,33 +118,35 @@ function parseCondition(title) {
  */
 function testRarityParsing(title) {
   console.log(`\n[TEST] 파싱 테스트 상품명: "${title}"`);
-  
+
   // 레어도 파싱
   const rarityResult = parseRarity(title);
   console.log(`[TEST] 레어도 파싱 결과: ${rarityResult.rarity} (${rarityResult.rarityCode})`);
-  
+
   // 언어 파싱
   const language = parseLanguage(title);
   console.log(`[TEST] 언어 파싱 결과: ${language}`);
-  
+
   // 상품 상태 파싱
   const condition = parseCondition(title);
   console.log(`[TEST] 상품 상태 파싱 결과: ${condition}`);
-  
+
   // 카드 코드 추출
   const cardCode = extractCardCode(title);
   if (cardCode) {
-    console.log(`[TEST] 카드 코드 추출: ${cardCode.fullCode} (세트: ${cardCode.setCode}, 언어: ${cardCode.languageCode}, 번호: ${cardCode.cardNumber})`);
+    console.log(
+      `[TEST] 카드 코드 추출: ${cardCode.fullCode} (세트: ${cardCode.setCode}, 언어: ${cardCode.languageCode}, 번호: ${cardCode.cardNumber})`
+    );
   }
-  
+
   console.log('');
-  
+
   return {
     rarity: rarityResult.rarity,
     rarityCode: rarityResult.rarityCode,
     language: language,
     condition: condition,
-    cardCode: cardCode
+    cardCode: cardCode,
   };
 }
 
@@ -155,65 +160,65 @@ async function searchAndSaveCardPrices(cardName) {
     // 카드 찾기 또는 생성
     let [card, created] = await Card.findOrCreate({
       where: { name: cardName },
-      defaults: { name: cardName }
+      defaults: { name: cardName },
     });
-    
+
     // 크롤링 결과가 없는 경우
     const priceData = [];
     if (priceData.length === 0) {
       return { message: '검색 결과가 없습니다.', card };
     }
-    
+
     // 기존 가격 정보 삭제 (최신 정보로 갱신)
     await CardPrice.destroy({
-      where: { 
+      where: {
         cardId: card.id,
-        site: { [Op.like]: 'Naver%' } // 네이버 스토어 데이터만 삭제
-      }
+        site: { [Op.like]: 'Naver%' }, // 네이버 스토어 데이터만 삭제
+      },
     });
-    
+
     // 새 가격 정보 저장
     const savedPrices = await Promise.all(
-      priceData.map(async (item) => {
+      priceData.map(async item => {
         return CardPrice.create({
           cardId: card.id,
           site: `Naver_${item.site}`,
           price: item.price,
           url: item.url,
-          condition: parseCondition(item.title || ""),
+          condition: parseCondition(item.title || ''),
           rarity: item.rarity,
           language: item.language,
           available: item.available,
-          lastUpdated: new Date()
+          lastUpdated: new Date(),
         });
       })
     );
-    
+
     // 카드 정보 업데이트 (가장 많이 발견된 레어도와 언어로 설정)
     if (priceData.length > 0) {
       // 레어도 빈도 계산
       const rarityMap = {};
       const languageMap = {};
-      
+
       priceData.forEach(item => {
         // 레어도 카운트
         if (!rarityMap[item.rarityCode]) {
           rarityMap[item.rarityCode] = 0;
         }
         rarityMap[item.rarityCode]++;
-        
+
         // 언어 카운트
         if (!languageMap[item.language]) {
           languageMap[item.language] = 0;
         }
         languageMap[item.language]++;
       });
-      
+
       // 가장 많이 발견된 레어도 찾기
       let maxRarityCount = 0;
       let dominantRarity = null;
       let dominantRarityCode = null;
-      
+
       for (const [code, count] of Object.entries(rarityMap)) {
         if (count > maxRarityCount && code !== 'UNK') {
           maxRarityCount = count;
@@ -221,39 +226,39 @@ async function searchAndSaveCardPrices(cardName) {
           dominantRarity = priceData.find(item => item.rarityCode === code).rarity;
         }
       }
-      
+
       // 가장 많이 발견된 언어 찾기
       let maxLanguageCount = 0;
       let dominantLanguage = null;
-      
+
       for (const [language, count] of Object.entries(languageMap)) {
         if (count > maxLanguageCount && language !== '알 수 없음') {
           maxLanguageCount = count;
           dominantLanguage = language;
         }
       }
-      
+
       // 카드 정보 업데이트
       const updateData = {};
-      
+
       if (dominantRarity && dominantRarityCode) {
         updateData.rarity = dominantRarity;
         updateData.rarityCode = dominantRarityCode;
       }
-      
+
       if (dominantLanguage) {
         updateData.language = dominantLanguage;
       }
-      
+
       if (Object.keys(updateData).length > 0) {
         await card.update(updateData);
       }
     }
-    
+
     return {
       card,
       prices: savedPrices,
-      count: savedPrices.length
+      count: savedPrices.length,
     };
   } catch (error) {
     console.error('카드 가격 저장 오류:', error);
@@ -266,5 +271,5 @@ module.exports = {
   testRarityParsing,
   parseLanguage,
   parseCondition,
-  extractCardCode
-}; 
+  extractCardCode,
+};

@@ -4,476 +4,468 @@
 
 const shippingInfo = {
   naverDefault: {
-    shippingFee: 3000,            // 기본 배송비
-    jejuShippingFee: 5000,        // 제주 지역 배송비
-    islandShippingFee: 7000,      // 도서 지역 배송비
-    freeShippingThreshold: 50000  // 무료배송 기준금액
+    shippingFee: 3000, // 기본 배송비
+    jejuShippingFee: 5000, // 제주 지역 배송비
+    islandShippingFee: 7000, // 도서 지역 배송비
+    freeShippingThreshold: 50000, // 무료배송 기준금액
   },
-  
+
   tcgshop: {
     shippingFee: 2500,
     jejuShippingFee: 2500,
     islandShippingFee: 2500,
-    freeShippingThreshold: 30000
+    freeShippingThreshold: 30000,
   },
-  
+
   carddc: {
     shippingFee: 2500,
     jejuShippingFee: 2500,
     islandShippingFee: 2500,
-    freeShippingThreshold: 30000
+    freeShippingThreshold: 30000,
   },
-  
+
   onlyyugioh: {
     shippingFee: 2500,
     jejuShippingFee: 2500,
     islandShippingFee: 2500,
-    freeShippingThreshold: 30000
-  }
+    freeShippingThreshold: 30000,
+  },
 };
 
 // 네이버 쇼핑몰의 판매자별 배송비 정보
 const naverSellerShippingInfo = {
-  카드킹덤 : { 
-    shippingFee: 2800, 
+  카드킹덤: {
+    shippingFee: 2800,
     jejuShippingFee: 5500,
     islandShippingFee: 5500,
-    freeShippingThreshold: 40000
+    freeShippingThreshold: 40000,
   },
 
-  Jclover : {
+  Jclover: {
     shippingFee: 3400,
     jejuShippingFee: 4600,
     islandShippingFee: 9400,
-    freeShippingThreshold: 100000
+    freeShippingThreshold: 100000,
   },
 
-  카드스퀘어 : {
+  카드스퀘어: {
     shippingFee: 3000,
     jejuShippingFee: 6000,
     islandShippingFee: 6000,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  TCG포유 : {
+  TCG포유: {
     shippingFee: 3000,
     jejuShippingFee: 6000,
     islandShippingFee: 8000,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  티씨지트레이서즈 : {
+  티씨지트레이서즈: {
     shippingFee: 3000,
     jejuShippingFee: 6000,
     islandShippingFee: 8000,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  코토리샵 : {
+  코토리샵: {
     shippingFee: 3000,
     jejuShippingFee: 5500,
     islandShippingFee: 5500,
-    freeShippingThreshold: Infinity
+    freeShippingThreshold: Infinity,
   },
 
-  소소TCG : {
+  소소TCG: {
     shippingFee: 3000,
     jejuShippingFee: 3000,
     islandShippingFee: 3000,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
-  
-  전주디마켓 : {
+
+  전주디마켓: {
     shippingFee: 4000,
     jejuShippingFee: 4000,
     islandShippingFee: 4000,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  마왕성뒷골목 : {
+  마왕성뒷골목: {
     shippingFee: 3000,
     jejuShippingFee: 6000,
     islandShippingFee: 6000,
-    freeShippingThreshold: 100000
+    freeShippingThreshold: 100000,
   },
-  
-  티씨지헤븐 : {
+
+  티씨지헤븐: {
     shippingFee: 3000,
     jejuShippingFee: 6000,
     islandShippingFee: 6000,
-    freeShippingThreshold: 100000
+    freeShippingThreshold: 100000,
   },
 
-  티씨지플레이존 : {
+  티씨지플레이존: {
     shippingFee: 3000,
     jejuShippingFee: 6000,
     islandShippingFee: 8000,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  카드냥 : {
+  카드냥: {
     shippingFee: 3000,
     jejuShippingFee: 6000,
     islandShippingFee: 6000,
-    freeShippingThreshold: 40000
+    freeShippingThreshold: 40000,
   },
 
-  카드캐처 : {
+  카드캐처: {
     shippingFee: 3500,
     jejuShippingFee: 6500,
     islandShippingFee: 6500,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  인카드 : {
+  인카드: {
     shippingFee: 3000,
     jejuShippingFee: 5500,
     islandShippingFee: 8000,
-    freeShippingThreshold: Infinity
+    freeShippingThreshold: Infinity,
   },
 
-  티씨지몰 : {
+  티씨지몰: {
     shippingFee: 3000,
     jejuShippingFee: 3000,
     islandShippingFee: 3000,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  유유토이 : {
+  유유토이: {
     shippingFee: 3000,
     jejuShippingFee: 5000,
     islandShippingFee: 8000,
-    freeShippingThreshold: 40000
+    freeShippingThreshold: 40000,
   },
-  
-  듀얼스페이스 : {
+
+  듀얼스페이스: {
     shippingFee: 3000,
     jejuShippingFee: 6000,
     islandShippingFee: 9000,
-    freeShippingThreshold: 60000
+    freeShippingThreshold: 60000,
   },
 
-  TCG마트 : {
+  TCG마트: {
     shippingFee: 3000,
     jejuShippingFee: 6000,
     islandShippingFee: 6000,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  코코래빗 : {
+  코코래빗: {
     shippingFee: 3000,
     jejuShippingFee: 6000,
     islandShippingFee: 6000,
-    freeShippingThreshold: 30000
+    freeShippingThreshold: 30000,
   },
 
-  TCG월드 : {
+  TCG월드: {
     shippingFee: 3000,
     jejuShippingFee: 6000,
     islandShippingFee: 8000,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  TCG킹덤 : {
+  TCG킹덤: {
     shippingFee: 3000,
     jejuShippingFee: 6000,
     islandShippingFee: 6000,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  티씨지스카이 : {
+  티씨지스카이: {
     shippingFee: 3500,
     jejuShippingFee: 6000,
     islandShippingFee: 6000,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  KTCG : {
+  KTCG: {
     shippingFee: 2500,
     jejuShippingFee: 3000,
     islandShippingFee: 3000,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  믐믐샵 : {
+  믐믐샵: {
     shippingFee: 3500,
     jejuShippingFee: 6500,
     islandShippingFee: 7500,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
-  
-  유희왕카드가게 : {
+
+  유희왕카드가게: {
     shippingFee: 3000,
     jejuShippingFee: 5500,
     islandShippingFee: 5500,
-    freeShippingThreshold: 30000
+    freeShippingThreshold: 30000,
   },
 
-  카드Labo : {
+  카드Labo: {
     shippingFee: 3000,
     jejuShippingFee: 6000,
     islandShippingFee: 6000,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  유희왕중고카드샵 : {
+  유희왕중고카드샵: {
     shippingFee: 2200,
     jejuShippingFee: 2200,
     islandShippingFee: 2200,
-    freeShippingThreshold: 30000
+    freeShippingThreshold: 30000,
   },
-  
-  카드Station : {
+
+  카드Station: {
     shippingFee: 2000,
     jejuShippingFee: 2000,
     islandShippingFee: 2000,
-    freeShippingThreshold: 70000
+    freeShippingThreshold: 70000,
   },
 
-  슈미카드 : {
+  슈미카드: {
     shippingFee: 4000,
     jejuShippingFee: 4000,
     islandShippingFee: 4000,
-    freeShippingThreshold: 40000
+    freeShippingThreshold: 40000,
   },
 
-  TCG얼라이브 : {
+  TCG얼라이브: {
     shippingFee: 3000,
     jejuShippingFee: 3000,
     islandShippingFee: 3000,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  TCG카톤깡 : {
+  TCG카톤깡: {
     shippingFee: 3500,
     jejuShippingFee: 3500,
     islandShippingFee: 3500,
-    freeShippingThreshold: 70000
+    freeShippingThreshold: 70000,
   },
-  
-  정무샵 : {
+
+  정무샵: {
     shippingFee: 4000,
     jejuShippingFee: 7000,
     islandShippingFee: 7000,
-    freeShippingThreshold: 47000
+    freeShippingThreshold: 47000,
   },
 
-  캠핑토이 : {
+  캠핑토이: {
     shippingFee: 3000,
     jejuShippingFee: 6000,
     islandShippingFee: 6000,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
-  
-  민씨지샵 : {
+
+  민씨지샵: {
     shippingFee: 3000,
     jejuShippingFee: 6000,
     islandShippingFee: 8000,
-    freeShippingThreshold: 40000
+    freeShippingThreshold: 40000,
   },
 
-  카드팝 : {
+  카드팝: {
     shippingFee: 3000,
     jejuShippingFee: 3000,
     islandShippingFee: 3000,
-    freeShippingThreshold: Infinity
+    freeShippingThreshold: Infinity,
   },
 
-  트레카샵 : {
+  트레카샵: {
     shippingFee: 4000,
     jejuShippingFee: 4000,
     islandShippingFee: 4000,
-    freeShippingThreshold: 150000
+    freeShippingThreshold: 150000,
   },
 
-  OCGTCG : {
+  OCGTCG: {
     shippingFee: 2000,
     jejuShippingFee: 6000,
     islandShippingFee: 7000,
-    freeShippingThreshold: 30000
+    freeShippingThreshold: 30000,
   },
 
-  딱지세상 : {
+  딱지세상: {
     shippingFee: 2200,
     jejuShippingFee: 2200,
-    islandShippingFee: 2200,  
-    freeShippingThreshold: Infinity
+    islandShippingFee: 2200,
+    freeShippingThreshold: Infinity,
   },
 
-  카드맥스 : {  
+  카드맥스: {
     shippingFee: 2000,
     jejuShippingFee: 2000,
     islandShippingFee: 2000,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  루아네상점 : {
+  루아네상점: {
     shippingFee: 2800,
     jejuShippingFee: 5800,
     islandShippingFee: 5800,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  ocg의시작 : {
+  ocg의시작: {
     shippingFee: 2000,
     jejuShippingFee: 2000,
     islandShippingFee: 2000,
-    freeShippingThreshold: 30000
+    freeShippingThreshold: 30000,
   },
 
-  딱지집 : {
+  딱지집: {
     shippingFee: 3000,
     jejuShippingFee: 3000,
     islandShippingFee: 3000,
-    freeShippingThreshold: Infinity
+    freeShippingThreshold: Infinity,
   },
 
-  랩터샵 : {
+  랩터샵: {
     shippingFee: 3500,
     jejuShippingFee: 3500,
     islandShippingFee: 3500,
-    freeShippingThreshold: Infinity
+    freeShippingThreshold: Infinity,
   },
 
-  ss듀얼샵 : {
+  ss듀얼샵: {
     shippingFee: 3000,
     jejuShippingFee: 6000,
     islandShippingFee: 8000,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  티씨지플레이어 : {
+  티씨지플레이어: {
     shippingFee: 3500,
     jejuShippingFee: 6000,
     islandShippingFee: 6000,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  TCG써클 : {
+  TCG써클: {
     shippingFee: 3500,
     jejuShippingFee: 3500,
     islandShippingFee: 3500,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  마천루카드장터 : {
+  마천루카드장터: {
     shippingFee: 3000,
     jejuShippingFee: 10000,
     islandShippingFee: 10000,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  우유TCG : {
+  우유TCG: {
     shippingFee: 4000,
     jejuShippingFee: 7000,
     islandShippingFee: 7000,
-    freeShippingThreshold: 45000
+    freeShippingThreshold: 45000,
   },
 
-  더아지트몰 : {
+  더아지트몰: {
     shippingFee: 3500,
     jejuShippingFee: 7500,
     islandShippingFee: 7500,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  봉플레이스 : {
+  봉플레이스: {
     shippingFee: 3000,
     jejuShippingFee: 7000,
     islandShippingFee: 11000,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  듀얼팩토리 : {
+  듀얼팩토리: {
     shippingFee: 3000,
     jejuShippingFee: 3200,
     islandShippingFee: 3200,
-    freeShippingThreshold: 70000
+    freeShippingThreshold: 70000,
   },
 
-  유희왕STORE : {
+  유희왕STORE: {
     shippingFee: 2000,
     jejuShippingFee: 2000,
     islandShippingFee: 2000,
-    freeShippingThreshold: Infinity
+    freeShippingThreshold: Infinity,
   },
 
-  마래하비 : {
+  마래하비: {
     shippingFee: 3500,
     jejuShippingFee: 6500,
     islandShippingFee: 6500,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
-  
-  듀얼위너 : {
+
+  듀얼위너: {
     shippingFee: 4000,
     jejuShippingFee: 4000,
     islandShippingFee: 4000,
-    freeShippingThreshold: 60000
+    freeShippingThreshold: 60000,
   },
 
-  굿즈덕트 : {
+  굿즈덕트: {
     shippingFee: 3200,
     jejuShippingFee: 6700,
     islandShippingFee: 8200,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
-  Tcg랜드 : {
+  Tcg랜드: {
     shippingFee: 3000,
     jejuShippingFee: 6000,
     islandShippingFee: 6000,
-    freeShippingThreshold: 45000
+    freeShippingThreshold: 45000,
   },
 
-  TCG하우스 : {
+  TCG하우스: {
     shippingFee: 3500,
     jejuShippingFee: 3500,
     islandShippingFee: 3500,
-    freeShippingThreshold: 40000
+    freeShippingThreshold: 40000,
   },
 
-  게임만물상 : {
+  게임만물상: {
     shippingFee: 3000,
     jejuShippingFee: 3000,
     islandShippingFee: 3000,
-    freeShippingThreshold: 70000
+    freeShippingThreshold: 70000,
   },
 
-  에리어제로스토어 : {
+  에리어제로스토어: {
     shippingFee: 4000,
     jejuShippingFee: 4000,
     islandShippingFee: 4000,
-    freeShippingThreshold: 40000
-  },
-
-  카드팝 : {
-    shippingFee: 3000,
-    jejuShippingFee: 3000,
-    islandShippingFee: 3000,
-    freeShippingThreshold: Infinity
+    freeShippingThreshold: 40000,
   },
 
   TCG나라: {
     shippingFee: 3000,
     jejuShippingFee: 3000,
     islandShippingFee: 3000,
-    freeShippingThreshold: 50000
+    freeShippingThreshold: 50000,
   },
 
   아트워키: {
     shippingFee: 3000,
     jejuShippingFee: 3000,
     islandShippingFee: 3000,
-    freeShippingThreshold: Infinity
+    freeShippingThreshold: Infinity,
   },
-
 };
 
 const REGION_TYPES = {
-  DEFAULT: 'default', 
-  JEJU: 'jeju', 
-  ISLAND: 'island'
+  DEFAULT: 'default',
+  JEJU: 'jeju',
+  ISLAND: 'island',
 };
 
 // 최저가 계산 시 스킵해야 하는 마켓플레이스 목록
@@ -486,7 +478,7 @@ const SKIP_MARKETPLACES = [
   '옥션',
   '11번가',
   '위메프',
-  '티몬'
+  '티몬',
 ];
 
 /**
@@ -496,12 +488,12 @@ const SKIP_MARKETPLACES = [
  */
 function normalizeSellerName(sellerName) {
   if (!sellerName) return '';
-  
+
   // 모든 공백과 특수 문자 제거 (알파벳, 숫자, 한글만 남김)
   return sellerName
-    .replace(/\s+/g, '')  // 공백 제거
-    .replace(/[^\w가-힣]/g, '')  // 특수 문자 제거
-    .toLowerCase();  // 소문자로 변환
+    .replace(/\s+/g, '') // 공백 제거
+    .replace(/[^\w가-힣]/g, '') // 특수 문자 제거
+    .toLowerCase(); // 소문자로 변환
 }
 
 /**
@@ -510,8 +502,8 @@ function normalizeSellerName(sellerName) {
  * @returns {boolean} - 스킵 여부 (true: 스킵, false: 스킵하지 않음)
  */
 function shouldSkipMarketplace(sellerName) {
-  return SKIP_MARKETPLACES.some(marketplace => 
-    normalizeSellerName(sellerName) === normalizeSellerName(marketplace)
+  return SKIP_MARKETPLACES.some(
+    marketplace => normalizeSellerName(sellerName) === normalizeSellerName(marketplace)
   );
 }
 
@@ -521,7 +513,7 @@ function shouldSkipMarketplace(sellerName) {
  * @returns {string} - 판매처 ID
  */
 function getSellerId(seller) {
-  return typeof seller === 'string' ? seller : (seller.name || seller.id || String(seller));
+  return typeof seller === 'string' ? seller : seller.name || seller.id || String(seller);
 }
 
 /**
@@ -532,10 +524,10 @@ function getSellerId(seller) {
 function getShippingInfo(site) {
   // site가 객체인 경우 사이트 이름 추출
   const siteStr = getSellerId(site);
-  
+
   // 사이트 이름을 소문자로 변환하여 비교
   const siteLower = siteStr.toLowerCase();
-  
+
   if (siteLower === 'tcgshop') {
     return shippingInfo.tcgshop;
   } else if (siteLower === 'carddc') {
@@ -549,17 +541,17 @@ function getShippingInfo(site) {
       sellerName = sellerName.substring(6); // 'Naver_' 접두사 제거
       console.log(`[DEBUG] 네이버 판매자 이름 변환: '${siteStr}' → '${sellerName}'`);
     }
-    
+
     // 정규화된 이름으로 비교
     const normalizedSellerName = normalizeSellerName(sellerName);
-    
+
     // 모든 판매자 키를 확인하면서 정규화된 이름과 일치하는지 검사
     for (const seller in naverSellerShippingInfo) {
       if (normalizeSellerName(seller) === normalizedSellerName) {
         return naverSellerShippingInfo[seller];
       }
     }
-    
+
     // 일치하는 판매자가 없으면 기본 배송비 정보 반환
     console.log(`[INFO] 판매자 '${sellerName}'의 배송비 정보가 없습니다. 기본값 사용.`);
     return shippingInfo.naverDefault;
@@ -575,14 +567,14 @@ function getShippingInfo(site) {
  */
 function calculateShippingFee(site, region = REGION_TYPES.DEFAULT, totalPrice = 0) {
   const info = getShippingInfo(site);
-  
+
   // 무료 배송 기준 금액 이상이면 무료 배송 (단, 무료배송이 불가능한 경우 제외)
   if (totalPrice >= info.freeShippingThreshold && info.freeShippingThreshold !== Infinity) {
     return 0;
   }
-  
+
   // 지역에 따른 배송비 반환
-  switch(region) {
+  switch (region) {
     case REGION_TYPES.JEJU:
       return info.jejuShippingFee;
     case REGION_TYPES.ISLAND:
@@ -594,12 +586,18 @@ function calculateShippingFee(site, region = REGION_TYPES.DEFAULT, totalPrice = 
 }
 
 // 네이버 판매자별 배송비 정보 업데이트 함수
-function updateNaverSellerShippingInfo(sellerName, shippingFee, jejuShippingFee, islandShippingFee, freeShippingThreshold) {
+function updateNaverSellerShippingInfo(
+  sellerName,
+  shippingFee,
+  jejuShippingFee,
+  islandShippingFee,
+  freeShippingThreshold
+) {
   naverSellerShippingInfo[sellerName] = {
     shippingFee,
     jejuShippingFee,
     islandShippingFee,
-    freeShippingThreshold
+    freeShippingThreshold,
   };
 }
 
@@ -612,5 +610,5 @@ module.exports = {
   normalizeSellerName,
   REGION_TYPES,
   shouldSkipMarketplace,
-  getSellerId
-}; 
+  getSellerId,
+};
