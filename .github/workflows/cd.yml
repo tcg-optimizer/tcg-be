@@ -34,6 +34,7 @@ jobs:
 
             export NVM_DIR=~/.nvm
             source ~/.nvm/nvm.sh
-            
-            pm2 reload app
+            nvm use 22
+
+            pm2 reload src/server.js
 
