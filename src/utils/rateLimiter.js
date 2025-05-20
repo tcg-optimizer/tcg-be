@@ -9,7 +9,7 @@ const { getRandomizedHeaders, getSiteSpecificHeaders } = require('./userAgentUti
 // 사이트별 초당 최대 요청 수 설정
 const RATE_LIMITS = {
   naver: 10, // 네이버 API - 초당 10개 요청
-  tcgshop: 1, // TCGShop - 초당 10개 요청
+  tcgshop: 10, // TCGShop - 초당 10개 요청
   carddc: 10, // CardDC - 초당 10개 요청
   onlyyugioh: 10, // OnlyYugioh - 초당 10개 요청
   default: 5, // 기본값 - 초당 5개 요청
@@ -130,7 +130,6 @@ async function waitForRateLimit(site, maxRetries = 5) {
     }
 
     // 요청 제한에 도달한 경우 대기 (지수 백오프 적용)
-    //const waitTime = 20000;
     const waitTime = Math.min(100 * Math.pow(2, retries), 2000); // 최대 2초까지 대기
     console.log(
       `[INFO] ${site} 요청 제한 도달, ${waitTime}ms 대기 후 재시도 (${retries + 1}/${maxRetries})`
