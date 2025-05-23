@@ -1,12 +1,10 @@
-const { Card, CardPrice } = require('../models/Card');
+const { Card } = require('../models/Card');
 const { Op } = require('sequelize');
 const { searchAndSaveCardPrices } = require('../utils/crawler');
 const { searchAndSaveCardPricesApi } = require('../utils/naverShopApi');
 const { searchAndSaveTCGShopPrices } = require('../utils/tcgshopCrawler');
 const { searchAndSaveCardDCPrices } = require('../utils/cardDCCrawler');
 // const { searchAndSaveOnlyYugiohPrices } = require('../utils/onlyYugiohCrawler'); // 온리유희왕 일시적 영업중단으로 주석처리
-const axios = require('axios');
-const sequelize = require('sequelize');
 const { findOptimalPurchaseCombination } = require('../utils/optimizedPurchase');
 const CardPriceCache = require('../models/CardPriceCache');
 const rateLimit = require('express-rate-limit');

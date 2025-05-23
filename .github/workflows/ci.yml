@@ -15,8 +15,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22' # 사용하는 Node.js 버전에 맞게 수정해주세요.
-          cache: 'npm' # npm 캐시 사용
+          node-version: '22'
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm install
