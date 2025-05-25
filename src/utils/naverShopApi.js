@@ -68,133 +68,17 @@ const searchNaverShop = async cardName => {
       throw new Error('네이버 API 인증 정보가 설정되지 않았습니다.');
     }
 
-    // 검색 파라미터 설정
-    const query = encodeURIComponent(cardName);
-    const display = 100; // 검색 결과 개수 (최대 100)
-    const sort = 'sim'; // 정렬 (sim: 정확도순, date: 날짜순, asc: 가격오름차순, dsc: 가격내림차순)
+    // 첫 번째 검색 시도
+    let searchQuery = cardName;
+    let allItems = await performNaverSearch(searchQuery, clientId, clientSecret, false); // 첫 번째 검색
 
-    let allItems = [];
-    let start = 1;
-    let hasMoreItems = true;
-    const maxItems = 1000; // 최적화: 최대 200개로 제한하여 검색 속도 향상
-    let retryCount = 0;
-    const maxRetries = 3;
-
-    while (hasMoreItems && allItems.length < maxItems) {
-      // API 요청 URL
-      const apiUrl = `https://openapi.naver.com/v1/search/shop.json?query=${query}&display=${display}&start=${start}&sort=${sort}`;
-
-      try {
-        // API 요청 전 지연 시간
-        await delay(100);
-
-        // 네이버 API 인증 헤더와 랜덤 User-Agent 헤더 통합
-        const combinedHeaders = {
-          ...getRandomizedHeaders(false), // 랜덤 헤더 생성
-          'X-Naver-Client-Id': clientId,
-          'X-Naver-Client-Secret': clientSecret,
-        };
-
-        // API 요청 - 타임아웃 5초 설정
-        const response = await axios.get(apiUrl, {
-          headers: combinedHeaders,
-          timeout: 5000,
-        });
-
-        // 결과 파싱
-        const items = response.data.items.map(item => {
-          const title = item.title.replace(/<b>|<\/b>/g, ''); // HTML 태그 제거
-
-          // 레어도, 언어, 상태 정보 파싱
-          const rarityInfo = parseRarity(title);
-          const condition = parseCondition(title);
-          const cardCode = extractCardCode(title);
-
-          // 언어 정보 추출 (우선순위: 직접 상품명 > crawler.js의 parseLanguage > 카드코드)
-          let language;
-
-          // 1. 상품명에서 직접 추출 시도 (최우선)
-          const titleLanguage = extractLanguageFromTitle(title);
-          if (titleLanguage) {
-            language = titleLanguage;
-          } else {
-            // 2. crawler.js의 parseLanguage 사용
-            language = parseLanguage(title);
-
-            // 3. 여전히 알 수 없는 경우 카드코드에서 추출 시도
-            if (language === '알 수 없음' && cardCode && cardCode.fullCode) {
-              language = detectLanguageFromCardCode(cardCode.fullCode);
-            }
-          }
-
-          return {
-            title: title,
-            price: parseInt(item.lprice), // 최저가
-            site: item.mallName,
-            url: item.link,
-            productId: item.productId.toString(), // productId를 문자열로 변환
-            image: item.image, // 이미지 URL 추가
-            condition: condition,
-            rarity: rarityInfo.rarity,
-            rarityCode: rarityInfo.rarityCode,
-            language: language,
-            cardCode: cardCode ? cardCode.fullCode : null,
-            available: true,
-            brand: item.brand,
-            category: item.category1,
-          };
-        });
-
-        // 번개장터 상품을 필터링
-        const bungaeFiltered = items.filter(
-          item => item.site !== '번개장터' && !item.site.includes('번개장터')
-        );
-
-        // 언어가 '알 수 없음'인 상품을 필터링
-        const filteredItems = bungaeFiltered.filter(
-          item => item.language !== '알 수 없음' && item.rarity !== '알 수 없음'
-        );
-
-        // 충분한 결과를 찾았거나 필터링으로 인해 모든 결과가 제외된 경우
-        if (filteredItems.length === 0 && items.length > 0) {
-          console.log('[INFO] 모든 아이템이 필터링되었습니다. 다음 페이지로 이동합니다.');
-          start += display;
-          continue;
-        }
-
-        allItems = [...allItems, ...filteredItems];
-        retryCount = 0; // 성공하면 재시도 카운트 초기화
-
-        // 100개 미만의 결과를 받았거나 최대 개수에 도달했다면 더 이상 요청하지 않음
-        if (items.length < display) {
-          hasMoreItems = false;
-        } else {
-          start += display; // 다음 페이지로 이동
-        }
-      } catch (error) {
-        // 429 에러(너무 많은 요청)가 발생한 경우 더 오래 대기한 후 재시도
-        if (error.response && error.response.status === 429) {
-          console.log('[WARN] 네이버 API 요청 한도 초과. 2초 대기 후 재시도합니다.');
-          await delay(2000);
-        } else if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') {
-          // 소켓 오류나 타임아웃 처리
-          retryCount++;
-          if (retryCount <= maxRetries) {
-            console.log(
-              `[WARN] 네이버 API 연결 오류(${error.code}). ${retryCount}/${maxRetries} 재시도 중...`
-            );
-            await delay(2000 * retryCount); // 재시도마다 대기 시간 증가
-            continue; // 현재 시도 건너뛰기
-          } else {
-            console.log('[WARN] 네이버 API 연결 오류. 최대 재시도 횟수 초과, 검색 종료.');
-            break; // 최대 재시도 횟수 초과하면 루프 종료
-          }
-        } else {
-          // 다른 오류는 로그만 남기고 검색 종료
-          console.error(`[ERROR] 네이버 API 오류: ${error.message}`);
-          break;
-        }
-      }
+    // 3페이지(300개) 검색 후 유효한 유희왕 카드가 10개 미만이면 "유희왕"을 추가하여 재검색
+    if (allItems.length < 10 && !cardName.includes('유희왕')) {
+      console.log(
+        `[INFO] "${cardName}" 검색에서 유효한 유희왕 카드가 ${allItems.length}개로 부족합니다. "${cardName} 유희왕"으로 재검색합니다.`
+      );
+      searchQuery = `${cardName} 유희왕`;
+      allItems = await performNaverSearch(searchQuery, clientId, clientSecret, true); // 재검색 플래그 추가
     }
 
     return allItems;
@@ -202,6 +86,158 @@ const searchNaverShop = async cardName => {
     console.error('[ERROR] 네이버 쇼핑 API 검색 오류:', error);
     return [];
   }
+};
+
+/**
+ * 실제 네이버 API 검색을 수행하는 내부 함수
+ * @param {string} searchQuery - 검색 쿼리
+ * @param {string} clientId - 네이버 클라이언트 ID
+ * @param {string} clientSecret - 네이버 클라이언트 시크릿
+ * @param {boolean} isRetry - 재검색 여부 (true: 1000개까지, false: 300개까지)
+ * @returns {Promise<Array>} - 검색된 상품 정보 배열
+ */
+const performNaverSearch = async (searchQuery, clientId, clientSecret, isRetry = false) => {
+  // 검색 파라미터 설정
+  const query = encodeURIComponent(searchQuery);
+  const display = 100; // 검색 결과 개수 (최대 100)
+  const sort = 'sim'; // 정렬 (sim: 정확도순, date: 날짜순, asc: 가격오름차순, dsc: 가격내림차순)
+
+  let allItems = [];
+  let start = 1;
+  let hasMoreItems = true;
+  // 재검색일 때는 10페이지(1000개), 첫 검색일 때는 3페이지(300개)
+  const maxPages = isRetry ? 10 : 3;
+  const maxItems = isRetry ? 1000 : 300;
+  let retryCount = 0;
+  const maxRetries = 3;
+  let currentPage = 1;
+
+  while (hasMoreItems && allItems.length < maxItems && currentPage <= maxPages) {
+    // API 요청 URL
+    const apiUrl = `https://openapi.naver.com/v1/search/shop.json?query=${query}&display=${display}&start=${start}&sort=${sort}`;
+
+    try {
+      // API 요청 전 지연 시간
+      await delay(100);
+
+      // 네이버 API 인증 헤더와 랜덤 User-Agent 헤더 통합
+      const combinedHeaders = {
+        ...getRandomizedHeaders(false), // 랜덤 헤더 생성
+        'X-Naver-Client-Id': clientId,
+        'X-Naver-Client-Secret': clientSecret,
+      };
+
+      // API 요청 - 타임아웃 5초 설정
+      const response = await axios.get(apiUrl, {
+        headers: combinedHeaders,
+        timeout: 5000,
+      });
+
+      // 결과 파싱
+      const items = response.data.items.map(item => {
+        const title = item.title.replace(/<b>|<\/b>/g, ''); // HTML 태그 제거
+
+        // 레어도, 언어, 상태 정보 파싱
+        const rarityInfo = parseRarity(title);
+        const condition = parseCondition(title);
+        const cardCode = extractCardCode(title);
+
+        // 언어 정보 추출 (우선순위: 직접 상품명 > crawler.js의 parseLanguage > 카드코드)
+        let language;
+
+        // 1. 상품명에서 직접 추출 시도 (최우선)
+        const titleLanguage = extractLanguageFromTitle(title);
+        if (titleLanguage) {
+          language = titleLanguage;
+        } else {
+          // 2. crawler.js의 parseLanguage 사용
+          language = parseLanguage(title);
+
+          // 3. 여전히 알 수 없는 경우 카드코드에서 추출 시도
+          if (language === '알 수 없음' && cardCode && cardCode.fullCode) {
+            language = detectLanguageFromCardCode(cardCode.fullCode);
+          }
+        }
+
+        return {
+          title: title,
+          price: parseInt(item.lprice), // 최저가
+          site: item.mallName,
+          url: item.link,
+          productId: item.productId.toString(), // productId를 문자열로 변환
+          image: item.image, // 이미지 URL 추가
+          condition: condition,
+          rarity: rarityInfo.rarity,
+          rarityCode: rarityInfo.rarityCode,
+          language: language,
+          cardCode: cardCode ? cardCode.fullCode : null,
+          available: true,
+          brand: item.brand,
+          category: item.category1,
+        };
+      });
+
+      // 번개장터 상품을 필터링
+      const bungaeFiltered = items.filter(
+        item => item.site !== '번개장터' && !item.site.includes('번개장터')
+      );
+
+      // 언어가 '알 수 없음'인 상품을 필터링
+      const filteredItems = bungaeFiltered.filter(
+        item => item.language !== '알 수 없음' && item.rarity !== '알 수 없음'
+      );
+
+      // 유효한 유희왕 카드가 있으면 추가
+      if (filteredItems.length > 0) {
+        allItems = [...allItems, ...filteredItems];
+        console.log(
+          `[INFO] "${searchQuery}" ${currentPage}페이지에서 ${filteredItems.length}개의 유효한 유희왕 카드 발견`
+        );
+      } else {
+        console.log(
+          `[INFO] "${searchQuery}" ${currentPage}페이지에서 유효한 유희왕 카드를 찾지 못했습니다.`
+        );
+      }
+
+      retryCount = 0; // 성공하면 재시도 카운트 초기화
+
+      // 100개 미만의 결과를 받았거나 최대 페이지에 도달했다면 더 이상 요청하지 않음
+      if (items.length < display || currentPage >= maxPages) {
+        hasMoreItems = false;
+      } else {
+        start += display; // 다음 페이지로 이동
+        currentPage++;
+      }
+    } catch (error) {
+      // 429 에러(너무 많은 요청)가 발생한 경우 더 오래 대기한 후 재시도
+      if (error.response && error.response.status === 429) {
+        console.log('[WARN] 네이버 API 요청 한도 초과. 2초 대기 후 재시도합니다.');
+        await delay(2000);
+      } else if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') {
+        // 소켓 오류나 타임아웃 처리
+        retryCount++;
+        if (retryCount <= maxRetries) {
+          console.log(
+            `[WARN] 네이버 API 연결 오류(${error.code}). ${retryCount}/${maxRetries} 재시도 중...`
+          );
+          await delay(2000 * retryCount); // 재시도마다 대기 시간 증가
+          continue; // 현재 시도 건너뛰기
+        } else {
+          console.log('[WARN] 네이버 API 연결 오류. 최대 재시도 횟수 초과, 검색 종료.');
+          break; // 최대 재시도 횟수 초과하면 루프 종료
+        }
+      } else {
+        // 다른 오류는 로그만 남기고 검색 종료
+        console.error(`[ERROR] 네이버 API 오류: ${error.message}`);
+        break;
+      }
+    }
+  }
+
+  console.log(
+    `[INFO] "${searchQuery}" 검색 완료: 총 ${allItems.length}개의 유효한 유희왕 카드 발견 (${isRetry ? '재검색' : '첫 검색'}, 최대 ${maxItems}개)`
+  );
+  return allItems;
 };
 
 // 요청 제한이 적용된 함수 생성

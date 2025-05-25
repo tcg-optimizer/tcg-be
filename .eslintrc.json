@@ -11,10 +11,8 @@
   "plugins": ["prettier"],
   "rules": {
     "linebreak-style": ["error", "unix"],
-    "quotes": ["error", "single", { "avoidEscape": true }],
     "semi": ["error", "always"],
     "no-unused-vars": ["warn"],
-    "no-console": ["warn"],
     "prettier/prettier": [
       "error",
       {
