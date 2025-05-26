@@ -325,7 +325,7 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
 
               // 무료 배송 기준 다시 확인
               const shippingInfo = getShippingInfo(seller);
-              let newShippingCost = sellerData.shippingCost;
+              let newShippingCost;
 
               if (
                 shippingInfo.freeShippingThreshold > 0 &&
@@ -333,6 +333,9 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
                 newProductCost >= shippingInfo.freeShippingThreshold
               ) {
                 newShippingCost = 0;
+              } else {
+                // 무료배송 조건을 만족하지 못하면 정상 배송비 적용
+                newShippingCost = shippingInfo.shippingFee;
               }
 
               result.cardsOptimalPurchase[seller].shippingCost = newShippingCost;
