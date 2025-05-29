@@ -539,7 +539,6 @@ function getShippingInfo(site) {
     let sellerName = siteStr;
     if (sellerName.startsWith('Naver_')) {
       sellerName = sellerName.substring(6); // 'Naver_' 접두사 제거
-      console.log(`[DEBUG] 네이버 판매자 이름 변환: '${siteStr}' → '${sellerName}'`);
     }
 
     // 정규화된 이름으로 비교

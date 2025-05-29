@@ -211,8 +211,6 @@ const crawlCardDCWithRateLimit = withRateLimit(crawlCardDC, 'carddc');
  */
 const searchAndSaveCardDCPrices = async (cardName, cardId = null) => {
   try {
-    console.log(`[INFO] CardDC에서 "${cardName}" 검색 시작`);
-
     // 요청 제한이 적용된 함수 호출
     const results = await crawlCardDCWithRateLimit(cardName);
 

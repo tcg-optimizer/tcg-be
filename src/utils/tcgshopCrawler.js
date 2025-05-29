@@ -244,8 +244,6 @@ const crawlTCGShopWithRateLimit = withRateLimit(crawlTCGShop, 'tcgshop');
  */
 async function searchAndSaveTCGShopPrices(cardName, cardId) {
   try {
-    console.log(`[INFO] TCGShop에서 "${cardName}" 검색 시작`);
-
     // 요청 제한이 적용된 함수 호출
     const priceData = await crawlTCGShopWithRateLimit(cardName);
 

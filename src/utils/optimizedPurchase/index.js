@@ -128,9 +128,6 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
               const excludedIdStr = String(excludedId);
               if (productIdStr === excludedIdStr) {
                 shouldExcludeById = true;
-                console.log(
-                  `[INFO] 상품 ID "${productIdStr}"이 제외 목록에 있어 필터링됩니다. (카드: ${card.cardName || 'Unknown'})`
-                );
                 break;
               }
             }
@@ -230,9 +227,6 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
     // 추가 필터링: 결과에서 제외 목록에 있는 상품 제거 (이중 안전장치)
     if (result.cardsOptimalPurchase) {
       let hasExcludedProducts = false;
-
-      // 제외된 ID 로깅
-      console.log(`[DEBUG] 최종 결과 필터링 시작, 제외 목록: [${excludedProductIds.join(', ')}]`);
 
       // 제외된 카드 이름 목록
       const excludedCardNames = new Set();
@@ -372,10 +366,6 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
 
                 newPointsEarned = sellerPoints;
               }
-              // 로그 추가
-              console.log(
-                `[DEBUG] ${seller} 판매처의 적립금 재계산: ${newPointsEarned}원 (상품가격: ${newProductCost}원)`
-              );
 
               result.cardsOptimalPurchase[seller].pointsEarned = newPointsEarned;
 

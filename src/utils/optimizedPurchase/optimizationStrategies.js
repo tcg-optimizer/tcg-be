@@ -94,10 +94,6 @@ function tryMoveCardsToReachThreshold(
 
       // 비용이 줄어들면 카드 이동
       if (newTotalCost < currentTotalCost) {
-        console.log(
-          `[개선된 탐욕] 무료배송 달성을 위한 카드 이동: ${candidate.cardName} - ${sourceSellerName} → ${targetSeller} (비용 절감: ${currentTotalCost - newTotalCost}원)`
-        );
-
         // 소스 판매처에서 카드 제거
         const cardIndex = sourceSeller.cards.findIndex(c => c.cardName === candidate.cardName);
         if (cardIndex !== -1) {
@@ -370,10 +366,6 @@ function tryMultipleCardsMove(
 
   // 최적 조합 적용
   if (bestCombination.length > 0 && bestTotalCost < Infinity) {
-    console.log(
-      `[개선된 탐욕] 다중 카드 조합으로 무료배송 최적화 시도: ${bestCombination.length}개 카드 이동`
-    );
-
     // 판매처별 변경사항 추적
     const sourceUpdates = {};
 
@@ -604,10 +596,6 @@ function trySellersConsolidation(
 
       // 실제 비용 감소인 경우에만 이동
       if (newTotalCost < originalCost) {
-        console.log(
-          `[개선된 탐욕] 판매처 통합: ${sourceSellerName}의 모든 카드(${moves.length}개)를 ${bestTargetSeller}로 이동 (비용 변화: ${newTotalCost - originalCost}원)`
-        );
-
         // 모든 카드 이동 실행
         for (const move of moves) {
           // 소스 판매처에서 카드 제거

@@ -145,7 +145,6 @@ exports.getPricesByRarity = [
 
           if (isNormalizedFormat) {
             // 이미 정규화된 형식임
-            console.log('[DEBUG] 캐시 데이터가 정규화된 형식입니다.');
             normalizedRarityPrices = rarityPrices;
           }
           // 2. 배열로 저장된 데이터인지 확인 (인덱스 -> 가격정보 형태)
@@ -153,8 +152,6 @@ exports.getPricesByRarity = [
             Array.isArray(rarityPrices) ||
             Object.keys(rarityPrices).every(key => !isNaN(parseInt(key)))
           ) {
-            console.log('[DEBUG] 캐시 데이터가 배열/인덱스 형식입니다. 정규화를 시도합니다.');
-
             // 배열 또는 인덱스 키를 사용하는 객체를 정규화된 형태로 변환
             const prices = Array.isArray(rarityPrices) ? rarityPrices : Object.values(rarityPrices);
 
@@ -237,7 +234,6 @@ exports.getPricesByRarity = [
           }
           // 3. 구 형식 데이터 (language -> rarity -> prices[] 형태)
           else {
-            console.log('[DEBUG] 캐시 데이터가 구 형식입니다. 변환을 시도합니다.');
             // 구 형식 데이터를 새 형식으로 변환
             Object.keys(rarityPrices).forEach(language => {
               normalizedRarityPrices[language] = {};
@@ -257,18 +253,9 @@ exports.getPricesByRarity = [
           let totalProducts = 0;
           Object.keys(normalizedRarityPrices).forEach(language => {
             Object.keys(normalizedRarityPrices[language]).forEach(rarity => {
-              const beforeFilterCount = normalizedRarityPrices[language][rarity].prices.length;
               normalizedRarityPrices[language][rarity].prices = normalizedRarityPrices[language][
                 rarity
               ].prices.filter(price => price.available !== false);
-              const afterFilterCount = normalizedRarityPrices[language][rarity].prices.length;
-
-              if (beforeFilterCount !== afterFilterCount) {
-                console.log(
-                  `[DEBUG] 캐시에서 "${language}" / "${rarity}" 품절 상품 제외: ${beforeFilterCount - afterFilterCount}개`
-                );
-              }
-
               totalProducts += normalizedRarityPrices[language][rarity].prices.length;
             });
           });
@@ -292,9 +279,6 @@ exports.getPricesByRarity = [
 
           if (Object.keys(normalizedRarityPrices).length === 0) {
             // 정규화 후 데이터가 없는 경우 캐시 무효화
-            console.log(
-              '[WARN] 캐시 데이터 정규화 후 유효한 데이터가 없습니다. 캐시를 무효화합니다.'
-            );
 
             // 캐시 항목 만료 설정
             await cachedResult.update({
@@ -354,17 +338,6 @@ exports.getPricesByRarity = [
         }) */
           ]);
 
-        console.log(
-          `[DEBUG] 네이버 API 검색 결과: ${naverResult ? naverResult.count : 0}개 상품 발견`
-        );
-        console.log(
-          `[DEBUG] TCGShop 검색 결과: ${tcgshopResult ? tcgshopResult.count : 0}개 상품 발견`
-        );
-        console.log(
-          `[DEBUG] CardDC 검색 결과: ${cardDCResult ? cardDCResult.count : 0}개 상품 발견`
-        );
-        // console.log(`[DEBUG] OnlyYugioh 검색 결과: ${onlyYugiohResult ? onlyYugiohResult.count : 0}개 상품 발견`);
-
         // 결과가 하나라도 있는지 확인
         const hasResults =
           (naverResult && naverResult.count > 0) ||
@@ -415,9 +388,6 @@ exports.getPricesByRarity = [
             price.title &&
             /\[중고\]|\(중고\)|중고|중고품|used|듀얼용|실듀용/i.test(price.title)
           ) {
-            console.log(
-              `[DEBUG] 상품명에 '중고' 또는 '듀얼용' 키워드가 포함되어 필터링됨: ${price.title}`
-            );
             return false; // 중고 상품 제외
           }
           return true;
@@ -433,17 +403,10 @@ exports.getPricesByRarity = [
         const filteredPrices = bungaeFilteredPrices.filter(price => {
           // condition이 신품이 아닌 경우 필터링
           if (price.condition !== '신품') {
-            console.log(
-              `[DEBUG] condition이 '신품'이 아니어서 필터링됨: ${price.condition}, 상품명: ${price.title || '제목 없음'}`
-            );
             return false;
           }
           return true;
         });
-
-        console.log(
-          `[DEBUG] 중고 상품 필터링: ${prices.length}개 중 ${preFilteredPrices.length}개(1차), ${filteredPrices.length}개(2차) 남음`
-        );
 
         // 판매 사이트가 "네이버"인 경우 제외
         const siteFilteredPrices = filteredPrices.filter(
@@ -455,13 +418,6 @@ exports.getPricesByRarity = [
           // available 필드가 없거나 true인 경우만 포함
           return price.available !== false;
         });
-
-        console.log(
-          `[DEBUG] 품절 상품 필터링: ${siteFilteredPrices.length}개 중 ${availableFilteredPrices.length}개 상품 사용 가능`
-        );
-        console.log(
-          `[DEBUG] 사이트별 품절 상품 제외: TCGShop ${tcgshopResult?.prices?.filter(p => p.available === false).length || 0}개, CardDC ${cardDCResult?.prices?.filter(p => p.available === false).length || 0}개`
-        );
 
         // 카드가 아닌 상품 제외 (레어도나 언어가 '알 수 없음'인 카드의 경우에도 최저가 계산이 불가능하기 때문에 제외)
         const cardFilteredPrices = availableFilteredPrices.filter(
@@ -479,12 +435,6 @@ exports.getPricesByRarity = [
         const centerCardFilteredPrices = cardFilteredPrices.filter(
           price => !(price.cardCode && /^ST19-KRFC[1-4]$/i.test(price.cardCode))
         );
-
-        if (centerCardFilteredPrices.length !== cardFilteredPrices.length) {
-          console.log(
-            `[DEBUG] 센터 카드 필터링: ${cardFilteredPrices.length - centerCardFilteredPrices.length}개 제외됨`
-          );
-        }
 
         if (!centerCardFilteredPrices || centerCardFilteredPrices.length === 0) {
           return res.status(404).json({
@@ -546,7 +496,6 @@ exports.getPricesByRarity = [
 
           // 이미지가 필요한 경우에만 추가 API 호출
           if (needImage) {
-            console.log(`[DEBUG] 이미지 URL 추출을 위한 네이버 API 검색: "${cardName}"`);
             const { searchNaverShop } = require('../utils/naverShopApi');
 
             // 이미지만을 위한 API 호출은 결과 수를 제한하여 빠르게 반환
@@ -576,7 +525,6 @@ exports.getPricesByRarity = [
                   const key = `${language}:${rarity}`;
                   if (imageMap[key]) {
                     rarityPrices[language][rarity].image = imageMap[key];
-                    console.log(`[DEBUG] "${language}" / "${rarity}" 레어도 이미지 URL 설정`);
                   } else if (card.image) {
                     // 레어도별 이미지가 없으면 카드의 기본 이미지 사용
                     rarityPrices[language][rarity].image = card.image;
@@ -716,7 +664,6 @@ exports.searchNaverShopApi = [
   async (req, res) => {
     try {
       const { cardName } = req.query;
-      console.log(`[DEBUG] 네이버 쇼핑 API 요청: ${cardName}`);
 
       if (!cardName) {
         return res.status(400).json({
@@ -725,9 +672,7 @@ exports.searchNaverShopApi = [
         });
       }
 
-      console.log('[DEBUG] searchAndSaveCardPricesApi 함수 호출 시작');
       const result = await searchAndSaveCardPricesApi(cardName);
-      console.log(`[DEBUG] searchAndSaveCardPricesApi 함수 결과: ${result.count}`);
 
       if (result.count === 0) {
         return res.status(404).json({
@@ -762,7 +707,6 @@ exports.searchTCGShop = [
   async (req, res) => {
     try {
       const { cardName } = req.query;
-      console.log(`[DEBUG] TCGShop 검색 요청: ${cardName}`);
 
       if (!cardName) {
         return res.status(400).json({
@@ -784,9 +728,7 @@ exports.searchTCGShop = [
       const cardId = card ? card.id : null;
 
       // TCGShop 크롤링 및 가격 정보 저장
-      console.log('[DEBUG] searchAndSaveTCGShopPrices 함수 호출 시작');
       const result = await searchAndSaveTCGShopPrices(cardName, cardId);
-      console.log(`[DEBUG] searchAndSaveTCGShopPrices 함수 결과: ${result.count}`);
 
       if (result.count === 0) {
         return res.status(404).json({
@@ -821,7 +763,6 @@ exports.searchCardDC = [
   async (req, res) => {
     try {
       const { cardName } = req.query;
-      console.log(`[DEBUG] CardDC 검색 요청: ${cardName}`);
 
       if (!cardName) {
         return res.status(400).json({
@@ -843,9 +784,7 @@ exports.searchCardDC = [
       const cardId = card ? card.id : null;
 
       // CardDC 크롤링 및 가격 정보 저장
-      console.log('[DEBUG] searchAndSaveCardDCPrices 함수 호출 시작');
       const result = await searchAndSaveCardDCPrices(cardName, cardId);
-      console.log(`[DEBUG] searchAndSaveCardDCPrices 함수 결과: ${result.count}`);
 
       if (result.count === 0) {
         return res.status(404).json({
@@ -881,8 +820,7 @@ exports.searchOnlyYugioh = [
     /* 온리유희왕 쇼핑몰 일시적 영업 중단으로 주석 처리
   try {
     const { cardName } = req.query;
-    console.log(`[DEBUG] OnlyYugioh 검색 요청: ${cardName}`);
-    
+
     if (!cardName) {
       return res.status(400).json({ 
         success: false, 
@@ -903,9 +841,7 @@ exports.searchOnlyYugioh = [
     const cardId = card ? card.id : null;
     
     // OnlyYugioh 크롤링 및 가격 정보 저장
-    console.log('[DEBUG] searchAndSaveOnlyYugiohPrices 함수 호출 시작');
     const result = await searchAndSaveOnlyYugiohPrices(cardName, cardId);
-    console.log(`[DEBUG] searchAndSaveOnlyYugiohPrices 함수 결과: ${result.count}`);
     
     if (result.count === 0) {
       return res.status(404).json({ 
@@ -1051,18 +987,6 @@ exports.getOptimalPurchaseCombination = [
         });
       }
 
-      console.log(`최적 구매 조합 찾기 요청 - ${cards.length}개 카드`);
-      if (excludedProductIds.length > 0) {
-        console.log(
-          `[INFO] ${excludedProductIds.length}개의 상품 ID가 제외 목록에 추가됨: [${excludedProductIds.join(', ')}]`
-        );
-      }
-      if (excludedStores.length > 0) {
-        console.log(
-          `[INFO] ${excludedStores.length}개의 상점이 제외 목록에 추가됨: ${excludedStores.join(', ')}`
-        );
-      }
-
       // 센터 카드 필터링
       const filteredCards = cards.filter(card => {
         // cardCode 필드로 센터 카드 확인
@@ -1101,9 +1025,6 @@ exports.getOptimalPurchaseCombination = [
           // cacheId가 있으면 캐시에서 데이터 조회
           if (card.cacheId) {
             try {
-              console.log(
-                `[INFO] cacheId(${card.cacheId})로 "${card.name || card.cardName}" 카드의 캐시된 가격 정보 조회`
-              );
               const priceCache = await CardPriceCache.findByPk(card.cacheId);
 
               if (priceCache && new Date() <= new Date(priceCache.expiresAt)) {
@@ -1122,8 +1043,6 @@ exports.getOptimalPurchaseCombination = [
                 // 캐시가 만료된 경우 새로 조회
                 const cardName = card.cardName || card.name || priceCache.cardName;
                 try {
-                  console.log(`[INFO] "${cardName}" 카드의 가격 정보를 새로 조회합니다.`);
-
                   // 모든 소스에서 병렬로 검색 (Promise.all 사용)
                   const [naverResult, tcgshopResult, cardDCResult /* , onlyYugiohResult */] =
                     await Promise.all([
@@ -1151,18 +1070,6 @@ exports.getOptimalPurchaseCombination = [
                   return { count: 0, prices: [] };
                 }) */
                     ]);
-
-                  console.log(
-                    `[DEBUG] 네이버 API 검색 결과: ${naverResult ? naverResult.count : 0}개 상품 발견`
-                  );
-                  console.log(
-                    `[DEBUG] TCGShop 검색 결과: ${tcgshopResult ? tcgshopResult.count : 0}개 상품 발견`
-                  );
-                  console.log(
-                    `[DEBUG] CardDC 검색 결과: ${cardDCResult ? cardDCResult.count : 0}개 상품 발견`
-                  );
-                  // console.log(`[DEBUG] OnlyYugioh 검색 결과: ${onlyYugiohResult ? onlyYugiohResult.count : 0}개 상품 발견`);
-
                   // 결과가 하나라도 있는지 확인
                   const hasResults =
                     (naverResult && naverResult.count > 0) ||
@@ -1386,9 +1293,6 @@ exports.getOptimalPurchaseCombination = [
                 prices[card.language][card.rarity].image
               ) {
                 card.image = prices[card.language][card.rarity].image;
-                console.log(
-                  `[INFO] "${card.cardName}" 카드 이미지를 rarityPrices에서 찾았습니다: ${card.language}/${card.rarity}`
-                );
               }
               // 첫 번째 이미지 사용
               else {
@@ -1399,9 +1303,6 @@ exports.getOptimalPurchaseCombination = [
                   for (const rarity of Object.keys(prices[language])) {
                     if (prices[language][rarity].image) {
                       card.image = prices[language][rarity].image;
-                      console.log(
-                        `[INFO] "${card.cardName}" 카드 이미지를 rarityPrices에서 찾았습니다: ${language}/${rarity}`
-                      );
                       foundImage = true;
                       break;
                     }
@@ -1418,9 +1319,6 @@ exports.getOptimalPurchaseCombination = [
               prices[card.language][card.rarity]
             ) {
               card.products = prices[card.language][card.rarity].prices;
-              console.log(
-                `[INFO] "${card.cardName}" 카드의 ${card.language}/${card.rarity} 상품 ${card.products.length}개 변환됨`
-              );
             }
             // 지정된 레어도만 있는 경우
             else if (card.rarity) {
@@ -1431,9 +1329,6 @@ exports.getOptimalPurchaseCombination = [
                   card.products = [...card.products, ...prices[language][card.rarity].prices];
                 }
               });
-              console.log(
-                `[INFO] "${card.cardName}" 카드의 ${card.rarity} 레어도 상품 ${card.products.length}개 변환됨`
-              );
             }
             // 지정된 언어만 있는 경우
             else if (card.language && prices[card.language]) {
@@ -1442,9 +1337,6 @@ exports.getOptimalPurchaseCombination = [
               Object.keys(prices[card.language]).forEach(rarity => {
                 card.products = [...card.products, ...prices[card.language][rarity].prices];
               });
-              console.log(
-                `[INFO] "${card.cardName}" 카드의 ${card.language} 언어 상품 ${card.products.length}개 변환됨`
-              );
             }
             // 모든 상품 통합
             else {
@@ -1454,9 +1346,6 @@ exports.getOptimalPurchaseCombination = [
                   card.products = [...card.products, ...prices[language][rarity].prices];
                 });
               });
-              console.log(
-                `[INFO] "${card.cardName}" 카드의 모든 상품 ${card.products.length}개 변환됨`
-              );
             }
           } else if (!card.products) {
             console.log(
@@ -1480,7 +1369,6 @@ exports.getOptimalPurchaseCombination = [
                   const match = product.url.match(/goodsIdx=(\d+)/);
                   if (match && match[1]) {
                     productId = match[1];
-                    console.log(`[INFO] TCGShop URL에서 상품 ID 추출: ${productId}`);
                   }
                 }
 
@@ -1513,7 +1401,6 @@ exports.getOptimalPurchaseCombination = [
                   const match = product.product.url.match(/goodsIdx=(\d+)/);
                   if (match && match[1]) {
                     productId = match[1];
-                    console.log(`[INFO] TCGShop URL에서 상품 ID 추출: ${productId}`);
                   }
                 }
 
@@ -1554,11 +1441,6 @@ exports.getOptimalPurchaseCombination = [
           // 제외 목록을 기반으로 상품 필터링
           const beforeFilterCount = card.products.length;
 
-          // 디버깅을 위한 로그 추가
-          console.log(
-            `[DEBUG] 카드 "${card.cardName}" 필터링 시작, 상품 ${card.products.length}개, excludedProductIds: [${excludedProductIds.join(', ')}]`
-          );
-
           const filteredProducts = card.products.filter(product => {
             // 상품 ID 확인 (product.product.id 또는 product.id)
             const productId =
@@ -1575,9 +1457,6 @@ exports.getOptimalPurchaseCombination = [
               for (const excludedId of excludedProductIds) {
                 if (String(excludedId) === productId) {
                   isExcluded = true;
-                  console.log(
-                    `[DEBUG] "${card.cardName}" 카드의 상품 ID "${productId}" 제외됨 (정확히 일치)`
-                  );
                   break;
                 }
               }
@@ -1678,7 +1557,6 @@ exports.getOptimalPurchaseCombination = [
                   const match = card.url.match(/goodsIdx=(\d+)/);
                   if (match && match[1]) {
                     productId = match[1];
-                    console.log(`[INFO] TCGShop URL에서 상품 ID 추출: ${productId}`);
                   }
                 }
 
@@ -1711,7 +1589,6 @@ exports.getOptimalPurchaseCombination = [
                   const match = card.product.url.match(/goodsIdx=(\d+)/);
                   if (match && match[1]) {
                     productId = match[1];
-                    console.log(`[INFO] TCGShop URL에서 상품 ID 추출: ${productId}`);
                   }
                 }
 

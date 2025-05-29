@@ -117,29 +117,17 @@ function parseCondition(title) {
  * @returns {Object} - 파싱 결과
  */
 function testRarityParsing(title) {
-  console.log(`\n[TEST] 파싱 테스트 상품명: "${title}"`);
-
   // 레어도 파싱
   const rarityResult = parseRarity(title);
-  console.log(`[TEST] 레어도 파싱 결과: ${rarityResult.rarity} (${rarityResult.rarityCode})`);
 
   // 언어 파싱
   const language = parseLanguage(title);
-  console.log(`[TEST] 언어 파싱 결과: ${language}`);
 
   // 상품 상태 파싱
   const condition = parseCondition(title);
-  console.log(`[TEST] 상품 상태 파싱 결과: ${condition}`);
 
   // 카드 코드 추출
   const cardCode = extractCardCode(title);
-  if (cardCode) {
-    console.log(
-      `[TEST] 카드 코드 추출: ${cardCode.fullCode} (세트: ${cardCode.setCode}, 언어: ${cardCode.languageCode}, 번호: ${cardCode.cardNumber})`
-    );
-  }
-
-  console.log('');
 
   return {
     rarity: rarityResult.rarity,

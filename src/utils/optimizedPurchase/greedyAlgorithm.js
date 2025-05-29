@@ -162,19 +162,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
     considerPointsStr ? `예 (${considerPointsStr})` : '아니오'
   );
 
-  console.log(`[개선된 탐욕] 카드 정렬 전략 ${sortingStrategies.length}개 시도로 최적화 진행`);
-
-  // 적립금 옵션 상세 정보 출력
-  if (considerPointsStr) {
-    console.log('적립금 옵션 상세:');
-    if (pointsOptions.tcgshop) console.log('- TCGShop: 10% 적립');
-    if (pointsOptions.carddc) console.log('- CardDC: 10% 적립');
-    if (pointsOptions.naverBasic) console.log('- 네이버 기본: 2.5% 적립 (리뷰 적립금 포함)');
-    if (pointsOptions.naverBankbook) console.log('- 네이버 제휴통장: 0.5% 적립');
-    if (pointsOptions.naverMembership) console.log('- 네이버 멤버십: 4% 적립');
-    if (pointsOptions.naverHyundaiCard) console.log('- 네이버 현대카드: 7% 적립');
-  }
-
   // 각 카드별로 상위 판매처 고려 (고정값 사용)
   const maxSellersPerCard = 30; // 고정값: 각 카드별 고려할 최대 판매처 수
   const reducedCardsList = require('./cardUtils').filterTopSellers(cardsList, maxSellersPerCard);
@@ -219,8 +206,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
   let bestCost = Infinity;
 
   for (let strategyIndex = 0; strategyIndex < sortingStrategies.length; strategyIndex++) {
-    console.log(`\n[개선된 탐욕] 정렬 전략 #${strategyIndex + 1} 시도 중...`);
-
     // 정렬 전략 적용
     const sortedCards = sortingStrategies[strategyIndex](reducedCardsList);
 
@@ -230,7 +215,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
     // 각 판매처별로 무료 배송 조건을 충족하는 카드 조합 탐색
     const freeShippingCombinationsBySeller = {};
 
-    console.log('[개선된 탐욕] 각 판매처별 무료 배송 조합 탐색 중...');
     sellersList.forEach(seller => {
       const { freeShippingThreshold } = sellerShippingInfo[seller];
 
@@ -246,9 +230,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
 
         if (combinations.length > 0) {
           freeShippingCombinationsBySeller[seller] = combinations;
-          console.log(
-            `[개선된 탐욕] ${seller}: ${combinations.length}개의 무료 배송 가능 조합 발견`
-          );
         }
       }
     });
@@ -330,10 +311,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
         const freeShippingThreshold = sellerShippingInfo[seller].freeShippingThreshold;
 
         if (totalPrice >= freeShippingThreshold) {
-          console.log(
-            `[개선된 탐욕] ${seller}에 무료 배송 조합 할당: ${availableItems.length}개 카드 (절약: ${savings}원)`
-          );
-
           // 선택된 조합의 카드들 할당
           for (const item of availableItems) {
             const { card, product, price, quantity } = item;
@@ -396,7 +373,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
 
     // 2단계: 아직 할당되지 않은 카드는 일반 그리디 방식으로 할당
     const remainingCards = sortedCards.filter(card => !assignedCards.has(card.cardName));
-    console.log(`[개선된 탐욕] 남은 ${remainingCards.length}개 카드 그리디 방식으로 할당`);
 
     remainingCards.forEach((cardInfo, index) => {
       const { cardName, products, quantity = 1 } = cardInfo;
@@ -507,8 +483,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
       improved = false;
       iterations++;
 
-      console.log(`[개선된 탐욕] 최적화 반복 #${iterations}`);
-
       // 판매처 그룹화: 배송비를 지불하는 판매처와 배송비 면제 판매처
       const payingShippingFee = sellersList.filter(seller => {
         const details = purchaseDetails[seller];
@@ -532,7 +506,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
 
       // 배송비 지불 판매처가 없으면 종료
       if (payingShippingFee.length === 0) {
-        console.log('[개선된 탐욕] 더 이상 배송비를 지불하는 판매처가 없습니다.');
         break;
       }
 
@@ -811,10 +784,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
               newTotalCost < originalCost &&
               (newTotalCost < originalCost || newSourceSubtotal === 0)
             ) {
-              console.log(
-                `[개선된 탐욕] 카드 이동: ${card.cardName} - ${sourceSellerName} → ${targetSellerName} (비용 절감: ${originalCost - newTotalCost}원)`
-              );
-
               // 소스 판매처에서 카드 제거
               const cardIndex = sourceSeller.cards.findIndex(c => c.cardName === card.cardName);
               if (cardIndex !== -1) {
@@ -865,9 +834,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
       }
     }
 
-    // 추가 최적화: 판매처 통합 시도
-    console.log('[개선된 탐욕] 판매처 통합 최적화 시작...');
-
     let consolidationImproved = true;
     let consolidationIterations = 0;
     const MAX_CONSOLIDATION_ITERATIONS = 5; // 통합 시도 최대 횟수 제한
@@ -876,8 +842,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
       consolidationImproved = false;
       consolidationIterations++;
 
-      console.log(`[개선된 탐욕] 판매처 통합 시도 #${consolidationIterations}`);
-
       // 판매처 통합 최적화
       consolidationImproved = trySellersConsolidation(
         purchaseDetails,
@@ -885,10 +849,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
         cardsOptimalPurchase,
         reducedCardsList
       );
-
-      if (consolidationImproved) {
-        console.log('[개선된 탐욕] 판매처 통합 성공');
-      }
     }
 
     // 최종 결과 계산
@@ -967,9 +927,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
 
               // 수정: 리뷰 적립금을 포인트 합계에 직접 추가
               if (reviewPoints > 0) {
-                console.log(
-                  `[DEBUG] ${seller}에 대한 리뷰 적립금 ${reviewPoints}원 추가 (${uniqueCardNames.length}개 상품)`
-                );
                 details.points += reviewPoints;
                 // 총액에도 적립금 반영
                 details.total = details.subtotal + details.shippingFee - details.points;
@@ -1028,9 +985,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
 
           // 우선순위: 1. 카드 자체의 image 속성
           if (cardInfo && cardInfo.image) {
-            console.log(
-              `[INFO] "${card.cardName}" 카드의 이미지를 카드 객체에서 찾았습니다: ${cardInfo.image.substring(0, 30)}...`
-            );
             cardImagesMap[card.cardName] = cardInfo.image;
           }
           // 2. 카드의 products 배열이 존재하고 이미지가 있는 경우
@@ -1039,24 +993,18 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
             const firstProduct = cardInfo.products[0];
 
             if (firstProduct.image) {
-              console.log(
-                `[INFO] "${card.cardName}" 카드의 이미지를 products[0].image에서 찾았습니다`
-              );
               cardImagesMap[card.cardName] = firstProduct.image;
             }
             // 선택된 상품에 이미지가 있으면 사용
             else if (card.product && card.product.image) {
-              console.log(`[INFO] "${card.cardName}" 카드의 이미지를 선택된 상품에서 찾았습니다`);
               cardImagesMap[card.cardName] = card.product.image;
             } else {
               // 모든 상품을 검사하여 이미지 찾기
               const productWithImage = cardInfo.products.find(p => p.image);
               if (productWithImage) {
-                console.log(`[INFO] "${card.cardName}" 카드의 이미지를 다른 상품에서 찾았습니다`);
                 cardImagesMap[card.cardName] = productWithImage.image;
               } else {
                 cardImagesMap[card.cardName] = null;
-                console.log(`[WARN] "${card.cardName}" 카드의 이미지를 찾을 수 없습니다.`);
               }
             }
           } else {
@@ -1132,33 +1080,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
         algorithm: 'improved_greedy',
         version: 'v3.1.0',
       };
-
-      console.log(
-        `[개선된 탐욕] 전략 #${strategyIndex + 1} 결과 - 총비용: ${totalCost.toLocaleString()}원, 적립금: ${totalPointsEarned.toLocaleString()}원, 판매처: ${usedSellers.length}개 (현재 최적)`
-      );
-    } else {
-      console.log(
-        `[개선된 탐욕] 전략 #${strategyIndex + 1} 결과 - 총비용: ${totalCost.toLocaleString()}원, 적립금: ${totalPointsEarned.toLocaleString()}원 (최적 아님, 최적 비용: ${bestCost.toLocaleString()}원)`
-      );
-    }
-  }
-
-  console.log(`[개선된 탐욕] 최종 결과 - 총비용: ${bestCost.toLocaleString()}원`);
-
-  // 최종 적립금 정보 출력
-  if (bestSolution && bestSolution.totalPointsEarned > 0) {
-    console.log(
-      `[개선된 탐욕] 적립 예정 포인트: ${bestSolution.totalPointsEarned.toLocaleString()}원`
-    );
-
-    // 판매처별 적립금 상세 정보 출력
-    if (bestSolution.cardsOptimalPurchase) {
-      console.log('\n판매처별 적립금 상세:');
-      Object.entries(bestSolution.cardsOptimalPurchase).forEach(([seller, info]) => {
-        if (info.pointsEarned > 0) {
-          console.log(`- ${seller}: ${info.pointsEarned.toLocaleString()}원 적립`);
-        }
-      });
     }
   }
 

@@ -190,13 +190,6 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, isRetry =
       // 유효한 유희왕 카드가 있으면 추가
       if (filteredItems.length > 0) {
         allItems = [...allItems, ...filteredItems];
-        console.log(
-          `[INFO] "${searchQuery}" ${currentPage}페이지에서 ${filteredItems.length}개의 유효한 유희왕 카드 발견`
-        );
-      } else {
-        console.log(
-          `[INFO] "${searchQuery}" ${currentPage}페이지에서 유효한 유희왕 카드를 찾지 못했습니다.`
-        );
       }
 
       retryCount = 0; // 성공하면 재시도 카운트 초기화
@@ -250,8 +243,6 @@ const searchNaverShopWithRateLimit = withRateLimit(searchNaverShop, 'naver');
  */
 const searchAndSaveCardPricesApi = async (cardName, options = {}) => {
   try {
-    console.log(`[INFO] 네이버 쇼핑 API로 "${cardName}" 검색 시작`);
-
     // 요청 제한이 적용된 함수 호출
     const results = await searchNaverShopWithRateLimit(cardName, options);
 
