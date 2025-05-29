@@ -137,9 +137,6 @@ function filterTopSellers(cardsList, options = 5) {
           for (const excludedId of excludedProductIds) {
             if (String(excludedId) === productIdStr) {
               isExcluded = true;
-              console.log(
-                `[INFO] 상품 ID "${productIdStr}" 제외됨 (판매처: ${sellerId}, 카드: ${card.cardName || 'Unknown'})`
-              );
               break;
             }
           }
@@ -180,7 +177,6 @@ function filterTopSellers(cardsList, options = 5) {
           if (!isExcluded && includedSellers.size < topN) {
             includedSellers.add(sellerId);
             filteredBySellerProducts.push(product);
-            console.log(`[INFO] 대체 상품 추가됨: ${card.cardName || 'Unknown'} - ${sellerId}`);
 
             // 최대 판매처 수에 도달하면 종료
             if (includedSellers.size >= topN) {
@@ -189,11 +185,6 @@ function filterTopSellers(cardsList, options = 5) {
           }
         }
       }
-
-      // 결과 확인 로그
-      console.log(
-        `[INFO] 카드 '${card.cardName}': ${filteredBySellerProducts.length}개 판매처 선택됨 (총 ${groupedProducts.length}개 판매처 중)`
-      );
 
       return {
         ...card,

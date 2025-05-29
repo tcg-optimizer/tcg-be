@@ -59,7 +59,6 @@ const cardRoutes = require('./routes/cards');
 app.use(
   '/api/cards',
   (req, res, next) => {
-    console.log(`[DEBUG] 요청 수신: ${req.method} ${req.url}`);
     next();
   },
   cardRoutes

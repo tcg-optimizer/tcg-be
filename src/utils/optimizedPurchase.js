@@ -11,8 +11,6 @@ module.exports = require('./optimizedPurchase/index');
 
 const findOptimalPurchaseCombination = (cards, options = {}) => {
   try {
-    console.log(`[DEBUG] 최적 구매 조합 계산 시작 - ${cards.length}개 카드`);
-
     // 옵션 기본값 설정
     const defaultOptions = {
       maxSellersPerCard: 30, // 카드당 최대 판매자 수

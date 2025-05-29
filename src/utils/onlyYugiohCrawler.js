@@ -176,20 +176,14 @@ const crawlOnlyYugioh = async (cardName, cardId) => {
       let price = 0;
 
       try {
-        console.log(`[OnlyYugioh Debug] 상품 이름: ${title}`);
-
         // 명확한 선택자로 판매가 포함된 li 요소 선택
         const specList = productElement.find('ul.xans-element-.xans-search-listitem.spec');
 
         if (specList.length > 0) {
-          console.log('[OnlyYugioh Debug] spec 리스트 찾음');
-
           // 판매가가 포함된 li 요소 찾기
           const priceLi = specList.find('li:contains("판매가")');
 
           if (priceLi.length > 0) {
-            console.log(`[OnlyYugioh Debug] 판매가 li HTML: ${priceLi.html()}`);
-
             // 문자열에서 원본 HTML을 직접 분석하여 가격 찾기
             const html = priceLi.html();
             // 판매가 다음의 마지막 span 태그 내용을 추출
@@ -197,15 +191,11 @@ const crawlOnlyYugioh = async (cardName, cardId) => {
 
             if (priceMatch && priceMatch[1]) {
               const rawPriceText = priceMatch[1].trim();
-              console.log(`[OnlyYugioh Debug] 정규식으로 추출한 가격 텍스트: '${rawPriceText}'`);
-
               // 숫자만 추출 (쉼표와 '원' 제거)
               const priceText = rawPriceText.replace(/[^\d]/g, '');
-              console.log(`[OnlyYugioh Debug] 숫자만 추출: '${priceText}'`);
 
               if (priceText) {
                 price = parseInt(priceText, 10);
-                console.log(`[OnlyYugioh Debug] 최종 가격: ${price}`);
               }
             } else {
               // 두 번째 방법: 모든 span 중 원을 포함한 span 찾기
@@ -213,40 +203,30 @@ const crawlOnlyYugioh = async (cardName, cardId) => {
               priceSpans.each(function (i, elem) {
                 const spanText = $(elem).text().trim();
                 if (spanText.includes('원')) {
-                  console.log(`[OnlyYugioh Debug] 원을 포함한 span 텍스트: '${spanText}'`);
                   const priceText = spanText.replace(/[^\d]/g, '');
                   if (priceText) {
                     price = parseInt(priceText, 10);
-                    console.log(`[OnlyYugioh Debug] 최종 가격: ${price}`);
                     return false; // each 루프 종료
                   }
                 }
               });
             }
-          } else {
-            console.log('[OnlyYugioh Debug] 판매가 li를 찾을 수 없음');
           }
-        } else {
-          console.log('[OnlyYugioh Debug] spec 리스트를 찾을 수 없음');
         }
 
         // 대체 방법: 판매가가 포함된 어떤 li든 찾아서 처리
         if (price === 0) {
-          console.log('[OnlyYugioh Debug] 대체 방법 시도');
           const anyPriceLi = productElement.find('li:contains("판매가")');
           if (anyPriceLi.length > 0) {
             const allText = anyPriceLi.text().trim();
-            console.log(`[OnlyYugioh Debug] 판매가 li 전체 텍스트: '${allText}'`);
 
             // "판매가" 이후의, "원"을 포함한 부분 추출 시도
             const priceMatch = allText.match(/판매가[^0-9]*([0-9,]+원)/);
             if (priceMatch && priceMatch[1]) {
               const rawPrice = priceMatch[1];
-              console.log(`[OnlyYugioh Debug] 정규식으로 추출한 가격: '${rawPrice}'`);
               const priceNum = rawPrice.replace(/[^\d]/g, '');
               if (priceNum) {
                 price = parseInt(priceNum, 10);
-                console.log(`[OnlyYugioh Debug] 대체 방법으로 파싱한 최종 가격: ${price}`);
               }
             }
           }
@@ -360,8 +340,6 @@ const crawlOnlyYugiohWithRateLimit = withRateLimit(crawlOnlyYugioh, 'onlyyugioh'
  */
 const searchAndSaveOnlyYugiohPrices = async (cardName, cardId = null) => {
   try {
-    console.log(`[INFO] OnlyYugioh에서 "${cardName}" 검색 시작`);
-
     // 요청 제한이 적용된 함수 호출
     const results = await crawlOnlyYugiohWithRateLimit(cardName, cardId);
 

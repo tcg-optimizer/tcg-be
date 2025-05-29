@@ -58,9 +58,6 @@ function calculateNaverPoints(
     !reviewedProducts.has(productId)
   ) {
     totalPoints += pointsInfo.naverReview.amount;
-    console.log(
-      `[리뷰 적립금] ${productId}에 대한 리뷰 적립금 ${pointsInfo.naverReview.amount}원 추가 (상품가격: ${productPrice}원)`
-    );
     reviewedProducts.add(productId); // 리뷰 작성한 제품 추가
   }
 
