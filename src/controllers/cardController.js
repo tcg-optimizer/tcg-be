@@ -487,62 +487,61 @@ exports.getPricesByRarity = [
         });
 
         // 이미지 URL을 레어도별로 설정
-        // 1. 네이버 API 검색 결과에서 이미지 URL을 가져옵니다
+        // 1. 이미 가져온 네이버 API 검색 결과에서 이미지 URL을 가져옵니다
         try {
           // 이미지가 필요한 레어도 확인 (null인 이미지만 업데이트)
           const needImage = Object.values(rarityPrices).some(lang =>
             Object.values(lang).some(rarity => !rarity.image)
           );
 
-          // 이미지가 필요한 경우에만 추가 API 호출
-          if (needImage) {
-            const { searchNaverShop } = require('../utils/naverShopApi');
+          // 이미지가 필요한 경우 이미 가져온 네이버 결과에서 이미지 추출
+          if (needImage && naverResult && naverResult.prices && naverResult.prices.length > 0) {
+            console.log('[DEBUG] 이미 가져온 네이버 API 결과에서 이미지 추출');
 
-            // 이미지만을 위한 API 호출은 결과 수를 제한하여 빠르게 반환
-            const apiResults = await searchNaverShop(cardName);
+            // 객체로 변환하여 레어도/언어별 이미지 찾기 최적화
+            const imageMap = {};
 
-            // 결과에서 이미지 URL 데이터 추출
-            if (apiResults && apiResults.length > 0) {
-              // 객체로 변환하여 레어도/언어별 이미지 찾기 최적화
-              const imageMap = {};
+            // 네이버 검색 결과에서 이미지 데이터 추출
+            naverResult.prices.forEach(item => {
+              // CardPrice 객체의 구조에 맞게 접근 (dataValues 사용)
+              const priceData = item.dataValues || item;
 
-              apiResults.forEach(item => {
-                if (item.image && item.image.trim() !== '') {
-                  const key = `${item.language}:${item.rarity}`;
-                  if (!imageMap[key]) {
-                    imageMap[key] = item.image;
-                  }
+              // 카드 정보에서 이미지 가져오기 (네이버 API 결과의 카드 이미지)
+              if (naverResult.card && naverResult.card.image) {
+                const key = `${priceData.language}:${priceData.rarity}`;
+                if (!imageMap[key]) {
+                  imageMap[key] = naverResult.card.image;
+                }
+              }
+            });
+
+            // 레어도별 이미지 URL 설정
+            Object.keys(rarityPrices).forEach(language => {
+              Object.keys(rarityPrices[language]).forEach(rarity => {
+                // 이미 이미지가 있는 경우 건너뛰기
+                if (rarityPrices[language][rarity].image) return;
+
+                // 언어와 레어도에 맞는 이미지 찾기
+                const key = `${language}:${rarity}`;
+                if (imageMap[key]) {
+                  rarityPrices[language][rarity].image = imageMap[key];
+                } else if (card.image) {
+                  // 레어도별 이미지가 없으면 카드의 기본 이미지 사용
+                  rarityPrices[language][rarity].image = card.image;
                 }
               });
-
-              // 레어도별 이미지 URL 설정
-              Object.keys(rarityPrices).forEach(language => {
-                Object.keys(rarityPrices[language]).forEach(rarity => {
-                  // 이미 이미지가 있는 경우 건너뛰기
-                  if (rarityPrices[language][rarity].image) return;
-
-                  // 언어와 레어도에 맞는 이미지 찾기
-                  const key = `${language}:${rarity}`;
-                  if (imageMap[key]) {
-                    rarityPrices[language][rarity].image = imageMap[key];
-                  } else if (card.image) {
-                    // 레어도별 이미지가 없으면 카드의 기본 이미지 사용
-                    rarityPrices[language][rarity].image = card.image;
-                  }
-                });
+            });
+          } else if (card.image) {
+            // 네이버 검색 결과가 없거나 이미지가 필요하지 않은 경우 카드의 기본 이미지 사용
+            Object.keys(rarityPrices).forEach(language => {
+              Object.keys(rarityPrices[language]).forEach(rarity => {
+                if (!rarityPrices[language][rarity].image) {
+                  rarityPrices[language][rarity].image = card.image;
+                }
               });
-            } else if (card.image) {
-              // API 검색 결과가 없으면 카드의 기본 이미지 사용
-              Object.keys(rarityPrices).forEach(language => {
-                Object.keys(rarityPrices[language]).forEach(rarity => {
-                  if (!rarityPrices[language][rarity].image) {
-                    rarityPrices[language][rarity].image = card.image;
-                  }
-                });
-              });
-            }
+            });
           } else {
-            console.log('[DEBUG] 모든 레어도에 이미지가 이미 있습니다. 추가 API 호출 건너뜀');
+            console.log('[DEBUG] 이미지 설정을 위한 데이터가 없습니다.');
           }
         } catch (imageError) {
           console.error(`[ERROR] 이미지 URL 설정 오류: ${imageError.message}`);
