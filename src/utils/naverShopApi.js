@@ -68,17 +68,24 @@ const searchNaverShop = async cardName => {
       throw new Error('네이버 API 인증 정보가 설정되지 않았습니다.');
     }
 
-    // 첫 번째 검색 시도
+    // 첫 번째 검색 시도 (3페이지까지)
     let searchQuery = cardName;
-    let allItems = await performNaverSearch(searchQuery, clientId, clientSecret, false); // 첫 번째 검색
+    let allItems = await performNaverSearch(searchQuery, clientId, clientSecret, 3); // 3페이지까지 검색
 
-    // 3페이지(300개) 검색 후 유효한 유희왕 카드가 10개 미만이면 "유희왕"을 추가하여 재검색
-    if (allItems.length < 10 && !cardName.includes('유희왕')) {
+    // 3페이지 검색 후 유효한 유희왕 카드가 4개 미만이면 "유희왕"을 추가하여 재검색
+    if (allItems.length < 4 && !cardName.includes('유희왕')) {
       console.log(
         `[INFO] "${cardName}" 검색에서 유효한 유희왕 카드가 ${allItems.length}개로 부족합니다. "${cardName} 유희왕"으로 재검색합니다.`
       );
       searchQuery = `${cardName} 유희왕`;
-      allItems = await performNaverSearch(searchQuery, clientId, clientSecret, true); // 재검색 플래그 추가
+      allItems = await performNaverSearch(searchQuery, clientId, clientSecret, 10); // 10페이지까지 재검색
+    } else if (allItems.length >= 4) {
+      // 4개 이상이면 나머지 7페이지 추가 검색
+      console.log(
+        `[INFO] "${cardName}" 검색에서 유효한 유희왕 카드가 ${allItems.length}개 발견. 나머지 7페이지를 추가 검색합니다.`
+      );
+      const additionalItems = await performNaverSearch(searchQuery, clientId, clientSecret, 10, 4); // 4페이지부터 10페이지까지
+      allItems = [...allItems, ...additionalItems];
     }
 
     return allItems;
@@ -93,24 +100,23 @@ const searchNaverShop = async cardName => {
  * @param {string} searchQuery - 검색 쿼리
  * @param {string} clientId - 네이버 클라이언트 ID
  * @param {string} clientSecret - 네이버 클라이언트 시크릿
- * @param {boolean} isRetry - 재검색 여부 (true: 1000개까지, false: 300개까지)
+ * @param {number} maxPages - 최대 검색 페이지 수
+ * @param {number} startPage - 시작 페이지 (기본값: 1)
  * @returns {Promise<Array>} - 검색된 상품 정보 배열
  */
-const performNaverSearch = async (searchQuery, clientId, clientSecret, isRetry = false) => {
+const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages, startPage = 1) => {
   // 검색 파라미터 설정
   const query = encodeURIComponent(searchQuery);
   const display = 100; // 검색 결과 개수 (최대 100)
   const sort = 'sim'; // 정렬 (sim: 정확도순, date: 날짜순, asc: 가격오름차순, dsc: 가격내림차순)
 
   let allItems = [];
-  let start = 1;
+  let start = (startPage - 1) * display + 1; // 시작 페이지에 맞게 start 계산
   let hasMoreItems = true;
-  // 재검색일 때는 10페이지(1000개), 첫 검색일 때는 3페이지(300개)
-  const maxPages = isRetry ? 10 : 3;
-  const maxItems = isRetry ? 1000 : 300;
+  const maxItems = maxPages * display; // 최대 아이템 수
   let retryCount = 0;
   const maxRetries = 3;
-  let currentPage = 1;
+  let currentPage = startPage;
 
   while (hasMoreItems && allItems.length < maxItems && currentPage <= maxPages) {
     // API 요청 URL
@@ -196,6 +202,7 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, isRetry =
 
       // 100개 미만의 결과를 받았거나 최대 페이지에 도달했다면 더 이상 요청하지 않음
       if (items.length < display || currentPage >= maxPages) {
+        console.log(`[TEST] 최대 페이지 ${currentPage} 도달했습니다.`);
         hasMoreItems = false;
       } else {
         start += display; // 다음 페이지로 이동
@@ -228,7 +235,7 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, isRetry =
   }
 
   console.log(
-    `[INFO] "${searchQuery}" 검색 완료: 총 ${allItems.length}개의 유효한 유희왕 카드 발견 (${isRetry ? '재검색' : '첫 검색'}, 최대 ${maxItems}개)`
+    `[INFO] "${searchQuery}" 검색 완료: 총 ${allItems.length}개의 유효한 유희왕 카드 발견 (${maxPages}페이지, 최대 ${maxItems}개)`
   );
   return allItems;
 };
