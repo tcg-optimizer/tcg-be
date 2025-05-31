@@ -316,7 +316,7 @@ exports.getPricesByRarity = [
             // 네이버 쇼핑 API 검색
             searchAndSaveCardPricesApi(cardName).catch(error => {
               console.error(`[ERROR] 네이버 API 검색 오류: ${error.message}`);
-              return { count: 0, prices: [] };
+              return { count: 0, prices: [], rawResults: [] };
             }),
 
             // TCGShop 검색
@@ -487,7 +487,7 @@ exports.getPricesByRarity = [
         });
 
         // 이미지 URL을 레어도별로 설정
-        // 1. 이미 가져온 네이버 API 검색 결과에서 이미지 URL을 가져옵니다
+        // 1. 이미 가져온 네이버 API 결과에서 이미지 추출
         try {
           // 이미지가 필요한 레어도 확인 (null인 이미지만 업데이트)
           const needImage = Object.values(rarityPrices).some(lang =>
@@ -495,22 +495,40 @@ exports.getPricesByRarity = [
           );
 
           // 이미지가 필요한 경우 이미 가져온 네이버 결과에서 이미지 추출
-          if (needImage && naverResult && naverResult.prices && naverResult.prices.length > 0) {
+          if (
+            needImage &&
+            naverResult &&
+            naverResult.rawResults &&
+            naverResult.rawResults.length > 0
+          ) {
             console.log('[DEBUG] 이미 가져온 네이버 API 결과에서 이미지 추출');
 
             // 객체로 변환하여 레어도/언어별 이미지 찾기 최적화
             const imageMap = {};
 
-            // 네이버 검색 결과에서 이미지 데이터 추출
-            naverResult.prices.forEach(item => {
-              // CardPrice 객체의 구조에 맞게 접근 (dataValues 사용)
-              const priceData = item.dataValues || item;
+            // 네이버 원본 검색 결과에서 이미지 데이터 추출
+            naverResult.rawResults.forEach(item => {
+              // 각 상품의 이미지를 레어도/언어별로 매핑
+              if (item.language && item.rarity) {
+                const key = `${item.language}:${item.rarity}`;
 
-              // 카드 정보에서 이미지 가져오기 (네이버 API 결과의 카드 이미지)
-              if (naverResult.card && naverResult.card.image) {
-                const key = `${priceData.language}:${priceData.rarity}`;
-                if (!imageMap[key]) {
-                  imageMap[key] = naverResult.card.image;
+                // 상품별 이미지가 있으면 우선 사용
+                if (item.image && item.image.trim() !== '') {
+                  if (!imageMap[key]) {
+                    imageMap[key] = item.image;
+                    console.log(
+                      `[DEBUG] 상품별 이미지 매핑: ${key} -> ${item.image.substring(0, 50)}...`
+                    );
+                  }
+                }
+                // 상품별 이미지가 없으면 카드 기본 이미지 사용
+                else if (naverResult.card && naverResult.card.image) {
+                  if (!imageMap[key]) {
+                    imageMap[key] = naverResult.card.image;
+                    console.log(
+                      `[DEBUG] 카드 기본 이미지 매핑: ${key} -> ${naverResult.card.image.substring(0, 50)}...`
+                    );
+                  }
                 }
               }
             });
@@ -1048,7 +1066,7 @@ exports.getOptimalPurchaseCombination = [
                       // 네이버 쇼핑 API 검색
                       searchAndSaveCardPricesApi(cardName).catch(error => {
                         console.error(`[ERROR] 네이버 API 검색 오류: ${error.message}`);
-                        return { count: 0, prices: [] };
+                        return { count: 0, prices: [], rawResults: [] };
                       }),
 
                       // TCGShop 검색
