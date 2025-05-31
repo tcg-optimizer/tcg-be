@@ -13,6 +13,22 @@ function parseRarity(title) {
   // 레어도 우선순위(더 구체적인 것이 먼저 매칭되도록)
   const rarityPatterns = [
     {
+      pattern: /(오버\s*러시\s*레어|오버\s*러쉬\s*레어|오버러시레어|오버러시|over\s*rush\s*rare)/i,
+      rarity: '오버 러시 레어',
+      code: 'ORR',
+    },
+    {
+      pattern:
+        /(골드\s*러시\s*레어|골드\s*러쉬\s*레어|골드러시레어|골드러쉬레어|gold\s*rush\s*rare)/i,
+      rarity: '골드 러시 레어',
+      code: 'GRR',
+    },
+    {
+      pattern: /(러시\s*레어|러쉬\s*레어|러시레어|러쉬레어|rush\s*rare)/i,
+      rarity: '러시 레어',
+      code: 'RR',
+    },
+    {
       pattern: /(엑스트라\s*시크릿\s*레어|엑스트라시크릿레어|엑시크|extra\s*secret\s*rare)/i,
       rarity: '엑스트라 시크릿 레어',
       code: 'EXSE',

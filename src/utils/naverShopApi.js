@@ -338,6 +338,7 @@ const searchAndSaveCardPricesApi = async (cardName, options = {}) => {
       card,
       prices: savedPrices,
       count: savedPrices.length,
+      rawResults: filteredPriceData, // 원본 네이버 API 결과 (이미지 포함)
     };
   } catch (error) {
     console.error('카드 가격 저장 오류:', error);
