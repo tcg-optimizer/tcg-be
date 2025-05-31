@@ -68,16 +68,16 @@ const searchNaverShop = async cardName => {
       throw new Error('네이버 API 인증 정보가 설정되지 않았습니다.');
     }
 
-    // 첫 번째 검색 시도 (3페이지까지)
-    let searchQuery = cardName;
+    // 첫 번째 검색 시도 (3페이지까지) - 카드 이름만 따옴표로 감싸서 정확한 검색
+    let searchQuery = `${cardName}`;
     let allItems = await performNaverSearch(searchQuery, clientId, clientSecret, 3); // 3페이지까지 검색
 
-    // 3페이지 검색 후 유효한 유희왕 카드가 4개 미만이면 "유희왕"을 추가하여 재검색
-    if (allItems.length < 4 && !cardName.includes('유희왕')) {
+    // 3페이지 검색 후 유효한 유희왕 카드가 4개 미만이면 "유희왕 카드이름"으로 재검색
+    if (allItems.length < 4) {
       console.log(
-        `[INFO] "${cardName}" 검색에서 유효한 유희왕 카드가 ${allItems.length}개로 부족합니다. "${cardName} 유희왕"으로 재검색합니다.`
+        `[INFO] "${cardName}" 검색에서 유효한 유희왕 카드가 ${allItems.length}개로 부족합니다. "유희왕 ${cardName}"으로 재검색합니다.`
       );
-      searchQuery = `${cardName} 유희왕`;
+      searchQuery = `유희왕 "${cardName}"`;
       allItems = await performNaverSearch(searchQuery, clientId, clientSecret, 10); // 10페이지까지 재검색
     } else if (allItems.length >= 4) {
       // 4개 이상이면 나머지 7페이지 추가 검색
