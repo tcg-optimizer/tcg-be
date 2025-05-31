@@ -313,8 +313,8 @@ exports.getPricesByRarity = [
         // 모든 소스에서 병렬로 검색 (Promise.all 사용)
         const [naverResult, tcgshopResult, cardDCResult /* , onlyYugiohResult */] =
           await Promise.all([
-            // 네이버 쇼핑 API 검색 - 카드 이름만 따옴표로 감싸서 정확한 검색
-            searchAndSaveCardPricesApi(`${cardName}`).catch(error => {
+            // 네이버 쇼핑 API 검색
+            searchAndSaveCardPricesApi(cardName).catch(error => {
               console.error(`[ERROR] 네이버 API 검색 오류: ${error.message}`);
               return { count: 0, prices: [], rawResults: [] };
             }),
@@ -689,7 +689,7 @@ exports.searchNaverShopApi = [
         });
       }
 
-      const result = await searchAndSaveCardPricesApi(`"${cardName}"`);
+      const result = await searchAndSaveCardPricesApi(cardName);
 
       if (result.count === 0) {
         return res.status(404).json({
@@ -1064,7 +1064,7 @@ exports.getOptimalPurchaseCombination = [
                   const [naverResult, tcgshopResult, cardDCResult /* , onlyYugiohResult */] =
                     await Promise.all([
                       // 네이버 쇼핑 API 검색
-                      searchAndSaveCardPricesApi(`${cardName}`).catch(error => {
+                      searchAndSaveCardPricesApi(cardName).catch(error => {
                         console.error(`[ERROR] 네이버 API 검색 오류: ${error.message}`);
                         return { count: 0, prices: [], rawResults: [] };
                       }),
