@@ -495,6 +495,13 @@ const naverSellerShippingInfo = {
     islandShippingFee: 6000,
     freeShippingThreshold: 50000,
   },
+
+  온리유희왕: {
+    shippingFee: 4000,
+    jejuShippingFee: 4000,
+    islandShippingFee: 4000,
+    freeShippingThreshold: 50000,
+  },
 };
 
 const REGION_TYPES = {

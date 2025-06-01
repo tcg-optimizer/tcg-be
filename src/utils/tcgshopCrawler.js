@@ -87,14 +87,14 @@ async function crawlTCGShop(cardName, cardId) {
     const $ = cheerio.load(html);
     const items = [];
 
+    // 직접 검색 결과 처리
+    // TCGShop 검색 결과는 td.glist_01 요소로 시작하는 테이블 구조
+    const productCells = $('td.glist_01');
+
     // 검색 결과 개수 확인
     const resultCountText = $('font.nom_id').text();
     const resultCountMatch = resultCountText.match(/\d+/);
     const resultCount = resultCountMatch ? parseInt(resultCountMatch[0]) : 0;
-
-    // 직접 검색 결과 처리
-    // TCGShop 검색 결과는 td.glist_01 요소로 시작하는 테이블 구조
-    const productCells = $('td.glist_01');
 
     productCells.each((index, element) => {
       const productCell = $(element);
@@ -104,11 +104,8 @@ async function crawlTCGShop(cardName, cardId) {
 
       const title = productLink.text().trim();
 
-      // 제목에 카드명이 포함되어 있는지 확인 - 특수문자와 띄어쓰기를 제외하고 비교하도록 수정
-      const cleanCardName = cardName.replace(/[-=\s]/g, '').toLowerCase();
-      const cleanTitle = title.replace(/[-=\s]/g, '').toLowerCase();
-
-      if (!title || !cleanTitle.includes(cleanCardName)) return;
+      // 카드 코드 패턴인지 확인 (예: ALIN-KR011, ROTA-JP024 등)
+      const isCardCodePattern = /^[A-Z0-9]{2,5}-[A-Z]{2}\d{3,4}$/i.test(cardName.trim());
 
       // 상품 행 (tr) 찾기
       const productRow = productCell.closest('tr');
@@ -125,6 +122,25 @@ async function crawlTCGShop(cardName, cardId) {
           extractedCardCode = codeMatch[1];
         }
       }
+
+      // 제목에 카드명이 포함되어 있는지 확인
+      let isMatch = false;
+
+      if (isCardCodePattern) {
+        // 카드 코드로 검색하는 경우: 추출된 카드 코드와 비교
+        if (extractedCardCode) {
+          const cleanSearchCode = cardName.trim().toLowerCase();
+          const cleanExtractedCode = extractedCardCode.toLowerCase();
+          isMatch = cleanExtractedCode === cleanSearchCode;
+        }
+      } else {
+        // 일반 카드명으로 검색하는 경우: 기존 로직 사용 (특수문자와 띄어쓰기 제외)
+        const cleanCardName = cardName.replace(/[-=\s]/g, '').toLowerCase();
+        const cleanTitle = title.replace(/[-=\s]/g, '').toLowerCase();
+        isMatch = cleanTitle.includes(cleanCardName);
+      }
+
+      if (!title || !isMatch) return;
 
       // 레어도 정보 (코드 다음 행에 있음)
       let rarityRow = codeRow.next();

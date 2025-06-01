@@ -101,11 +101,30 @@ const crawlCardDC = async (cardName, cardId) => {
 
         const title = productLink.text().trim();
 
-        // 제목에 카드명이 포함되어 있는지 확인 - 특수문자와 띄어쓰기를 제외하고 비교하도록 수정
-        const cleanCardName = cardName.replace(/[-=\s]/g, '').toLowerCase();
-        const cleanTitle = title.replace(/[-=\s]/g, '').toLowerCase();
+        // 카드 코드 패턴인지 확인 (예: ALIN-KR011, ROTA-JP024 등)
+        const isCardCodePattern = /^[A-Z0-9]{2,5}-[A-Z]{2}\d{3,4}$/i.test(cardName.trim());
 
-        if (!title || !cleanTitle.includes(cleanCardName)) return;
+        // 카드 코드 추출 - li.pro_info_t2
+        const extractedCardCode = productCell.find('li.pro_info_t2').text().trim();
+
+        // 제목에 카드명이 포함되어 있는지 확인
+        let isMatch = false;
+
+        if (isCardCodePattern) {
+          // 카드 코드로 검색하는 경우: 추출된 카드 코드와 비교
+          if (extractedCardCode) {
+            const cleanSearchCode = cardName.trim().toLowerCase();
+            const cleanExtractedCode = extractedCardCode.toLowerCase();
+            isMatch = cleanExtractedCode === cleanSearchCode;
+          }
+        } else {
+          // 일반 카드명으로 검색하는 경우: 기존 로직 사용 (특수문자와 띄어쓰기 제외)
+          const cleanCardName = cardName.replace(/[-=\s]/g, '').toLowerCase();
+          const cleanTitle = title.replace(/[-=\s]/g, '').toLowerCase();
+          isMatch = cleanTitle.includes(cleanCardName);
+        }
+
+        if (!title || !isMatch) return;
 
         // 재고 여부 확인 - 품절된 상품은 처리하지 않음
         const isSoldOut = productCell.find('img[src*="icon_sortout.jpg"]').length > 0;
@@ -119,9 +138,6 @@ const crawlCardDC = async (cardName, cardId) => {
           detailUrl && detailUrl.startsWith('http')
             ? detailUrl
             : `https://www.carddc.co.kr/${detailUrl}`;
-
-        // 카드 코드 추출 - li.pro_info_t2
-        const extractedCardCode = productCell.find('li.pro_info_t2').text().trim();
 
         // 레어도 추출 - li.pro_info_t
         const rarityText = productCell.find('li.pro_info_t').text().trim();
