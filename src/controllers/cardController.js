@@ -6,6 +6,7 @@ const { searchAndSaveTCGShopPrices } = require('../utils/tcgshopCrawler');
 const { searchAndSaveCardDCPrices } = require('../utils/cardDCCrawler');
 // const { searchAndSaveOnlyYugiohPrices } = require('../utils/onlyYugiohCrawler'); // 온리유희왕 일시적 영업중단으로 주석처리
 const { findOptimalPurchaseCombination } = require('../utils/optimizedPurchase');
+const { shouldSkipMarketplace } = require('../utils/shippingInfo');
 const CardPriceCache = require('../models/CardPriceCache');
 const rateLimit = require('express-rate-limit');
 const { cardRequestLimiter } = require('../utils/rateLimiter');
@@ -1470,8 +1471,19 @@ exports.getOptimalPurchaseCombination = [
             const siteToCheck = product.site || (product.product && product.product.site);
             const isSiteExcluded = siteToCheck && excludedStores.includes(siteToCheck);
 
+            // 마켓플레이스 제외 확인 (쿠팡, G마켓 등)
+            let isMarketplaceExcluded = false;
+            if (siteToCheck) {
+              // 'Naver_' 접두사가 있는 경우 제거하여 판매자 이름만 추출
+              let sellerName = siteToCheck;
+              if (sellerName.startsWith('Naver_')) {
+                sellerName = sellerName.substring(6);
+              }
+              isMarketplaceExcluded = shouldSkipMarketplace(sellerName);
+            }
+
             // 제외되지 않은 상품만 통과
-            return !isExcluded && !isSiteExcluded;
+            return !isExcluded && !isSiteExcluded && !isMarketplaceExcluded;
           });
 
           const afterFilterCount = filteredProducts.length;
