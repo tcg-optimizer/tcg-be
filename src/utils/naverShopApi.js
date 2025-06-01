@@ -202,7 +202,6 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
 
       // 100개 미만의 결과를 받았거나 최대 페이지에 도달했다면 더 이상 요청하지 않음
       if (items.length < display || currentPage >= maxPages) {
-        console.log(`[TEST] 최대 페이지 ${currentPage} 도달했습니다.`);
         hasMoreItems = false;
       } else {
         start += display; // 다음 페이지로 이동

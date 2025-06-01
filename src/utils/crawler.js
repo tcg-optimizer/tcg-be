@@ -90,14 +90,13 @@ function extractCardCode(title) {
  * @returns {string} - 파싱된 상품 상태
  */
 function parseCondition(title) {
-  if (/\[S급\]|\(S급\)|S급|S\+|S등급|S-급/i.test(title)) {
+  if (/S-급|S-등급/i.test(title)) {
     return '중고';
   }
-
-  if (/\[A급\]|\(A급\)|A급|A\+|A등급/i.test(title)) {
+  if (/\[A급\]|\(A급\)|A급|A\+|A등급|A-급|A-등급/i.test(title)) {
     return '중고';
   }
-  if (/\[B급\]|\(B급\)|B급|B등급/i.test(title)) {
+  if (/\[B급\]|\(B급\)|B급|B등급|B-급|B-등급/i.test(title)) {
     return '중고';
   }
   if (/\[C급\]|\(C급\)|C급|C등급/i.test(title)) {
