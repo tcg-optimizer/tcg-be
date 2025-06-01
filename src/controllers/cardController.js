@@ -516,18 +516,12 @@ exports.getPricesByRarity = [
                 if (item.image && item.image.trim() !== '') {
                   if (!imageMap[key]) {
                     imageMap[key] = item.image;
-                    console.log(
-                      `[DEBUG] 상품별 이미지 매핑: ${key} -> ${item.image.substring(0, 50)}...`
-                    );
                   }
                 }
                 // 상품별 이미지가 없으면 카드 기본 이미지 사용
                 else if (naverResult.card && naverResult.card.image) {
                   if (!imageMap[key]) {
                     imageMap[key] = naverResult.card.image;
-                    console.log(
-                      `[DEBUG] 카드 기본 이미지 매핑: ${key} -> ${naverResult.card.image.substring(0, 50)}...`
-                    );
                   }
                 }
               }
@@ -1282,13 +1276,6 @@ exports.getOptimalPurchaseCombination = [
           // cardName 필드 보장 (name을 cardName으로 변환)
           if (!card.cardName && card.name) {
             card.cardName = card.name;
-          }
-
-          // 카드에 이미지 정보가 있는지 로그로 확인
-          if (card.image) {
-            console.log(
-              `[INFO] "${card.cardName}" 카드의 이미지 정보가 존재합니다: ${card.image.substring(0, 50)}...`
-            );
           }
 
           // products 필드 처리 (캐시 형식 변환)
