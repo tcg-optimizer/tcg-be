@@ -467,6 +467,34 @@ const naverSellerShippingInfo = {
     islandShippingFee: 6000,
     freeShippingThreshold: 50000,
   },
+
+  TCGHOME: {
+    shippingFee: 3000,
+    jejuShippingFee: 7000,
+    islandShippingFee: 7000,
+    freeShippingThreshold: 50000,
+  },
+
+  굿즈아레나: {
+    shippingFee: 3000,
+    jejuShippingFee: 5500,
+    islandShippingFee: 5500,
+    freeShippingThreshold: Infinity,
+  },
+
+  TCG카드프리덤: {
+    shippingFee: 3000,
+    jejuShippingFee: 6000,
+    islandShippingFee: 6000,
+    freeShippingThreshold: 50000,
+  },
+
+  DS듀얼: {
+    shippingFee: 3000,
+    jejuShippingFee: 6000,
+    islandShippingFee: 6000,
+    freeShippingThreshold: 50000,
+  },
 };
 
 const REGION_TYPES = {
