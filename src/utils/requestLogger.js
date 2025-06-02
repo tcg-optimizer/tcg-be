@@ -1,6 +1,6 @@
 /**
  * 사용자 요청 로깅 미들웨어
- * IP, User-Agent, 요청 경로, 파라미터 등을 상세하게 로깅
+ * User-Agent, 요청 경로, 파라미터 등을 상세하게 로깅
  */
 
 /**
@@ -11,7 +11,6 @@
 function createRequestLogger(endpointName) {
   return (req, res, next) => {
     const timestamp = new Date().toISOString();
-    const ip = getClientIP(req);
     const userAgent = req.get('User-Agent') || 'unknown';
     const method = req.method;
     const url = req.originalUrl || req.url;
@@ -22,7 +21,7 @@ function createRequestLogger(endpointName) {
     const pathParams = req.params && Object.keys(req.params).length > 0 ? req.params : null;
 
     // 로그 메시지 구성
-    let logMessage = `[REQUEST] IP: ${ip} | ${method} ${url} | Endpoint: ${endpointName} | UserAgent: ${userAgent}`;
+    let logMessage = `[REQUEST] ${method} ${url} | Endpoint: ${endpointName} | UserAgent: ${userAgent}`;
 
     if (queryParams) {
       logMessage += ` | Query: ${JSON.stringify(queryParams)}`;
@@ -44,32 +43,13 @@ function createRequestLogger(endpointName) {
       const statusCode = res.statusCode;
       const responseTime = Date.now() - new Date(timestamp).getTime();
 
-      console.log(
-        `[RESPONSE] IP: ${ip} | ${method} ${url} | Status: ${statusCode} | Time: ${responseTime}ms`
-      );
+      console.log(`[RESPONSE] ${method} ${url} | Status: ${statusCode} | Time: ${responseTime}ms`);
 
       originalSend.call(this, data);
     };
 
     next();
   };
-}
-
-/**
- * 클라이언트 실제 IP 주소 추출
- * @param {Object} req - Express 요청 객체
- * @returns {string} 클라이언트 IP 주소
- */
-function getClientIP(req) {
-  return (
-    req.ip ||
-    req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-    req.headers['x-real-ip'] ||
-    req.connection?.remoteAddress ||
-    req.socket?.remoteAddress ||
-    req.connection?.socket?.remoteAddress ||
-    'unknown'
-  );
 }
 
 /**
@@ -111,19 +91,17 @@ function sanitizeBody(body) {
  * @param {Object} additionalInfo - 추가 정보
  */
 function logUserRequest(req, endpoint, additionalInfo = {}) {
-  const ip = getClientIP(req);
   const userAgent = req.get('User-Agent') || 'unknown';
   const method = req.method;
   const url = req.originalUrl || req.url;
 
   console.log(
-    `[REQUEST] IP: ${ip} | ${method} ${url} | Endpoint: ${endpoint} | UserAgent: ${userAgent}${Object.keys(additionalInfo).length > 0 ? ` | ${JSON.stringify(additionalInfo)}` : ''}`
+    `[REQUEST] ${method} ${url} | Endpoint: ${endpoint} | UserAgent: ${userAgent}${Object.keys(additionalInfo).length > 0 ? ` | ${JSON.stringify(additionalInfo)}` : ''}`
   );
 }
 
 module.exports = {
   createRequestLogger,
   logUserRequest,
-  getClientIP,
   sanitizeBody,
 };
