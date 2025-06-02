@@ -15,6 +15,13 @@ const { sequelize, connectDB } = require('./utils/db');
 const { Card, CardPrice } = require('./models/Card');
 const CardPriceCache = require('./models/CardPriceCache');
 
+// 모니터링 모듈 로드
+const {
+  monitoringMiddleware,
+  setupServerMonitoring,
+  metricsHandler,
+} = require('./monitoring/middleware');
+
 // Express 앱 초기화
 const app = express();
 
@@ -33,6 +40,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
+
+// 모니터링 미들웨어 추가 (다른 라우트들보다 먼저 설정)
+app.use(monitoringMiddleware);
 
 // API 요청 제한 설정
 const apiLimiter = rateLimit({
@@ -64,6 +74,19 @@ app.use(
   cardRoutes
 );
 
+// 메트릭 엔드포인트 (개선된 버전)
+app.get('/metrics', metricsHandler);
+
+// 헬스체크 엔드포인트
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+  });
+});
+
 // 에러 핸들링 미들웨어
 app.use((req, res, next) => {
   const error = new Error('Not Found');
@@ -84,9 +107,14 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 // 서버 시작
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
-  console.log('API 요청 제한 설정이 활성화되었습니다:');
+  console.log('API 요청 제한 설정이 활성화되었습니다.');
+  console.log('Prometheus 메트릭이 /metrics 엔드포인트에서 제공됩니다.');
+  console.log('Event Loop Utilization 모니터링이 활성화되었습니다.');
 });
+
+// 서버 모니터링 설정
+setupServerMonitoring(server);
 
 module.exports = app;

@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 15s # 15초마다 메트릭 수집
+  evaluation_interval: 15s # 15초마다 규칙 평가
+
+# 알림 규칙 파일 경로 (선택사항)
+rule_files:
+  # - "alerts.yml"
+
+# 스크래핑 설정
+scrape_configs:
+  # Prometheus 자체 모니터링
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # 유희왕 카드 API 서버 모니터링
+  - job_name: 'tcg-optimizer-api'
+    static_configs:
+      - targets: ['host.docker.internal:5000']
+    scrape_interval: 10s # API 서버는 더 자주 수집
+    metrics_path: /metrics
+    scrape_timeout: 5s
+
+# 알림 매니저 설정 (선택사항)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - alertmanager:9093 
