@@ -94,8 +94,6 @@ exports.getPricesByRarity = [
         });
       }
 
-      console.log(`[DEBUG] 레어도별 가격 정보 검색: "${cardName}", 중고포함=${includeUsed}`);
-
       let card = null;
       let prices = [];
       let searchSource = 'api';
@@ -309,8 +307,6 @@ exports.getPricesByRarity = [
 
       // 2. 캐시에 없으면 모든 소스에서 동시에 검색
       try {
-        console.log(`[DEBUG] "${cardName}" 검색 시작 - 모든 소스에서 병렬 검색`);
-
         // 모든 소스에서 병렬로 검색 (Promise.all 사용)
         const [naverResult, tcgshopResult, cardDCResult /* , onlyYugiohResult */] =
           await Promise.all([
@@ -502,8 +498,6 @@ exports.getPricesByRarity = [
             naverResult.rawResults &&
             naverResult.rawResults.length > 0
           ) {
-            console.log('[DEBUG] 이미 가져온 네이버 API 결과에서 이미지 추출');
-
             // 객체로 변환하여 레어도/언어별 이미지 찾기 최적화
             const imageMap = {};
 

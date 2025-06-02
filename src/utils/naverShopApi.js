@@ -109,6 +109,7 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
   const query = encodeURIComponent(searchQuery);
   const display = 100; // 검색 결과 개수 (최대 100)
   const sort = 'sim'; // 정렬 (sim: 정확도순, date: 날짜순, asc: 가격오름차순, dsc: 가격내림차순)
+  const exclude = 'used:rental:cbshop'; // 중고, 렌탈, 해외직구/구매대행 제외
 
   let allItems = [];
   let start = (startPage - 1) * display + 1; // 시작 페이지에 맞게 start 계산
@@ -120,7 +121,7 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
 
   while (hasMoreItems && allItems.length < maxItems && currentPage <= maxPages) {
     // API 요청 URL
-    const apiUrl = `https://openapi.naver.com/v1/search/shop.json?query=${query}&display=${display}&start=${start}&sort=${sort}`;
+    const apiUrl = `https://openapi.naver.com/v1/search/shop.json?query=${query}&display=${display}&start=${start}&sort=${sort}&exclude=${exclude}`;
 
     try {
       // API 요청 전 지연 시간
