@@ -502,6 +502,13 @@ const naverSellerShippingInfo = {
     islandShippingFee: 4000,
     freeShippingThreshold: 50000,
   },
+
+  흑석블랙스톤: {
+    shippingFee: 3000,
+    jejuShippingFee: 3000,
+    islandShippingFee: 3000,
+    freeShippingThreshold: 50000,
+  },
 };
 
 const REGION_TYPES = {

@@ -2,10 +2,9 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const iconv = require('iconv-lite'); // EUC-KR 인코딩 처리를 위해 필요
 const { parseRarity } = require('./rarityUtil');
-const { parseLanguage, parseCondition, extractCardCode } = require('./crawler');
-const { Card, CardPrice } = require('../models/Card');
+const { parseLanguage, parseCondition } = require('./crawler');
 const { withRateLimit } = require('./rateLimiter');
-const { getSiteSpecificHeaders, createCrawlerConfig } = require('./userAgentUtil');
+const { createCrawlerConfig } = require('./userAgentUtil');
 
 /**
  * 카드 이름을 EUC-KR로 인코딩합니다 (TCGShop은 EUC-KR 인코딩 사용)
@@ -90,11 +89,6 @@ async function crawlTCGShop(cardName, cardId) {
     // 직접 검색 결과 처리
     // TCGShop 검색 결과는 td.glist_01 요소로 시작하는 테이블 구조
     const productCells = $('td.glist_01');
-
-    // 검색 결과 개수 확인
-    const resultCountText = $('font.nom_id').text();
-    const resultCountMatch = resultCountText.match(/\d+/);
-    const resultCount = resultCountMatch ? parseInt(resultCountMatch[0]) : 0;
 
     productCells.each((index, element) => {
       const productCell = $(element);
@@ -289,7 +283,7 @@ async function searchAndSaveTCGShopPrices(cardName, cardId) {
 
     // 새 가격 정보 저장
     if (cardId) {
-      const savedPrices = await Promise.all(
+      await Promise.all(
         priceData.map(async item => {
           const savedPrice = await CardPrice.create({
             cardId: cardId,

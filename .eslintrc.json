@@ -11,7 +11,13 @@
   "plugins": ["prettier"],
   "rules": {
     "semi": ["error", "always"],
-    "no-unused-vars": ["warn"],
+    "no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_"
+      }
+    ],
     "prettier/prettier": [
       "error",
       {

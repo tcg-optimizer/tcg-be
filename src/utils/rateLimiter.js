@@ -4,7 +4,6 @@
  */
 
 const { redisClient } = require('./db');
-const { getRandomizedHeaders, getSiteSpecificHeaders } = require('./userAgentUtil');
 
 // 사이트별 초당 최대 요청 수 설정
 const RATE_LIMITS = {

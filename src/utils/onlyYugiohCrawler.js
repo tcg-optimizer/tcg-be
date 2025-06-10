@@ -1,12 +1,11 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
-const iconv = require('iconv-lite'); // EUC-KR 인코딩 처리를 위해 필요
 const { parseRarity } = require('./rarityUtil');
-const { parseLanguage, parseCondition, extractCardCode } = require('./crawler');
-const { encodeEUCKR, detectLanguageFromCardCode } = require('./tcgshopCrawler');
-const { Card, CardPrice } = require('../models/Card');
+const { parseCondition } = require('./crawler');
+const { detectLanguageFromCardCode } = require('./tcgshopCrawler');
+const { CardPrice } = require('../models/Card');
 const { withRateLimit } = require('./rateLimiter');
-const { getSiteSpecificHeaders, createCrawlerConfig } = require('./userAgentUtil');
+const { createCrawlerConfig } = require('./userAgentUtil');
 
 /**
  * OnlyYugioh에서 일관된 상품 ID를 생성합니다.
@@ -80,17 +79,6 @@ const crawlOnlyYugioh = async (cardName, cardId) => {
     // Cheerio로 HTML 파싱
     const $ = cheerio.load(response.data);
     const items = [];
-
-    // 검색 결과 개수 추출 시도
-    let resultCount = 0;
-    const searchResultText = $('.xans-search-total, .xans-element-.xans-search.xans-search-total')
-      .text()
-      .trim();
-
-    const resultMatch = searchResultText.match(/총\s+(\d+)개/);
-    if (resultMatch && resultMatch[1]) {
-      resultCount = parseInt(resultMatch[1]);
-    }
 
     // 여러 가지 선택자 시도
     const productSelectors = [
@@ -366,7 +354,7 @@ const searchAndSaveOnlyYugiohPrices = async (cardName, cardId = null) => {
 
     // 새 가격 정보 저장
     if (cardId) {
-      const savedPrices = await Promise.all(
+      await Promise.all(
         results.map(async item => {
           // 일관된 ID 생성
           const consistentProductId = generateOnlyYugiohProductId(item.url, item.productId);

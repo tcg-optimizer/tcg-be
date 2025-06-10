@@ -65,7 +65,18 @@ function parseRarity(title) {
     },
     {
       pattern:
-        /(밀레니엄\s*레어|밀\s*레어|밀레니엄레어|밀레어|밀레니엄|millennium\s*rare|millennium)/i,
+        /(블루\s*시크릿\s*레어|블루시크릿레어|블루\s*시크|blue\s*secret\s*rare|블루\s*secret\s*레어|special\s*blue\s*ver|스페셜\s*블루)/i,
+      rarity: '블루 시크릿 레어',
+      code: 'BSE',
+    },
+    {
+      pattern:
+        /(레드\s*시크릿\s*레어|레드시크릿레어|레드\s*시크|red\s*secret\s*rare|레드\s*secret\s*레어|special\s*red\s*ver|스페셜\s*레드)/i,
+      rarity: '레드 시크릿 레어',
+      code: 'RSE',
+    },
+    {
+      pattern: /(밀레니엄\s*레어|밀레니엄레어|millennium\s*rare|millennium)/i,
       rarity: '밀레니엄 레어',
       code: 'M',
     },

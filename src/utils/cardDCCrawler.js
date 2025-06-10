@@ -2,11 +2,11 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const iconv = require('iconv-lite'); // EUC-KR 인코딩 처리를 위해 필요
 const { parseRarity } = require('./rarityUtil');
-const { parseLanguage, parseCondition, extractCardCode } = require('./crawler');
+const { parseLanguage, parseCondition } = require('./crawler');
 const { encodeEUCKR, detectLanguageFromCardCode } = require('./tcgshopCrawler');
-const { Card, CardPrice } = require('../models/Card');
+const { CardPrice } = require('../models/Card');
 const { withRateLimit } = require('./rateLimiter');
-const { getSiteSpecificHeaders, createCrawlerConfig } = require('./userAgentUtil');
+const { createCrawlerConfig } = require('./userAgentUtil');
 
 /**
  * CardDC에서 일관된 상품 ID를 생성합니다.
@@ -79,12 +79,6 @@ const crawlCardDC = async (cardName, cardId) => {
     // Cheerio로 HTML 파싱
     const $ = cheerio.load(html);
     const items = [];
-
-    // 검색 결과 개수 추출
-    const resultCountText = $('body')
-      .text()
-      .match(/총 (\d+)개의 상품이 있습니다/);
-    const resultCount = resultCountText ? parseInt(resultCountText[1]) : 0;
 
     // 상품 목록 처리 - 테이블 내의 모든 tr 요소 확인
     $('table tr').each((index, row) => {
@@ -253,7 +247,7 @@ const searchAndSaveCardDCPrices = async (cardName, cardId = null) => {
 
     // 새 가격 정보 저장
     if (cardId) {
-      const savedPrices = await Promise.all(
+      await Promise.all(
         results.map(async item => {
           // 일관된 ID 생성
           const consistentProductId = generateCardDCProductId(item.url, item.productId);

@@ -12,8 +12,8 @@ dotenv.config();
 const { sequelize, connectDB } = require('./utils/db');
 
 // 모델 로드 (테이블 생성을 위해)
-const { Card, CardPrice } = require('./models/Card');
-const CardPriceCache = require('./models/CardPriceCache');
+require('./models/Card');
+require('./models/CardPriceCache');
 
 // Express 앱 초기화
 const app = express();
@@ -58,20 +58,20 @@ app.get('/', (req, res) => {
 const cardRoutes = require('./routes/cards');
 app.use(
   '/api/cards',
-  (req, res, next) => {
-    next();
+  (req, res, _next) => {
+    _next();
   },
   cardRoutes
 );
 
 // 에러 핸들링 미들웨어
-app.use((req, res, next) => {
+app.use((req, res, _next) => {
   const error = new Error('Not Found');
   error.status = 404;
-  next(error);
+  _next(error);
 });
 
-app.use((err, req, res, next) => {
+app.use((err, req, res) => {
   res.status(err.status || 500);
   res.json({
     error: {

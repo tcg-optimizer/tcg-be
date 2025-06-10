@@ -238,7 +238,6 @@ function tryMultipleCardsMove(
     for (const combination of combinations) {
       // 카드 조합의 총 가격
       let combinationTargetPrice = 0;
-      let combinationSourcePrice = 0;
 
       // 원본 상태 백업
       const originalDetails = {};
@@ -253,7 +252,7 @@ function tryMultipleCardsMove(
         }
 
         combinationTargetPrice += card.targetPrice * card.quantity;
-        combinationSourcePrice += card.currentPrice * card.quantity;
+        // combinationSourcePrice += card.currentPrice * card.quantity; // 사용되지 않음
       });
 
       // 타겟 판매처 원본 상태
@@ -272,36 +271,21 @@ function tryMultipleCardsMove(
           ? 0
           : sellerShippingInfo[targetSeller].shippingFee;
 
-      // 소스 판매처들의 새 배송비 계산
-      let totalSourceNewShippingFee = 0;
-      let totalSourceOldShippingFee = 0;
-
       combination.forEach(card => {
         const seller = card.seller;
-        const sourceThreshold = sellerShippingInfo[seller].freeShippingThreshold;
-        const sourceShippingFee = sellerShippingInfo[seller].shippingFee;
+        // const sourceThreshold = sellerShippingInfo[seller].freeShippingThreshold; // 사용되지 않음
+        // const sourceShippingFee = sellerShippingInfo[seller].shippingFee; // 사용되지 않음
 
         // 이미 처리한 판매처는 건너뜀
         if (originalDetails[seller].processed) return;
 
-        const currentSubtotal = originalDetails[seller].subtotal;
-        const currentShippingFee = originalDetails[seller].shippingFee;
+        // const currentSubtotal = originalDetails[seller].subtotal; // 사용되지 않음
+        // const currentShippingFee = originalDetails[seller].shippingFee; // 사용되지 않음
 
         // 같은 판매처에서 오는 모든 카드의 가격 합산
-        const allCardsPrice = combination
-          .filter(c => c.seller === seller)
-          .reduce((sum, c) => sum + c.currentPrice * c.quantity, 0);
-
-        const newSubtotal = currentSubtotal - allCardsPrice;
-        const newShippingFee =
-          newSubtotal > 0
-            ? newSubtotal >= sourceThreshold && sourceThreshold !== Infinity
-              ? 0
-              : sourceShippingFee
-            : 0;
-
-        totalSourceOldShippingFee += currentShippingFee;
-        totalSourceNewShippingFee += newShippingFee;
+        // const allCardsPrice = combination
+        //   .filter(c => c.seller === seller)
+        //   .reduce((sum, c) => sum + c.currentPrice * c.quantity, 0); // 사용되지 않음
 
         // 처리 표시
         originalDetails[seller].processed = true;
@@ -312,10 +296,10 @@ function tryMultipleCardsMove(
         delete originalDetails[seller].processed;
       });
 
-      // 총 비용 변화 계산
-      const oldTotalCost =
-        originalTargetDetails.total +
-        combination.reduce((sum, card) => sum + originalDetails[card.seller].total, 0);
+      // 총 비용 변화 계산 (현재 사용되지 않음)
+      // const oldTotalCost =
+      //   originalTargetDetails.total +
+      //   combination.reduce((sum, card) => sum + originalDetails[card.seller].total, 0);
       const newTargetTotal = newTargetSubtotal + newTargetShippingFee;
 
       // 소스 판매처들의 새 총액 계산
@@ -328,14 +312,14 @@ function tryMultipleCardsMove(
         // 이미 처리한 판매처는 건너뜀
         if (sourceSellerUpdates[seller]) return;
 
-        const currentSubtotal = originalDetails[seller].subtotal;
+        // const currentSubtotal = originalDetails[seller].subtotal; // 사용되지 않음
 
         // 같은 판매처에서 오는 모든 카드의 가격 합산
-        const allCardsPrice = combination
-          .filter(c => c.seller === seller)
-          .reduce((sum, c) => sum + c.currentPrice * c.quantity, 0);
+        // const allCardsPrice = combination
+        //   .filter(c => c.seller === seller)
+        //   .reduce((sum, c) => sum + c.currentPrice * c.quantity, 0); // 사용되지 않음
 
-        const newSubtotal = currentSubtotal - allCardsPrice;
+        const newSubtotal = originalDetails[seller].subtotal - combinationTargetPrice;
         const newShippingFee =
           newSubtotal > 0
             ? newSubtotal >= sellerShippingInfo[seller].freeShippingThreshold &&
@@ -658,9 +642,9 @@ function trySellersConsolidation(
  */
 function tryComplexOptimization(
   purchaseDetails,
-  sellerShippingInfo,
-  cardsOptimalPurchase,
-  cardsList
+  _sellerShippingInfo,
+  _cardsOptimalPurchase,
+  _cardsList
 ) {
   // 사용 중인 판매처 목록
   const usedSellers = Object.keys(purchaseDetails).filter(
@@ -675,17 +659,8 @@ function tryComplexOptimization(
     return purchaseDetails[seller].shippingFee > 0;
   });
 
-  const freeShippingSellers = usedSellers.filter(seller => {
-    return (
-      purchaseDetails[seller].shippingFee === 0 &&
-      sellerShippingInfo[seller].freeShippingThreshold !== Infinity
-    );
-  });
-
   // 배송비 지불 판매처가 없으면 추가 최적화 불필요
   if (payingShippingFee.length === 0) return false;
-
-  // (함수 내용 생략)
 
   return false; // 현재 구현에서는 실제 최적화 시도 없음
 }

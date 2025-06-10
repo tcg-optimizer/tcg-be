@@ -1,5 +1,3 @@
-const axios = require('axios');
-const cheerio = require('cheerio');
 const { Op } = require('sequelize');
 const { Card, CardPrice } = require('../models/Card');
 const { parseRarity } = require('./rarityUtil');
@@ -145,7 +143,7 @@ function testRarityParsing(title) {
 async function searchAndSaveCardPrices(cardName) {
   try {
     // 카드 찾기 또는 생성
-    let [card, created] = await Card.findOrCreate({
+    let [card] = await Card.findOrCreate({
       where: { name: cardName },
       defaults: { name: cardName },
     });
