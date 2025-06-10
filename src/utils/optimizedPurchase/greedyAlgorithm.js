@@ -190,7 +190,10 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
       sellerName = sellerName.substring(6);
     }
 
-    // 방문수령 옵션이 활성화된 상점인지 확인
+    // 방문수령 옵션이 활성화된 상점인지 확인 (정규화된 이름으로 비교)
+    const { normalizeSellerName } = require('../shippingInfo');
+    const normalizedSellerName = normalizeSellerName(sellerName);
+
     let isTakeoutEnabled = false;
     let takeoutFee = null;
 
@@ -200,11 +203,19 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
         .map(key => TAKEOUT_KEY_MAPPING[key])
         .filter(Boolean);
 
-      // 현재 상점이 방문수령 활성화된 상점인지 확인
-      if (enabledTakeoutStores.includes(sellerName) && TAKEOUT_INFO[sellerName] !== undefined) {
-        isTakeoutEnabled = true;
-        takeoutFee = TAKEOUT_INFO[sellerName];
-        console.log(`[INFO] "${sellerName}" 상점의 방문수령 옵션 적용: ${takeoutFee}원`);
+      // 현재 상점이 방문수령 활성화된 상점인지 확인 (정규화된 이름으로 비교)
+      for (const enabledStore of enabledTakeoutStores) {
+        const normalizedEnabledStore = normalizeSellerName(enabledStore);
+
+        if (
+          normalizedSellerName === normalizedEnabledStore &&
+          TAKEOUT_INFO[enabledStore] !== undefined
+        ) {
+          isTakeoutEnabled = true;
+          takeoutFee = TAKEOUT_INFO[enabledStore];
+          console.log(`[INFO] "${sellerName}" 상점의 방문수령 옵션 적용: ${takeoutFee}원`);
+          break;
+        }
       }
     }
 
@@ -879,10 +890,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
     const MAX_CONSOLIDATION_ITERATIONS = 5; // 통합 시도 최대 횟수 제한
 
     while (consolidationImproved && consolidationIterations < MAX_CONSOLIDATION_ITERATIONS) {
-      consolidationImproved = false;
-      consolidationIterations++;
-
-      // 판매처 통합 최적화
       consolidationImproved = trySellersConsolidation(
         purchaseDetails,
         sellerShippingInfo,

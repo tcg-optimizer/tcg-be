@@ -680,12 +680,21 @@ function calculateShippingFee(
       .map(key => TAKEOUT_KEY_MAPPING[key])
       .filter(Boolean);
 
-    // 현재 상점이 방문수령 활성화된 상점인지 확인
-    if (enabledTakeoutStores.includes(sellerName) && TAKEOUT_INFO[sellerName] !== undefined) {
-      console.log(
-        `[INFO] "${sellerName}" 상점의 방문수령 옵션 적용: ${TAKEOUT_INFO[sellerName]}원`
-      );
-      return TAKEOUT_INFO[sellerName];
+    // 현재 상점이 방문수령 활성화된 상점인지 확인 (정규화된 이름으로 비교)
+    const normalizedSellerName = normalizeSellerName(sellerName);
+
+    for (const enabledStore of enabledTakeoutStores) {
+      const normalizedEnabledStore = normalizeSellerName(enabledStore);
+
+      if (
+        normalizedSellerName === normalizedEnabledStore &&
+        TAKEOUT_INFO[enabledStore] !== undefined
+      ) {
+        console.log(
+          `[INFO] "${sellerName}" 상점의 방문수령 옵션 적용: ${TAKEOUT_INFO[enabledStore]}원`
+        );
+        return TAKEOUT_INFO[enabledStore];
+      }
     }
   }
 
