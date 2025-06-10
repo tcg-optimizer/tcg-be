@@ -973,7 +973,13 @@ exports.getOptimalPurchaseCombination = [
   optimalPurchaseRateLimiter,
   async (req, res) => {
     try {
-      const { cards, excludedProductIds = [], excludedStores = [], ...purchaseOptions } = req.body;
+      const {
+        cards,
+        excludedProductIds = [],
+        excludedStores = [],
+        takeout = [],
+        ...purchaseOptions
+      } = req.body;
 
       // 입력 데이터 유효성 검사
       if (!cards || !Array.isArray(cards) || cards.length === 0) {
@@ -1504,6 +1510,7 @@ exports.getOptimalPurchaseCombination = [
         maxSellersPerCard: 30,
         maxIterations: 50,
         shippingRegion: purchaseOptions.shippingRegion,
+        takeout: takeout, // 방문수령 옵션 추가
         pointsOptions: {
           tcgshop: purchaseOptions.tcgshopPoints || false, // 티씨지샵 기본 적립금 (10%)
           carddc: purchaseOptions.carddcPoints || false, // 카드디씨 기본 적립금 (10%)

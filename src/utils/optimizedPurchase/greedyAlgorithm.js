@@ -179,22 +179,62 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
   const sellerShippingInfo = {};
   sellersList.forEach(seller => {
     const info = getShippingInfo(seller);
-    // 지역별 배송비 확인
-    switch (shippingRegion) {
-      case 'jeju':
-        sellerShippingInfo[seller] = {
-          ...info,
-          shippingFee: info.jejuShippingFee || info.shippingFee,
-        };
-        break;
-      case 'island':
-        sellerShippingInfo[seller] = {
-          ...info,
-          shippingFee: info.islandShippingFee || info.shippingFee,
-        };
-        break;
-      default:
-        sellerShippingInfo[seller] = info;
+
+    // 방문수령 옵션 확인
+    const { TAKEOUT_INFO, TAKEOUT_KEY_MAPPING } = require('../shippingInfo');
+    const takeoutOptions = options.takeout || [];
+
+    // 네이버 판매자인 경우 'Naver_' 접두사 제거
+    let sellerName = seller;
+    if (sellerName.startsWith('Naver_')) {
+      sellerName = sellerName.substring(6);
+    }
+
+    // 방문수령 옵션이 활성화된 상점인지 확인
+    let isTakeoutEnabled = false;
+    let takeoutFee = null;
+
+    if (takeoutOptions && takeoutOptions.length > 0) {
+      // 프론트엔드 키를 실제 상점명으로 변환
+      const enabledTakeoutStores = takeoutOptions
+        .map(key => TAKEOUT_KEY_MAPPING[key])
+        .filter(Boolean);
+
+      // 현재 상점이 방문수령 활성화된 상점인지 확인
+      if (enabledTakeoutStores.includes(sellerName) && TAKEOUT_INFO[sellerName] !== undefined) {
+        isTakeoutEnabled = true;
+        takeoutFee = TAKEOUT_INFO[sellerName];
+        console.log(`[INFO] "${sellerName}" 상점의 방문수령 옵션 적용: ${takeoutFee}원`);
+      }
+    }
+
+    if (isTakeoutEnabled) {
+      // 방문수령인 경우 고정 비용으로 설정
+      sellerShippingInfo[seller] = {
+        ...info,
+        shippingFee: takeoutFee,
+        jejuShippingFee: takeoutFee,
+        islandShippingFee: takeoutFee,
+        freeShippingThreshold: Infinity, // 방문수령시 무료배송 조건 무시
+      };
+    } else {
+      // 일반 배송인 경우 지역별 배송비 확인
+      switch (shippingRegion) {
+        case 'jeju':
+          sellerShippingInfo[seller] = {
+            ...info,
+            shippingFee: info.jejuShippingFee || info.shippingFee,
+          };
+          break;
+        case 'island':
+          sellerShippingInfo[seller] = {
+            ...info,
+            shippingFee: info.islandShippingFee || info.shippingFee,
+          };
+          break;
+        default:
+          sellerShippingInfo[seller] = info;
+      }
     }
   });
 
