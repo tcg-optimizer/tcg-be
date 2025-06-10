@@ -1,5 +1,4 @@
 const axios = require('axios');
-const cheerio = require('cheerio');
 const { Card, CardPrice } = require('../models/Card');
 const { Op } = require('sequelize');
 // rarityUtil.js에서 레어도 파싱 함수를 가져옵니다
@@ -254,7 +253,7 @@ const searchAndSaveCardPricesApi = async (cardName, options = {}) => {
     const results = await searchNaverShopWithRateLimit(cardName, options);
 
     // 카드 찾기 또는 생성
-    let [card, created] = await Card.findOrCreate({
+    let [card] = await Card.findOrCreate({
       where: { name: cardName },
       defaults: { name: cardName },
     });

@@ -77,7 +77,7 @@ exports.getPricesByRarity = [
   cardRequestLimiter,
   async (req, res) => {
     try {
-      const { cardName, includeUsed = 'true' } = req.query; // 쿼리 스트링에서 카드 이름과 중고 상품 포함 여부 가져오기
+      const { cardName } = req.query; // 쿼리 스트링에서 카드 이름 가져오기
 
       if (!cardName) {
         return res.status(400).json({
@@ -440,9 +440,6 @@ exports.getPricesByRarity = [
           });
         }
 
-        // 모든 가격 정보를 가격 오름차순으로 정렬
-        const allPricesSorted = [...centerCardFilteredPrices].sort((a, b) => a.price - b.price);
-
         // 언어별, 레어도별로 가격 정보 그룹화
         const rarityPrices = {};
 
@@ -582,14 +579,6 @@ exports.getPricesByRarity = [
             productsCount += rarityPrices[language][rarity].prices.length;
           });
         });
-
-        // 각 소스별 상품 개수
-        const summary = {
-          naver: naverResult ? naverResult.count : 0,
-          tcgshop: tcgshopResult ? tcgshopResult.count : 0,
-          carddc: cardDCResult ? cardDCResult.count : 0,
-          // onlyyugioh: onlyYugiohResult ? onlyYugiohResult.count : 0 // 온리유희왕 일시적 영업 중단으로 주석처리
-        };
 
         return res.status(200).json({
           success: true,
@@ -1552,7 +1541,7 @@ exports.getOptimalPurchaseCombination = [
       const processSellerDetails = sellerDetails => {
         if (!sellerDetails) return sellerDetails;
 
-        Object.entries(sellerDetails).forEach(([sellerName, details]) => {
+        Object.entries(sellerDetails).forEach(([, details]) => {
           if (details && details.cards && Array.isArray(details.cards)) {
             details.cards = details.cards.map(card => {
               // product 객체가 없으면 새로 생성

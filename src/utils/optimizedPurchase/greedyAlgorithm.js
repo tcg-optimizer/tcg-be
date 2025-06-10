@@ -151,7 +151,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
 
   // 적립금 고려 여부 출력
   const considerPointsStr = Object.entries(pointsOptions)
-    .filter(([_, enabled]) => enabled)
+    .filter(([, enabled]) => enabled)
     .map(([store]) => store)
     .join(', ');
 
@@ -283,14 +283,14 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
         }
 
         // 이 조합을 사용함으로써 절약되는 비용 (배송비 - 가격 차이)
-        const savings = shippingFee - (totalPriceInThisSeller - totalMinPriceElsewhere);
+        const calculatedSavings = shippingFee - (totalPriceInThisSeller - totalMinPriceElsewhere);
 
-        if (savings > 0) {
+        if (calculatedSavings > 0) {
           // 배송비 절약이 가격 차이보다 클 경우만 고려
           efficientCombinations.push({
             seller,
             combo,
-            savings,
+            savings: calculatedSavings,
             totalPrice: totalPriceInThisSeller,
           });
         }
@@ -301,7 +301,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
     efficientCombinations.sort((a, b) => b.savings - a.savings);
 
     // 효율적인 조합 할당
-    for (const { seller, combo, savings } of efficientCombinations) {
+    for (const { seller, combo } of efficientCombinations) {
       // 이미 할당된 카드 제외
       const availableItems = combo.filter(item => !assignedCards.has(item.card.cardName));
 
@@ -374,7 +374,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
     // 2단계: 아직 할당되지 않은 카드는 일반 그리디 방식으로 할당
     const remainingCards = sortedCards.filter(card => !assignedCards.has(card.cardName));
 
-    remainingCards.forEach((cardInfo, index) => {
+    remainingCards.forEach(cardInfo => {
       const { cardName, products, quantity = 1 } = cardInfo;
       let bestSeller = null;
       let bestProduct = null;
@@ -895,82 +895,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
       const finalPurchaseDetails = {};
       usedSellers.forEach(seller => {
         finalPurchaseDetails[seller] = purchaseDetails[seller];
-      });
-
-      // 판매처별 구매 요약 정보 (클라이언트 표시용)
-      const sellers = usedSellers.map(seller => {
-        const details = finalPurchaseDetails[seller];
-
-        // 적립금 세부 정보 계산
-        let pointsDetails = {};
-        if (details.points > 0) {
-          const isNaverStore = require('./cardUtils').isNaverStore(seller);
-          const isCardDC = seller.toLowerCase() === 'carddc';
-          const isTCGShop = seller.toLowerCase() === 'tcgshop';
-
-          // 판매처별 적립금 세부 정보
-          if (isTCGShop && pointsOptions.tcgshop) {
-            pointsDetails.tcgshop = Math.round(details.subtotal * 0.1); // 10% 적립
-          } else if (isCardDC && pointsOptions.carddc) {
-            pointsDetails.carddc = Math.round(details.subtotal * 0.1); // 10% 적립
-          } else if (isNaverStore) {
-            // 네이버 기본 적립금 (2.5%, 리뷰 포함)
-            if (pointsOptions.naverBasic) {
-              // 기본 적립금 2.5%
-              const basicPoints = Math.round(details.subtotal * 0.025);
-
-              // 리뷰 적립금 (3000원 이상 제품당 150원)
-              const reviewableCards = details.cards.filter(card => card.price >= 3000);
-              // 중복 제품명 제거 (같은 제품은 한 번만 리뷰 가능)
-              const uniqueCardNames = [...new Set(reviewableCards.map(card => card.cardName))];
-              const reviewPoints = uniqueCardNames.length * 150;
-
-              // 수정: 리뷰 적립금을 포인트 합계에 직접 추가
-              if (reviewPoints > 0) {
-                details.points += reviewPoints;
-                // 총액에도 적립금 반영
-                details.total = details.subtotal + details.shippingFee - details.points;
-              }
-
-              pointsDetails.naverBasic = {
-                basic: basicPoints,
-                review: reviewPoints,
-                total: basicPoints + reviewPoints,
-              };
-            }
-
-            // 네이버 제휴통장 적립금 (0.5%)
-            if (pointsOptions.naverBankbook) {
-              pointsDetails.naverBankbook = Math.round(details.subtotal * 0.005);
-            }
-
-            // 네이버 멤버십 적립금 (4%)
-            if (pointsOptions.naverMembership) {
-              pointsDetails.naverMembership = Math.round(details.subtotal * 0.04);
-            }
-
-            // 네이버 현대카드 적립금 (7%)
-            if (pointsOptions.naverHyundaiCard) {
-              pointsDetails.naverHyundaiCard = Math.round(details.subtotal * 0.07);
-            }
-          }
-        }
-
-        return {
-          name: seller,
-          cards: details.cards.map(card => ({
-            name: card.cardName,
-            quantity: card.quantity,
-            price: card.price,
-            totalPrice: card.price * card.quantity,
-            points: card.points,
-          })),
-          totalPrice: details.total,
-          productCost: details.subtotal,
-          shippingCost: details.shippingFee,
-          pointsEarned: details.points,
-          pointsDetails: pointsDetails, // 적립금 세부 정보 추가
-        };
       });
 
       // cardsOptimalPurchase 형식 변경 - 각 상점별로 그룹화

@@ -502,6 +502,27 @@ const naverSellerShippingInfo = {
     islandShippingFee: 4000,
     freeShippingThreshold: 50000,
   },
+
+  흑석블랙스톤: {
+    shippingFee: 3000,
+    jejuShippingFee: 3000,
+    islandShippingFee: 3000,
+    freeShippingThreshold: 50000,
+  },
+
+  글로벌구매대행: {
+    shippingFee: 3200,
+    jejuShippingFee: 7200,
+    islandShippingFee: 8200,
+    freeShippingThreshold: 50000,
+  },
+
+  하이랄게임샵: {
+    shippingFee: 4000,
+    jejuShippingFee: 4000,
+    islandShippingFee: 4000,
+    freeShippingThreshold: Infinity,
+  },
 };
 
 const REGION_TYPES = {

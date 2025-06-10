@@ -2,10 +2,9 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const iconv = require('iconv-lite'); // EUC-KR 인코딩 처리를 위해 필요
 const { parseRarity } = require('./rarityUtil');
-const { parseLanguage, parseCondition, extractCardCode } = require('./crawler');
-const { Card, CardPrice } = require('../models/Card');
+const { parseLanguage, parseCondition } = require('./crawler');
 const { withRateLimit } = require('./rateLimiter');
-const { getSiteSpecificHeaders, createCrawlerConfig } = require('./userAgentUtil');
+const { createCrawlerConfig } = require('./userAgentUtil');
 
 /**
  * 카드 이름을 EUC-KR로 인코딩합니다 (TCGShop은 EUC-KR 인코딩 사용)
@@ -56,6 +55,37 @@ function detectLanguageFromCardCode(cardCode) {
 }
 
 /**
+ * TCGShop 전용 레어도 파싱 함수
+ * 상품명을 기반으로 특수 레어도(블루/레드 시크릿 레어)를 구분합니다.
+ * @param {string} title - 상품 제목
+ * @param {string} rarityText - 레어도 텍스트
+ * @returns {Object} - 파싱된 레어도 정보 {rarity, rarityCode}
+ */
+function parseTCGShopRarity(title, rarityText) {
+  // 상품명에서 특수 버전 확인
+  const titleLower = title.toLowerCase();
+
+  // SpecialRedVer 또는 유사한 패턴 확인
+  if (/special\s*red\s*ver/i.test(title) || /specialredver/i.test(title)) {
+    return {
+      rarity: '레드 시크릿 레어',
+      rarityCode: 'RSE',
+    };
+  }
+
+  // SpecialBlueVer 또는 유사한 패턴 확인
+  if (/special\s*blue\s*ver/i.test(title) || /specialbluever/i.test(title)) {
+    return {
+      rarity: '블루 시크릿 레어',
+      rarityCode: 'BSE',
+    };
+  }
+
+  // 특수 패턴이 없으면 기본 레어도 파싱 사용
+  return parseRarity(rarityText);
+}
+
+/**
  * TCGShop에서 카드 가격 정보를 크롤링합니다.
  * @param {string} cardName - 검색할 카드 이름
  * @param {string} [cardId] - 카드 ID (선택적)
@@ -90,11 +120,6 @@ async function crawlTCGShop(cardName, cardId) {
     // 직접 검색 결과 처리
     // TCGShop 검색 결과는 td.glist_01 요소로 시작하는 테이블 구조
     const productCells = $('td.glist_01');
-
-    // 검색 결과 개수 확인
-    const resultCountText = $('font.nom_id').text();
-    const resultCountMatch = resultCountText.match(/\d+/);
-    const resultCount = resultCountMatch ? parseInt(resultCountMatch[0]) : 0;
 
     productCells.each((index, element) => {
       const productCell = $(element);
@@ -151,8 +176,9 @@ async function crawlTCGShop(cardName, cardId) {
       if (rarityElement.length) {
         const rarityText = rarityElement.first().text().trim();
         if (rarityText) {
-          // rarityUtil의 parseRarity 함수를 사용하여 레어도 표준화
-          const rarityInfo = parseRarity(rarityText);
+          // TCGShop 전용 레어도 파싱 함수를 사용하여 레어도 표준화
+          // 상품명을 기반으로 블루/레드 시크릿 레어를 구분
+          const rarityInfo = parseTCGShopRarity(title, rarityText);
           rarity = rarityInfo.rarity;
           rarityCode = rarityInfo.rarityCode;
         }
@@ -289,7 +315,7 @@ async function searchAndSaveTCGShopPrices(cardName, cardId) {
 
     // 새 가격 정보 저장
     if (cardId) {
-      const savedPrices = await Promise.all(
+      await Promise.all(
         priceData.map(async item => {
           const savedPrice = await CardPrice.create({
             cardId: cardId,
