@@ -48,6 +48,7 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
       maxSellersPerCard: 50, // 고정값: 각 카드별 고려할 최대 판매처 수
       maxIterations: 50, // 고정값: 최적화 반복 횟수
       shippingRegion: 'default', // 배송 지역
+      takeout: [], // 방문수령 옵션
       pointsOptions: {
         tcgshop: false, // TCGShop 적립금 고려 여부
         carddc: false, // CardDC 적립금 고려 여부
@@ -64,6 +65,7 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
     const mergedOptions = {
       ...defaultOptions,
       shippingRegion: options.shippingRegion || defaultOptions.shippingRegion,
+      takeout: options.takeout || defaultOptions.takeout,
       pointsOptions: { ...defaultOptions.pointsOptions },
     };
 

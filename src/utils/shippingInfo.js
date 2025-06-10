@@ -32,6 +32,36 @@ const shippingInfo = {
   },
 };
 
+// 방문수령 가능한 상점과 비용 매핑
+const TAKEOUT_INFO = {
+  카드킹덤: 100,
+  카드냥: 100,
+  카드스퀘어: 100,
+  민씨지샵: 0,
+  전주디마켓: 100,
+  마천루카드장터: 100,
+  에리어제로스토어: 100,
+  흑석블랙스톤: 100,
+  듀얼위너: 100,
+  TCG킹덤: 10,
+  티씨지플레이어: 0,
+};
+
+// 프론트엔드 키와 상점명 매핑
+const TAKEOUT_KEY_MAPPING = {
+  cardKingdom: '카드킹덤',
+  cardNyang: '카드냥',
+  cardSquare: '카드스퀘어',
+  minCGCardMarket: '민씨지샵',
+  diMarket: '전주디마켓',
+  skyscraper: '마천루카드장터',
+  areaZeroStore: '에리어제로스토어',
+  blackStone: '흑석블랙스톤',
+  dualWinner: '듀얼위너',
+  tcgKingdom: 'TCG킹덤',
+  tcgPlayer: '티씨지플레이어',
+};
+
 // 네이버 쇼핑몰의 판매자별 배송비 정보
 const naverSellerShippingInfo = {
   카드킹덤: {
@@ -625,9 +655,50 @@ function getShippingInfo(site) {
  * @param {string|Object} site - 판매 사이트
  * @param {string} region - 지역 타입 (default, jeju, island)
  * @param {number} totalPrice - 주문 총 금액
+ * @param {Array} takeoutOptions - 방문수령 옵션 활성화된 상점 목록
  * @returns {number} - 최종 배송비
  */
-function calculateShippingFee(site, region = REGION_TYPES.DEFAULT, totalPrice = 0) {
+function calculateShippingFee(
+  site,
+  region = REGION_TYPES.DEFAULT,
+  totalPrice = 0,
+  takeoutOptions = []
+) {
+  // site가 객체인 경우 사이트 이름 추출
+  const siteStr = getSellerId(site);
+
+  // 네이버 판매자인 경우 'Naver_' 접두사 제거
+  let sellerName = siteStr;
+  if (sellerName.startsWith('Naver_')) {
+    sellerName = sellerName.substring(6); // 'Naver_' 접두사 제거
+  }
+
+  // 방문수령 옵션이 활성화된 상점인지 확인
+  if (takeoutOptions && takeoutOptions.length > 0) {
+    // 프론트엔드 키를 실제 상점명으로 변환
+    const enabledTakeoutStores = takeoutOptions
+      .map(key => TAKEOUT_KEY_MAPPING[key])
+      .filter(Boolean);
+
+    // 현재 상점이 방문수령 활성화된 상점인지 확인 (정규화된 이름으로 비교)
+    const normalizedSellerName = normalizeSellerName(sellerName);
+
+    for (const enabledStore of enabledTakeoutStores) {
+      const normalizedEnabledStore = normalizeSellerName(enabledStore);
+
+      if (
+        normalizedSellerName === normalizedEnabledStore &&
+        TAKEOUT_INFO[enabledStore] !== undefined
+      ) {
+        console.log(
+          `[INFO] "${sellerName}" 상점의 방문수령 옵션 적용: ${TAKEOUT_INFO[enabledStore]}원`
+        );
+        return TAKEOUT_INFO[enabledStore];
+      }
+    }
+  }
+
+  // 방문수령이 아닌 경우 기존 배송비 계산 로직 사용
   const info = getShippingInfo(site);
 
   // 무료 배송 기준 금액 이상이면 무료 배송 (단, 무료배송이 불가능한 경우 제외)
@@ -673,4 +744,6 @@ module.exports = {
   REGION_TYPES,
   shouldSkipMarketplace,
   getSellerId,
+  TAKEOUT_INFO,
+  TAKEOUT_KEY_MAPPING,
 };
