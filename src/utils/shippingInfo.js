@@ -553,6 +553,27 @@ const naverSellerShippingInfo = {
     islandShippingFee: 4000,
     freeShippingThreshold: Infinity,
   },
+
+  티씨지팩토리: {
+    shippingFee: 3500,
+    jejuShippingFee: 6500,
+    islandShippingFee: 6500,
+    freeShippingThreshold: 50000,
+  },
+
+  TCG999: {
+    shippingFee: 3000,
+    jejuShippingFee: 3000,
+    islandShippingFee: 3000,
+    freeShippingThreshold: 90000,
+  },
+
+  드로우박스: {
+    shippingFee: 3200,
+    jejuShippingFee: 6700,
+    islandShippingFee: 6700,
+    freeShippingThreshold: 40000,
+  },
 };
 
 const REGION_TYPES = {
