@@ -4,6 +4,8 @@ const dotenv = require('dotenv');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const redisManager = require('./lib/redis-manager');
+const { notFoundHandler, globalErrorHandler } = require('./lib/error-handler');
 
 // 환경 변수 설정 - 가장 먼저 로드해야 함
 dotenv.config();
@@ -33,6 +35,42 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
+
+// 프로세스 레벨 에러 핸들링
+process.on('uncaughtException', err => {
+  console.error('Uncaught Exception:', err);
+  redisManager.publishError({
+    type: 'uncaught-exception',
+    error: {
+      name: err.name,
+      message: err.message,
+      stack: err.stack,
+    },
+    context: {
+      timestamp: new Date().toISOString(),
+      processId: process.pid,
+    },
+    severity: 'critical',
+  });
+
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  redisManager.publishError({
+    type: 'unhandled-rejection',
+    error: {
+      message: reason?.message || reason,
+      stack: reason?.stack,
+    },
+    context: {
+      timestamp: new Date().toISOString(),
+      processId: process.pid,
+    },
+    severity: 'critical',
+  });
+});
 
 // API 요청 제한 설정
 const apiLimiter = rateLimit({
@@ -64,21 +102,11 @@ app.use(
   cardRoutes
 );
 
-// 에러 핸들링 미들웨어
-app.use((req, res, _next) => {
-  const error = new Error('Not Found');
-  error.status = 404;
-  _next(error);
-});
+// 404 핸들러 (모든 라우트 후에)
+app.use(notFoundHandler);
 
-app.use((err, req, res) => {
-  res.status(err.status || 500);
-  res.json({
-    error: {
-      message: err.message,
-    },
-  });
-});
+// 전역 에러 핸들러 (가장 마지막에)
+app.use(globalErrorHandler);
 
 // 서버 포트 설정
 const PORT = process.env.PORT || 5000;
