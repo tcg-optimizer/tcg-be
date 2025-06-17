@@ -5,12 +5,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const redisManager = require('./lib/redis-manager');
-const {
-  notFoundHandler,
-  globalErrorHandler,
-  AppError,
-  asyncHandler,
-} = require('./lib/error-handler');
+const { notFoundHandler, globalErrorHandler } = require('./lib/error-handler');
 
 // 환경 변수 설정 - 가장 먼저 로드해야 함
 dotenv.config();
@@ -105,61 +100,6 @@ app.use(
     _next();
   },
   cardRoutes
-);
-
-// 테스트용 에러 라우트
-app.get('/test-sync-error', (req, res) => {
-  throw new AppError('Synchronous error test', 400);
-});
-
-app.get(
-  '/test-async-error',
-  asyncHandler(async (req, res) => {
-    // 비동기 에러도 자동으로 캐치됨
-    throw new AppError('Async error test', 500);
-  })
-);
-
-app.get(
-  '/test-db-error',
-  asyncHandler(async (req, res) => {
-    // DB 작업 시뮬레이션
-    await new Promise((resolve, reject) => {
-      setTimeout(() => reject(new Error('Database connection failed')), 100);
-    });
-  })
-);
-
-// Redis 연결 테스트 라우트
-app.get(
-  '/test-redis',
-  asyncHandler(async (req, res) => {
-    try {
-      console.log('Testing Redis connection...');
-      console.log('redisManager instance:', typeof redisManager, !!redisManager);
-
-      const testData = {
-        type: 'test-message',
-        message: 'Redis 연결 테스트',
-        timestamp: new Date().toISOString(),
-      };
-
-      const success = await redisManager.publishError(testData);
-
-      res.json({
-        success: true,
-        message: 'Redis 테스트 완료',
-        redisPublishSuccess: success,
-      });
-    } catch (error) {
-      console.error('Redis test error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Redis 테스트 실패',
-        error: error.message,
-      });
-    }
-  })
 );
 
 // 404 핸들러 (모든 라우트 후에)
