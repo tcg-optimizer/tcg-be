@@ -576,6 +576,13 @@ const naverSellerShippingInfo = {
     islandShippingFee: 6700,
     freeShippingThreshold: 40000,
   },
+
+  콜코COLLCO: {
+    shippingFee: 4000,
+    jejuShippingFee: 7000,
+    islandShippingFee: 7000,
+    freeShippingThreshold: 100000,
+  },
 };
 
 const REGION_TYPES = {
