@@ -45,6 +45,7 @@ const TAKEOUT_INFO = {
   듀얼위너: 100,
   TCG킹덤: 10,
   티씨지플레이어: 0,
+  TCG카드프리덤: 0,
 };
 
 // 프론트엔드 키와 상점명 매핑
@@ -60,6 +61,7 @@ const TAKEOUT_KEY_MAPPING = {
   dualWinner: '듀얼위너',
   tcgKingdom: 'TCG킹덤',
   tcgPlayer: '티씨지플레이어',
+  tcgCardFreedom: 'TCG카드프리덤',
 };
 
 // 네이버 쇼핑몰의 판매자별 배송비 정보
