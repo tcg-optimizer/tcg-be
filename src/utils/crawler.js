@@ -3,6 +3,38 @@ const { Card, CardPrice } = require('../models/Card');
 const { parseRarity } = require('./rarityUtil');
 
 /**
+ * 상품명에서 다른 일러스트 여부를 판단합니다.
+ * @param {string} title - 상품 제목
+ * @returns {string} - 'default' (기본 일러스트) 또는 'another' (다른 일러스트)
+ */
+function detectIllustration(title) {
+  if (!title) return 'default';
+
+  // 다른 일러스트 키워드 패턴 (띄어쓰기 포함)
+  const anotherIllustrationPatterns = [
+    /다른\s*일러/i,
+    /다른\s*일러스트/i,
+    /신규\s*일러/i,
+    /신규\s*일러스트/i,
+    /어나더\s*일러/i,
+    /어나더\s*일러스트/i,
+    /신\s*일러/i,
+    /신\s*일러스트/i,
+    /another\s*illustration/i,
+    /new\s*illustration/i,
+  ];
+
+  // 다른 일러스트 키워드가 있는지 확인
+  for (const pattern of anotherIllustrationPatterns) {
+    if (pattern.test(title)) {
+      return 'another';
+    }
+  }
+
+  return 'default';
+}
+
+/**
  * 카드 언어를 파싱합니다. (한글판, 일본판, 영문판)
  * @param {string} title - 상품 제목
  * @returns {string} - 파싱된 언어 정보
@@ -257,4 +289,5 @@ module.exports = {
   parseLanguage,
   parseCondition,
   extractCardCode,
+  detectIllustration,
 };

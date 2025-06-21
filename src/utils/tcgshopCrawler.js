@@ -2,7 +2,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const iconv = require('iconv-lite'); // EUC-KR 인코딩 처리를 위해 필요
 const { parseRarity } = require('./rarityUtil');
-const { parseLanguage, parseCondition } = require('./crawler');
+const { parseLanguage, parseCondition, detectIllustration } = require('./crawler');
 const { withRateLimit } = require('./rateLimiter');
 const { createCrawlerConfig } = require('./userAgentUtil');
 
@@ -62,9 +62,6 @@ function detectLanguageFromCardCode(cardCode) {
  * @returns {Object} - 파싱된 레어도 정보 {rarity, rarityCode}
  */
 function parseTCGShopRarity(title, rarityText) {
-  // 상품명에서 특수 버전 확인
-  const titleLower = title.toLowerCase();
-
   // SpecialRedVer 또는 유사한 패턴 확인
   if (/special\s*red\s*ver/i.test(title) || /specialredver/i.test(title)) {
     return {
@@ -219,6 +216,9 @@ async function crawlTCGShop(cardName, cardId) {
         language = detectLanguageFromCardCode(extractedCardCode);
       }
 
+      // 일러스트 타입 판단
+      const illustration = detectIllustration(title);
+
       // 재고 여부 확인 - 검색 결과 페이지에서 확인
       let available = true;
 
@@ -266,6 +266,7 @@ async function crawlTCGShop(cardName, cardId) {
         available,
         cardId,
         productId, // 추출한 goodsIdx를 productId로 사용
+        illustration, // 일러스트 타입 추가
       });
     });
 
@@ -329,6 +330,7 @@ async function searchAndSaveTCGShopPrices(cardName, cardId) {
             cardCode: item.cardCode,
             lastUpdated: new Date(),
             productId: item.productId, // productId는 항상 존재함
+            illustration: item.illustration || 'default', // 일러스트 필드 추가
           });
 
           // product 객체에 id 필드 추가
@@ -342,6 +344,7 @@ async function searchAndSaveTCGShopPrices(cardName, cardId) {
             condition: item.condition,
             language: item.language,
             rarity: item.rarity,
+            illustration: item.illustration || 'default', // 일러스트 필드 추가
           };
 
           // savedPrice에 product 필드 추가
@@ -373,6 +376,7 @@ async function searchAndSaveTCGShopPrices(cardName, cardId) {
                 condition: item.condition,
                 language: item.language,
                 rarity: item.rarity,
+                illustration: item.illustration || 'default', // 일러스트 필드 추가
               },
             };
           }),
