@@ -109,7 +109,7 @@ function parseRarity(title) {
     },
     {
       pattern:
-        /(패러렐\s*레어|패러럴\s*레어|페러렐\s*레어|패레렐\s*레어|패러렐레어|패러럴레어|\[페러렐\]|parallel\s*rare)/i,
+        /(패러렐\s*레어|패러럴\s*레어|페러렐\s*레어|패레렐\s*레어|페러럴\s*레어|페레럴\s*레어|패러렐레어|패러럴레어|\[페러렐\]|parallel\s*rare)/i,
       rarity: '패러렐 레어',
       code: 'P',
     },

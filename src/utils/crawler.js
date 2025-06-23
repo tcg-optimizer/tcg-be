@@ -10,18 +10,48 @@ const { parseRarity } = require('./rarityUtil');
 function detectIllustration(title) {
   if (!title) return 'default';
 
-  // 다른 일러스트 키워드 패턴 (띄어쓰기 포함)
+  // 더 단순하고 강력한 패턴 - 키워드가 포함되기만 하면 감지
   const anotherIllustrationPatterns = [
-    /다른\s*일러/i,
-    /다른\s*일러스트/i,
-    /신규\s*일러/i,
-    /신규\s*일러스트/i,
-    /어나더\s*일러/i,
-    /어나더\s*일러스트/i,
-    /신\s*일러/i,
-    /신\s*일러스트/i,
-    /another\s*illustration/i,
-    /new\s*illustration/i,
+    // 핵심 키워드들 (위치와 상관없이 포함되면 감지)
+    /다른일러/i, // "다른일러" 포함
+    /다른\s+일러/i, // "다른 일러" (띄어쓰기 포함)
+    /신규일러/i, // "신규일러" 포함
+    /신규\s+일러/i, // "신규 일러" (띄어쓰기 포함)
+    /어나더일러/i, // "어나더일러" 포함
+    /어나더\s+일러/i, // "어나더 일러" (띄어쓰기 포함)
+    /신일러/i, // "신일러" 포함
+    /새일러/i, // "새일러" 포함
+    /다른일러스트/i, // "다른일러스트" 포함
+    /신규일러스트/i, // "신규일러스트" 포함
+    /어나더일러스트/i, // "어나더일러스트" 포함
+    /신일러스트/i, // "신일러스트" 포함
+    /새일러스트/i, // "새일러스트" 포함
+
+    // 버전 관련
+    /다른버전/i, // "다른버전" 포함
+    /신버전/i, // "신버전" 포함
+    /어나더버전/i, // "어나더버전" 포함
+    /새버전/i, // "새버전" 포함
+
+    // 아트 관련
+    /다른아트/i, // "다른아트" 포함
+    /신아트/i, // "신아트" 포함
+    /새아트/i, // "새아트" 포함
+    /어나더아트/i, // "어나더아트" 포함
+
+    // 기타
+    /리메이크/i, // "리메이크" 포함
+    /재판/i, // "재판" 포함
+
+    // 영문 패턴
+    /another.*illustration/i, // "another illustration" 관련
+    /new.*illustration/i, // "new illustration" 관련
+    /alternate.*art/i, // "alternate art" 관련
+    /alt.*art/i, // "alt art" 관련
+    /different.*art/i, // "different art" 관련
+    /new.*art/i, // "new art" 관련
+    /special.*art/i, // "special art" 관련
+    /limited.*art/i, // "limited art" 관련
   ];
 
   // 다른 일러스트 키워드가 있는지 확인
@@ -40,25 +70,25 @@ function detectIllustration(title) {
  * @returns {string} - 파싱된 언어 정보
  */
 function parseLanguage(title) {
-  // 1. 직접적인 언어 표기 확인
-  if (/(한글판|한국어판)/i.test(title)) {
+  // 직접적인 언어 표기 체크
+  if (/(한글판|한판)/i.test(title)) {
     return '한글판';
   }
-  if (/(일본판|일어판|일본어판)/i.test(title)) {
+  if (/(일본판|일어판|일판)/i.test(title)) {
     return '일본판';
   }
-  if (/(영문판|영어판|영문)/i.test(title)) {
+  if (/(영문판|영어판|영판)/i.test(title)) {
     return '영문판';
   }
 
-  // 2. 카드 코드에서 언어 코드 추출 (예: PHRA-KR045, QCAC-JP014)
-  const cardCodePattern = /\b([A-Z0-9]{2,5})-([A-Z]{2})\d{3,4}\b/i;
-  const match = title.match(cardCodePattern);
+  // 없을 경우 카드 코드에서 언어 추출
+  const cardCode = /\b([A-Z0-9]{2,5})-([A-Z]{2})\d{3,4}\b/i;
+  const match = title.match(cardCode);
 
   if (match && match[2]) {
-    const languageCode = match[2].toUpperCase();
+    const code = match[2].toUpperCase();
 
-    switch (languageCode) {
+    switch (code) {
       case 'KR':
         return '한글판';
       case 'JP':
@@ -70,7 +100,6 @@ function parseLanguage(title) {
     }
   }
 
-  // 3. 기본값
   return '알 수 없음';
 }
 
@@ -123,20 +152,19 @@ function parseCondition(title) {
   if (/S-급|S-등급/i.test(title)) {
     return '중고';
   }
-  if (/\[A급\]|\(A급\)|A급|A\+|A등급|A-급|A-등급/i.test(title)) {
+  if (/A급|A\+|A등급|A-|A-등급/i.test(title)) {
     return '중고';
   }
-  if (/\[B급\]|\(B급\)|B급|B등급|B-급|B-등급/i.test(title)) {
+  if (/B급|B등급|B-/i.test(title)) {
     return '중고';
   }
-  if (/\[C급\]|\(C급\)|C급|C등급/i.test(title)) {
+  if (/C급|C등급/i.test(title)) {
     return '중고';
   }
-  if (/\[중고\]|\(중고\)|^중고[\s:]|\s중고[\s:]|\[used\]|\(used\)|중고품/i.test(title)) {
+  if (/중고|중고품/i.test(title)) {
     return '중고';
   }
 
-  // 기본값 (신품)
   return '신품';
 }
 
