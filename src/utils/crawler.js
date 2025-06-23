@@ -10,6 +10,11 @@ const { parseRarity } = require('./rarityUtil');
 function detectIllustration(title) {
   if (!title) return 'default';
 
+  // "증원" 카드 특별 처리: 상품명에 "증원"과 "섬도희"가 모두 포함되면 어나더 일러스트
+  if (/증원/i.test(title) && /섬도희/i.test(title)) {
+    return 'another';
+  }
+
   // 더 단순하고 강력한 패턴 - 키워드가 포함되기만 하면 감지
   const anotherIllustrationPatterns = [
     // 핵심 키워드들 (위치와 상관없이 포함되면 감지)
