@@ -4,6 +4,11 @@
 
 const { getSellerId } = require('./cardUtils');
 
+// 카드 식별을 위해 uniqueCardKey 우선 사용
+function getCardKey(card) {
+  return card && (card.uniqueCardKey || card.cardName);
+}
+
 /**
  * 무료배송 임계값에 도달하기 위해 다른 판매처에서 카드를 이동하는 함수
  * @param {string} targetSeller - 대상 판매처
@@ -32,7 +37,7 @@ function tryMoveCardsToReachThreshold(
   otherSellers.forEach(seller => {
     purchaseDetails[seller].cards.forEach(card => {
       // 타겟 판매처에서도 구매 가능한지 확인
-      const cardInfo = cardsList.find(c => c.cardName === card.cardName);
+      const cardInfo = cardsList.find(c => getCardKey(c) === getCardKey(card));
       if (!cardInfo) return;
 
       const productInTargetSeller = cardInfo.products.find(
@@ -95,7 +100,9 @@ function tryMoveCardsToReachThreshold(
       // 비용이 줄어들면 카드 이동
       if (newTotalCost < currentTotalCost) {
         // 소스 판매처에서 카드 제거
-        const cardIndex = sourceSeller.cards.findIndex(c => c.cardName === candidate.cardName);
+        const cardIndex = sourceSeller.cards.findIndex(
+          c => getCardKey(c) === getCardKey(candidate)
+        );
         if (cardIndex !== -1) {
           sourceSeller.cards.splice(cardIndex, 1);
         }
@@ -116,16 +123,23 @@ function tryMoveCardsToReachThreshold(
 
         // 카드별 최적 구매처 정보 업데이트
         const cardPurchaseIndex = cardsOptimalPurchase.findIndex(
-          c => c.cardName === candidate.cardName
+          c => getCardKey(c) === getCardKey(candidate)
         );
         if (cardPurchaseIndex !== -1) {
+          // 기존 엔트리의 uniqueCardKey 및 메타데이터 보존
+          const prev = cardsOptimalPurchase[cardPurchaseIndex];
           cardsOptimalPurchase[cardPurchaseIndex] = {
             cardName: candidate.cardName,
+            uniqueCardKey: prev.uniqueCardKey || candidate.cardName, // 고유키 보존
             seller: targetSeller,
             price: candidate.targetPrice,
             totalPrice: candidate.targetPrice * candidate.quantity,
             quantity: candidate.quantity,
             product: candidate.targetProduct,
+            // 이미지 탐색에 필요한 보조 필드 보존
+            rarity: prev.rarity || candidate.targetProduct?.rarity,
+            language: prev.language || candidate.targetProduct?.language,
+            illustration: prev.illustration || candidate.targetProduct?.illustration || 'default',
           };
         }
 
@@ -166,7 +180,7 @@ function tryMultipleCardsMove(
   otherSellers.forEach(seller => {
     purchaseDetails[seller].cards.forEach(card => {
       // 타겟 판매처에서도 구매 가능한지 확인
-      const cardInfo = cardsList.find(c => c.cardName === card.cardName);
+      const cardInfo = cardsList.find(c => getCardKey(c) === getCardKey(card));
       if (!cardInfo) return;
 
       const productInTargetSeller = cardInfo.products.find(
@@ -391,15 +405,24 @@ function tryMultipleCardsMove(
       targetSeller.subtotal += targetPrice;
 
       // 카드별 최적 구매처 정보 업데이트
-      const cardPurchaseIndex = cardsOptimalPurchase.findIndex(c => c.cardName === card.cardName);
+      const cardPurchaseIndex = cardsOptimalPurchase.findIndex(
+        c => getCardKey(c) === getCardKey(card)
+      );
       if (cardPurchaseIndex !== -1) {
+        // 기존 엔트리의 uniqueCardKey 및 메타데이터 보존
+        const prev = cardsOptimalPurchase[cardPurchaseIndex];
         cardsOptimalPurchase[cardPurchaseIndex] = {
           cardName: card.cardName,
+          uniqueCardKey: prev.uniqueCardKey || card.cardName, // 고유키 보존
           seller: targetSeller,
           price: card.targetPrice,
           totalPrice: card.targetPrice * card.quantity,
           quantity: card.quantity,
           product: card.targetProduct,
+          // 이미지 탐색에 필요한 보조 필드 보존
+          rarity: prev.rarity || card.targetProduct?.rarity,
+          language: prev.language || card.targetProduct?.language,
+          illustration: prev.illustration || card.targetProduct?.illustration || 'default',
         };
       }
     }
@@ -410,7 +433,7 @@ function tryMultipleCardsMove(
 
       // 카드 제거
       update.cards.forEach(card => {
-        const cardIndex = seller.cards.findIndex(c => c.cardName === card.cardName);
+        const cardIndex = seller.cards.findIndex(c => getCardKey(c) === getCardKey(card));
         if (cardIndex !== -1) {
           seller.cards.splice(cardIndex, 1);
         }
@@ -488,7 +511,7 @@ function trySellersConsolidation(
     // 각 카드별로 다른 판매처로 이동 시뮬레이션
     for (const card of sourceSeller.cards) {
       // 이 카드가 구매 가능한 다른 판매처 목록
-      const cardInfo = cardsList.find(c => c.cardName === card.cardName);
+      const cardInfo = cardsList.find(c => getCardKey(c) === getCardKey(card));
       if (!cardInfo) continue;
 
       cardInfo.products.forEach(product => {
@@ -583,7 +606,7 @@ function trySellersConsolidation(
         // 모든 카드 이동 실행
         for (const move of moves) {
           // 소스 판매처에서 카드 제거
-          const cardIndex = sourceSeller.cards.findIndex(c => c.cardName === move.cardName);
+          const cardIndex = sourceSeller.cards.findIndex(c => getCardKey(c) === getCardKey(move));
           if (cardIndex !== -1) {
             sourceSeller.cards.splice(cardIndex, 1);
           }
@@ -598,16 +621,23 @@ function trySellersConsolidation(
 
           // 카드별 최적 구매처 정보 업데이트
           const cardPurchaseIndex = cardsOptimalPurchase.findIndex(
-            c => c.cardName === move.cardName
+            c => getCardKey(c) === getCardKey(move)
           );
           if (cardPurchaseIndex !== -1) {
+            // 기존 엔트리의 uniqueCardKey 및 메타데이터 보존
+            const prev = cardsOptimalPurchase[cardPurchaseIndex];
             cardsOptimalPurchase[cardPurchaseIndex] = {
               cardName: move.cardName,
+              uniqueCardKey: prev.uniqueCardKey || move.cardName, // 고유키 보존
               seller: bestTargetSeller,
               price: move.targetPrice,
               totalPrice: move.targetPrice * move.sourceQuantity,
               quantity: move.sourceQuantity,
               product: move.targetProduct,
+              // 이미지 탐색에 필요한 보조 필드 보존
+              rarity: prev.rarity || move.targetProduct?.rarity,
+              language: prev.language || move.targetProduct?.language,
+              illustration: prev.illustration || move.targetProduct?.illustration || 'default',
             };
           }
         }

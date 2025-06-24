@@ -462,6 +462,7 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
               condition: bestAlternative.condition,
               language: bestAlternative.language,
               rarity: bestAlternative.rarity,
+              illustration: bestAlternative.illustration || 'default',
             },
             image: excludedCard.image,
           };

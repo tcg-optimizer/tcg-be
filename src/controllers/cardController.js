@@ -1472,6 +1472,7 @@ exports.getOptimalPurchaseCombination = [
                   condition: product.condition,
                   language: product.language,
                   rarity: product.rarity,
+                  illustration: product.illustration || 'default',
                 };
               }
               // product 객체가 있지만 id가 없는 경우
@@ -1686,6 +1687,7 @@ exports.getOptimalPurchaseCombination = [
                   condition: card.condition,
                   language: card.language,
                   rarity: card.rarity,
+                  illustration: card.illustration || 'default',
                 };
               }
               // product 객체가 있지만 id가 없는 경우

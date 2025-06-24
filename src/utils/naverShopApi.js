@@ -77,7 +77,8 @@ const searchNaverShop = async cardName => {
         `[INFO] "${cardName}" 검색에서 유효한 유희왕 카드가 ${allItems.length}개로 부족합니다. 유희왕 "${cardName}"으로 재검색합니다.`
       );
       searchQuery = `유희왕 "${cardName}"`;
-      allItems = await performNaverSearch(searchQuery, clientId, clientSecret, 10); // 10페이지까지 재검색
+      const additionalItems = await performNaverSearch(searchQuery, clientId, clientSecret, 10); // 10페이지까지 재검색
+      allItems = [...allItems, ...additionalItems]; // 기존 결과와 합치기
     } else if (allItems.length >= 4) {
       // 4개 이상이면 나머지 7페이지 추가 검색
       console.log(
