@@ -462,8 +462,12 @@ exports.getPricesByRarity = [
                 });
               });
             });
-          } else if (card.image) {
-            // 네이버 검색 결과가 없거나 이미지가 필요하지 않은 경우 카드의 기본 이미지 사용
+          } else {
+            console.log('[DEBUG] 네이버 검색 결과가 없습니다. 기본 이미지를 사용합니다.');
+          }
+
+          // 네이버 검색 결과가 없거나 이미지가 필요하지 않은 경우 카드의 기본 이미지 사용
+          if (card.image) {
             Object.keys(rarityPrices).forEach(illustration => {
               Object.keys(rarityPrices[illustration]).forEach(language => {
                 Object.keys(rarityPrices[illustration][language]).forEach(rarity => {
@@ -480,8 +484,6 @@ exports.getPricesByRarity = [
                 });
               });
             });
-          } else {
-            console.log('[DEBUG] 이미지 설정을 위한 데이터가 없습니다.');
           }
         } catch (imageError) {
           console.error(`[ERROR] 이미지 URL 설정 오류: ${imageError.message}`);
@@ -1291,9 +1293,59 @@ exports.getOptimalPurchaseCombination = [
               ) {
                 card.image = prices[illustrationType][card.language][card.rarity].image;
               }
-              // 지정된 일러스트, 언어, 레어도 조합이 정확히 없으면 이미지도 null로 설정
+              // 지정된 일러스트, 언어, 레어도 조합이 정확히 없으면 대안 이미지 찾기
               else if (card.language && card.rarity) {
-                card.image = null;
+                // 해당 언어와 레어도가 있는 다른 일러스트에서 이미지 찾기
+                let foundImage = false;
+                for (const illustration of Object.keys(prices)) {
+                  if (foundImage) break;
+                  if (
+                    prices[illustration] &&
+                    prices[illustration][card.language] &&
+                    prices[illustration][card.language][card.rarity] &&
+                    prices[illustration][card.language][card.rarity].image
+                  ) {
+                    card.image = prices[illustration][card.language][card.rarity].image;
+                    foundImage = true;
+                    break;
+                  }
+                }
+
+                // 여전히 이미지가 없으면 같은 레어도의 다른 언어 이미지 찾기
+                if (!foundImage) {
+                  for (const illustration of Object.keys(prices)) {
+                    if (foundImage) break;
+                    for (const language of Object.keys(prices[illustration] || {})) {
+                      if (foundImage) break;
+                      if (
+                        prices[illustration][language] &&
+                        prices[illustration][language][card.rarity] &&
+                        prices[illustration][language][card.rarity].image
+                      ) {
+                        card.image = prices[illustration][language][card.rarity].image;
+                        foundImage = true;
+                        break;
+                      }
+                    }
+                  }
+                }
+
+                // 그래도 이미지가 없으면 임의의 이미지 사용
+                if (!foundImage) {
+                  for (const illustration of Object.keys(prices)) {
+                    if (foundImage) break;
+                    for (const language of Object.keys(prices[illustration] || {})) {
+                      if (foundImage) break;
+                      for (const rarity of Object.keys(prices[illustration][language] || {})) {
+                        if (prices[illustration][language][rarity].image) {
+                          card.image = prices[illustration][language][rarity].image;
+                          foundImage = true;
+                          break;
+                        }
+                      }
+                    }
+                  }
+                }
               }
               // 부분적으로만 지정된 경우 해당 조건에 맞는 첫 번째 이미지 사용
               else {
@@ -1324,6 +1376,9 @@ exports.getOptimalPurchaseCombination = [
               prices[illustrationType][card.language][card.rarity]
             ) {
               card.products = prices[illustrationType][card.language][card.rarity].prices;
+              console.log(
+                `[DEBUG] "${card.cardName}" 카드 상품 설정: 일러스트=${illustrationType}, 언어=${card.language}, 레어도=${card.rarity}, 상품수=${card.products.length}`
+              );
             }
             // 지정된 일러스트, 언어, 레어도 조합이 없는 경우 빈 배열 반환
             else if (card.language && card.rarity) {
@@ -1456,6 +1511,20 @@ exports.getOptimalPurchaseCombination = [
           return card;
         })
         .filter(card => card !== null && card.products && card.products.length > 0);
+
+      // 디버깅: 처리된 카드 정보 확인
+      processedCards.forEach(card => {
+        console.log(
+          `[DEBUG] 처리된 카드: ${card.cardName}, uniqueKey=${card.uniqueCardKey}, 레어도=${card.rarity}, 언어=${card.language}, 일러스트=${card.illustrationType || 'default'}, 상품수=${card.products.length}`
+        );
+        // 첫 번째 상품의 레어도 확인
+        if (card.products.length > 0) {
+          const firstProduct = card.products[0];
+          console.log(
+            `  첫 번째 상품: 레어도=${firstProduct.rarity}, 가격=${firstProduct.price}, 사이트=${firstProduct.site}`
+          );
+        }
+      });
 
       // 유효한 카드가 없는 경우
       if (processedCards.length === 0) {
