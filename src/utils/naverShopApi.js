@@ -4,7 +4,7 @@ const { Op } = require('sequelize');
 // rarityUtil.js에서 레어도 파싱 함수를 가져옵니다
 const { parseRarity } = require('./rarityUtil');
 // crawler.js에서 나머지 파싱 함수들을 가져옵니다
-const { parseLanguage, parseCondition, extractCardCode } = require('./crawler');
+const { parseLanguage, parseCondition, extractCardCode, detectIllustration } = require('./crawler');
 const { withRateLimit } = require('./rateLimiter');
 // User-Agent 유틸리티 추가
 const { getRandomizedHeaders } = require('./userAgentUtil');
@@ -77,7 +77,8 @@ const searchNaverShop = async cardName => {
         `[INFO] "${cardName}" 검색에서 유효한 유희왕 카드가 ${allItems.length}개로 부족합니다. 유희왕 "${cardName}"으로 재검색합니다.`
       );
       searchQuery = `유희왕 "${cardName}"`;
-      allItems = await performNaverSearch(searchQuery, clientId, clientSecret, 10); // 10페이지까지 재검색
+      const additionalItems = await performNaverSearch(searchQuery, clientId, clientSecret, 10); // 10페이지까지 재검색
+      allItems = [...allItems, ...additionalItems]; // 기존 결과와 합치기
     } else if (allItems.length >= 4) {
       // 4개 이상이면 나머지 7페이지 추가 검색
       console.log(
@@ -165,6 +166,9 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
           }
         }
 
+        // 일러스트 타입 판단
+        const illustration = detectIllustration(title);
+
         return {
           title: title,
           price: parseInt(item.lprice), // 최저가
@@ -180,6 +184,7 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
           available: true,
           brand: item.brand,
           category: item.category1,
+          illustration, // 일러스트 타입 추가
         };
       });
 
@@ -303,6 +308,7 @@ const searchAndSaveCardPricesApi = async (cardName, options = {}) => {
           cardCode: item.cardCode,
           lastUpdated: new Date(),
           productId: item.productId,
+          illustration: item.illustration || 'default', // 일러스트 필드 추가
         });
       })
     );

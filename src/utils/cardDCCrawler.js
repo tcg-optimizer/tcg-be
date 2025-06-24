@@ -2,7 +2,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const iconv = require('iconv-lite'); // EUC-KR 인코딩 처리를 위해 필요
 const { parseRarity } = require('./rarityUtil');
-const { parseLanguage, parseCondition } = require('./crawler');
+const { parseLanguage, parseCondition, detectIllustration } = require('./crawler');
 const { encodeEUCKR, detectLanguageFromCardCode } = require('./tcgshopCrawler');
 const { CardPrice } = require('../models/Card');
 const { withRateLimit } = require('./rateLimiter');
@@ -185,6 +185,9 @@ const crawlCardDC = async (cardName, cardId) => {
         // 상태 정보 (노멀, 데미지 등)
         const condition = parseCondition(title);
 
+        // 일러스트 타입 판단
+        const illustration = detectIllustration(title);
+
         items.push({
           title,
           url: fullUrl,
@@ -199,6 +202,7 @@ const crawlCardDC = async (cardName, cardId) => {
           available: true, // 여기서는 항상 true (품절상품은 위에서 필터링됨)
           cardId,
           productId: generateCardDCProductId(fullUrl),
+          illustration, // 일러스트 타입 추가
         });
       });
     });
@@ -264,6 +268,7 @@ const searchAndSaveCardDCPrices = async (cardName, cardId = null) => {
             cardCode: item.cardCode,
             lastUpdated: new Date(),
             productId: consistentProductId,
+            illustration: item.illustration || 'default', // 일러스트 필드 추가
           });
 
           // product 객체에 id 필드 추가
@@ -277,6 +282,7 @@ const searchAndSaveCardDCPrices = async (cardName, cardId = null) => {
             condition: item.condition,
             language: item.language,
             rarity: item.rarity,
+            illustration: item.illustration || 'default', // 일러스트 필드 추가
           };
 
           // savedPrice에 product 필드 추가
@@ -312,6 +318,7 @@ const searchAndSaveCardDCPrices = async (cardName, cardId = null) => {
                 condition: item.condition,
                 language: item.language,
                 rarity: item.rarity,
+                illustration: item.illustration || 'default', // 일러스트 필드 추가
               },
             };
           }),

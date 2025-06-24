@@ -322,7 +322,9 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
 
         for (const item of combo) {
           // 같은 카드의 다른 판매처 최저가 찾기
-          const cardInfo = sortedCards.find(c => c.cardName === item.card.cardName);
+          const cardInfo = sortedCards.find(
+            c => (c.uniqueCardKey || c.cardName) === (item.card.uniqueCardKey || item.card.cardName)
+          );
           const otherProducts = cardInfo.products.filter(p => getSellerId(p.site) !== seller);
           const minPriceElsewhere =
             otherProducts.length > 0
@@ -366,10 +368,11 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
           for (const item of availableItems) {
             const { card, product, price, quantity } = item;
             const cardName = card.cardName;
+            const uniqueCardKey = card.uniqueCardKey || cardName;
 
             // 중복 할당 방지
-            if (assignedCards.has(cardName)) continue;
-            assignedCards.add(cardName);
+            if (assignedCards.has(uniqueCardKey)) continue;
+            assignedCards.add(uniqueCardKey);
 
             // 적립 예정 포인트 계산
             const productId = cardName; // 카드 이름을 제품 ID로 사용
@@ -385,6 +388,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
             // 구매 내역에 추가
             purchaseDetails[seller].cards.push({
               cardName,
+              uniqueCardKey,
               price,
               product,
               quantity,
@@ -398,6 +402,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
             // 카드별 최적 구매처 정보에 추가
             cardsOptimalPurchase.push({
               cardName,
+              uniqueCardKey,
               seller,
               price,
               totalPrice: price * quantity,
@@ -405,6 +410,15 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
               points: earnablePoints,
               product,
               cardId: product.cardId,
+              // 선택된 상품의 상세 정보 추가
+              rarity: product.rarity,
+              language: product.language,
+              illustration: product.illustration || 'default',
+              url: product.url,
+              site: product.site,
+              available: product.available,
+              cardCode: product.cardCode,
+              condition: product.condition,
             });
           }
 
@@ -423,15 +437,18 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
     }
 
     // 2단계: 아직 할당되지 않은 카드는 일반 그리디 방식으로 할당
-    const remainingCards = sortedCards.filter(card => !assignedCards.has(card.cardName));
+    const remainingCards = sortedCards.filter(
+      card => !assignedCards.has(card.uniqueCardKey || card.cardName)
+    );
 
     remainingCards.forEach(cardInfo => {
       const { cardName, products, quantity = 1 } = cardInfo;
+      const uniqueCardKey = cardInfo.uniqueCardKey || cardName;
       let bestSeller = null;
       let bestProduct = null;
       let lowestTotalCost = Infinity;
       let bestPointsEarned = 0;
-      const productId = cardName; // 카드 이름을 제품 ID로 사용
+      const productId = uniqueCardKey; // 고유 카드 키를 제품 ID로 사용
 
       // 각 판매처별로 이 카드를 추가했을 때의 총 비용 계산
       products.forEach(product => {
@@ -489,6 +506,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
         // 구매 내역에 추가
         purchaseDetails[bestSeller].cards.push({
           cardName,
+          uniqueCardKey,
           price: bestProduct.price,
           product: bestProduct,
           quantity,
@@ -515,6 +533,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
         // 카드별 최적 구매처 정보에 추가
         cardsOptimalPurchase.push({
           cardName,
+          uniqueCardKey,
           seller: bestSeller,
           price: bestProduct.price,
           totalPrice: bestProduct.price * quantity,
@@ -522,6 +541,15 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
           points: earnablePoints, // 적립 예정 포인트
           product: bestProduct,
           cardId: bestProduct.cardId,
+          // 선택된 상품의 상세 정보 추가
+          rarity: bestProduct.rarity,
+          language: bestProduct.language,
+          illustration: bestProduct.illustration || 'default',
+          url: bestProduct.url,
+          site: bestProduct.site,
+          available: bestProduct.available,
+          cardCode: bestProduct.cardCode,
+          condition: bestProduct.condition,
         });
       }
     });
@@ -624,20 +652,13 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
                   const { card, product, price, quantity } = item;
                   const cardName = card.cardName;
 
-                  // 원래 판매처에서 카드 제거
-                  const originalSeller = cardsOptimalPurchase.find(
-                    c => c.cardName === cardName
-                  ).seller;
-                  const originalSellerDetails = purchaseDetails[originalSeller];
-                  const cardIndex = originalSellerDetails.cards.findIndex(
-                    c => c.cardName === cardName
-                  );
-
+                  // 소스 판매처에서 카드 제거
+                  const cardIndex = sourceSeller.cards.findIndex(c => {
+                    const cUniqueKey = c.uniqueCardKey || c.cardName;
+                    return cUniqueKey === (card.uniqueCardKey || card.cardName);
+                  });
                   if (cardIndex !== -1) {
-                    const cardToRemove = originalSellerDetails.cards[cardIndex];
-                    originalSellerDetails.cards.splice(cardIndex, 1);
-                    originalSellerDetails.subtotal -= cardToRemove.price * cardToRemove.quantity;
-                    originalSellerDetails.points -= cardToRemove.points || 0;
+                    sourceSeller.cards.splice(cardIndex, 1);
                   }
 
                   // 새 판매처에 카드 추가
@@ -653,6 +674,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
 
                   purchaseDetails[sourceSellerName].cards.push({
                     cardName,
+                    uniqueCardKey: card.uniqueCardKey || cardName,
                     price,
                     product,
                     quantity,
@@ -664,11 +686,12 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
 
                   // 카드별 최적 구매처 정보 업데이트
                   const cardPurchaseIndex = cardsOptimalPurchase.findIndex(
-                    c => c.cardName === cardName
+                    c => (c.uniqueCardKey || c.cardName) === (card.uniqueCardKey || cardName)
                   );
                   if (cardPurchaseIndex !== -1) {
                     cardsOptimalPurchase[cardPurchaseIndex] = {
                       cardName,
+                      uniqueCardKey: card.uniqueCardKey || cardName,
                       seller: sourceSellerName,
                       price,
                       totalPrice: price * quantity,
@@ -676,6 +699,15 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
                       points: earnablePoints,
                       product,
                       cardId: product.cardId,
+                      // 선택된 상품의 상세 정보 추가
+                      rarity: product.rarity,
+                      language: product.language,
+                      illustration: product.illustration || 'default',
+                      url: product.url,
+                      site: product.site,
+                      available: product.available,
+                      cardCode: product.cardCode,
+                      condition: product.condition,
                     };
                   }
                 }
@@ -745,9 +777,10 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
           // 이 카드를 다른 판매처에서 구매할 수 있는 선택지 찾기
           const alternatives = [];
           const productId = card.cardName; // 카드 이름을 제품 ID로 사용
+          const cardUniqueKey = card.uniqueCardKey || card.cardName; // uniqueCardKey 사용
 
           reducedCardsList
-            .find(c => c.cardName === card.cardName)
+            .find(c => (c.uniqueCardKey || c.cardName) === cardUniqueKey)
             ?.products.forEach(product => {
               const seller = getSellerId(product.site);
               if (seller !== sourceSellerName) {
@@ -836,7 +869,10 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
               (newTotalCost < originalCost || newSourceSubtotal === 0)
             ) {
               // 소스 판매처에서 카드 제거
-              const cardIndex = sourceSeller.cards.findIndex(c => c.cardName === card.cardName);
+              const cardIndex = sourceSeller.cards.findIndex(c => {
+                const cUniqueKey = c.uniqueCardKey || c.cardName;
+                return cUniqueKey === (card.uniqueCardKey || card.cardName);
+              });
               if (cardIndex !== -1) {
                 sourceSeller.cards.splice(cardIndex, 1);
               }
@@ -848,23 +884,26 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
               // 타겟 판매처에 카드 추가
               targetSeller.cards.push({
                 cardName: card.cardName,
+                uniqueCardKey: card.uniqueCardKey || card.cardName,
                 price: alt.price,
                 product: alt.product,
                 quantity: alt.quantity,
                 points: newTargetPoints, // 적립 예정 포인트
               });
+
               targetSeller.subtotal = newTargetSubtotal;
-              targetSeller.points += newTargetPoints; // 포인트 증가
               targetSeller.shippingFee = newTargetShippingFee;
               targetSeller.total = newTargetTotal;
+              targetSeller.points += newTargetPoints;
 
               // 카드별 최적 구매처 정보 업데이트
               const cardPurchaseIndex = cardsOptimalPurchase.findIndex(
-                c => c.cardName === card.cardName
+                c => (c.uniqueCardKey || c.cardName) === (card.uniqueCardKey || card.cardName)
               );
               if (cardPurchaseIndex !== -1) {
                 cardsOptimalPurchase[cardPurchaseIndex] = {
                   cardName: card.cardName,
+                  uniqueCardKey: card.uniqueCardKey || card.cardName,
                   seller: targetSellerName,
                   price: alt.price,
                   totalPrice: alt.price * alt.quantity,
@@ -872,6 +911,15 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
                   points: newTargetPoints,
                   product: alt.product,
                   cardId: alt.product.cardId,
+                  // 선택된 상품의 상세 정보 추가
+                  rarity: alt.product.rarity,
+                  language: alt.product.language,
+                  illustration: alt.product.illustration || 'default',
+                  url: alt.product.url,
+                  site: alt.product.site,
+                  available: alt.product.available,
+                  cardCode: alt.product.cardCode,
+                  condition: alt.product.condition,
                 };
               }
 
@@ -950,36 +998,131 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
 
       // 각 카드를 상점별로 그룹화
       cardsOptimalPurchase.forEach(card => {
-        // 카드 이미지 수집
-        if (!cardImagesMap[card.cardName]) {
-          const cardInfo = reducedCardsList.find(c => c.cardName === card.cardName);
+        // 카드 이미지 수집 - 실제 선택된 상품의 레어도에 맞는 이미지 사용
+        const imageKey = card.uniqueCardKey || card.cardName; // uniqueCardKey 우선 사용
 
-          // 우선순위: 1. 카드 자체의 image 속성
-          if (cardInfo && cardInfo.image) {
-            cardImagesMap[card.cardName] = cardInfo.image;
-          }
-          // 2. 카드의 products 배열이 존재하고 이미지가 있는 경우
-          else if (cardInfo && cardInfo.products && cardInfo.products.length > 0) {
-            // 제품에 이미지 필드가 있으면 사용 (첫 번째 상품)
-            const firstProduct = cardInfo.products[0];
+        // 디버깅: imageKey 로깅
+        console.log(
+          `[DEBUG] 이미지 처리 중: cardName="${card.cardName}", uniqueCardKey="${card.uniqueCardKey}", imageKey="${imageKey}"`
+        );
 
-            if (firstProduct.image) {
-              cardImagesMap[card.cardName] = firstProduct.image;
+        if (!cardImagesMap[imageKey]) {
+          const cardInfo = reducedCardsList.find(
+            c => (c.uniqueCardKey || c.cardName) === (card.uniqueCardKey || card.cardName)
+          );
+          let selectedImage = null;
+
+          // 1. 선택된 상품의 레어도와 일러스트에 맞는 이미지 찾기 (최우선)
+          if (cardInfo && cardInfo.rarityPrices) {
+            // product에서 속성을 가져옴
+            const selectedRarity = card.product?.rarity || card.rarity;
+            const selectedLanguage = card.product?.language || card.language;
+            const selectedIllustration =
+              card.product?.illustration || card.illustration || 'default';
+
+            // 디버깅: 선택된 속성 로깅
+            console.log(
+              `[DEBUG] "${card.cardName}" 이미지 찾기: rarity="${selectedRarity}", language="${selectedLanguage}", illustration="${selectedIllustration}"`
+            );
+
+            // rarityPrices가 문자열인 경우 파싱
+            const rarityPrices =
+              typeof cardInfo.rarityPrices === 'string'
+                ? JSON.parse(cardInfo.rarityPrices)
+                : cardInfo.rarityPrices;
+
+            // rarityPrices에서 선택된 레어도/언어/일러스트에 맞는 이미지 찾기
+            if (
+              selectedRarity &&
+              selectedLanguage &&
+              rarityPrices[selectedIllustration] &&
+              rarityPrices[selectedIllustration][selectedLanguage] &&
+              rarityPrices[selectedIllustration][selectedLanguage][selectedRarity]
+            ) {
+              selectedImage =
+                rarityPrices[selectedIllustration][selectedLanguage][selectedRarity].image;
+              console.log(`[DEBUG] "${card.cardName}" 이미지 찾음 (정확한 매치): ${selectedImage}`);
             }
-            // 선택된 상품에 이미지가 있으면 사용
-            else if (card.product && card.product.image) {
-              cardImagesMap[card.cardName] = card.product.image;
-            } else {
-              // 모든 상품을 검사하여 이미지 찾기
-              const productWithImage = cardInfo.products.find(p => p.image);
-              if (productWithImage) {
-                cardImagesMap[card.cardName] = productWithImage.image;
-              } else {
-                cardImagesMap[card.cardName] = null;
+
+            // 정확한 조합을 찾지 못했으면 다른 일러스트에서 같은 언어/레어도 조합 찾기
+            if (!selectedImage && selectedRarity && selectedLanguage) {
+              for (const illustration of Object.keys(rarityPrices)) {
+                if (
+                  rarityPrices[illustration] &&
+                  rarityPrices[illustration][selectedLanguage] &&
+                  rarityPrices[illustration][selectedLanguage][selectedRarity] &&
+                  rarityPrices[illustration][selectedLanguage][selectedRarity].image
+                ) {
+                  selectedImage =
+                    rarityPrices[illustration][selectedLanguage][selectedRarity].image;
+                  break;
+                }
               }
             }
-          } else {
-            cardImagesMap[card.cardName] = null;
+
+            // 여전히 없으면 같은 레어도의 다른 언어에서 찾기
+            if (!selectedImage && selectedRarity) {
+              for (const illustration of Object.keys(rarityPrices)) {
+                for (const language of Object.keys(rarityPrices[illustration] || {})) {
+                  if (
+                    rarityPrices[illustration][language] &&
+                    rarityPrices[illustration][language][selectedRarity] &&
+                    rarityPrices[illustration][language][selectedRarity].image
+                  ) {
+                    selectedImage = rarityPrices[illustration][language][selectedRarity].image;
+                    break;
+                  }
+                }
+                if (selectedImage) break;
+              }
+            }
+
+            // 그래도 없으면 첫 번째 이미지 사용
+            if (!selectedImage) {
+              for (const illustration of Object.keys(rarityPrices)) {
+                for (const language of Object.keys(rarityPrices[illustration] || {})) {
+                  for (const rarity of Object.keys(rarityPrices[illustration][language] || {})) {
+                    if (rarityPrices[illustration][language][rarity].image) {
+                      selectedImage = rarityPrices[illustration][language][rarity].image;
+                      break;
+                    }
+                  }
+                  if (selectedImage) break;
+                }
+                if (selectedImage) break;
+              }
+            }
+          }
+
+          // 2. 선택된 상품 자체에 이미지가 있는 경우
+          if (!selectedImage && card.product && card.product.image) {
+            selectedImage = card.product.image;
+          }
+
+          // 3. 카드 자체의 image 속성 사용
+          if (!selectedImage && cardInfo && cardInfo.image) {
+            selectedImage = cardInfo.image;
+          }
+
+          // 4. 카드의 products 배열에서 첫 번째 상품의 이미지 사용
+          if (!selectedImage && cardInfo && cardInfo.products && cardInfo.products.length > 0) {
+            const firstProduct = cardInfo.products[0];
+            if (firstProduct.image) {
+              selectedImage = firstProduct.image;
+            }
+          }
+
+          // 5. 마지막 대안: 모든 상품을 검사하여 이미지 찾기
+          if (!selectedImage && cardInfo && cardInfo.products && cardInfo.products.length > 0) {
+            const productWithImage = cardInfo.products.find(p => p.image);
+            if (productWithImage) {
+              selectedImage = productWithImage.image;
+            }
+          }
+
+          cardImagesMap[imageKey] = selectedImage;
+
+          if (!selectedImage) {
             console.log(`[WARN] "${card.cardName}" 카드의 이미지 정보가 없습니다.`);
           }
         }
@@ -993,6 +1136,14 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
             shippingCost: 0,
             pointsEarned: 0,
           };
+        }
+
+        // 개별 카드의 이미지 결정 (레어도에 맞는 이미지 우선 사용)
+        let cardImage = cardImagesMap[imageKey];
+
+        // 실제 선택된 상품에 이미지가 있으면 우선 사용
+        if (card.product && card.product.image) {
+          cardImage = card.product.image;
         }
 
         // 카드 정보 추가
@@ -1011,9 +1162,10 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
             condition: card.condition || card.product?.condition,
             language: card.language || card.product?.language,
             rarity: card.rarity || card.product?.rarity,
+            illustration: card.illustration || card.product?.illustration || 'default', // illustration 필드 추가
             cardId: card.cardId, // product에 cardId 추가
           },
-          image: cardImagesMap[card.cardName],
+          image: cardImage, // 레어도에 맞는 이미지 또는 실제 상품 이미지 사용
           cardId: card.cardId, // 카드 자체에도 cardId 추가
         });
       });

@@ -78,6 +78,12 @@ const CardPrice = sequelize.define(
       allowNull: true,
       comment: '연결된 상품 ID (최저가 조합 계산에 사용)',
     },
+    illustration: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: 'default',
+      comment: '일러스트 타입 (default: 기본 일러스트, another: 다른 일러스트)',
+    },
   },
   {
     timestamps: true,

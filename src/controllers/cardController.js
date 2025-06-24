@@ -129,147 +129,51 @@ exports.getPricesByRarity = [
             rarityPrices = cachedResult.rarityPrices;
           }
 
-          // 1. 정규화된 데이터 구조인지 확인 (언어 -> 레어도 -> {image, prices} 형태)
-          const isNormalizedFormat = Object.values(rarityPrices).some(
-            lang =>
-              typeof lang === 'object' &&
-              Object.values(lang).some(
-                rarity =>
-                  rarity &&
-                  Object.prototype.hasOwnProperty.call(rarity, 'image') &&
-                  Object.prototype.hasOwnProperty.call(rarity, 'prices') &&
-                  Array.isArray(rarity.prices)
-              )
-          );
-
-          if (isNormalizedFormat) {
-            // 이미 정규화된 형식임
-            normalizedRarityPrices = rarityPrices;
-          }
-          // 2. 배열로 저장된 데이터인지 확인 (인덱스 -> 가격정보 형태)
-          else if (
-            Array.isArray(rarityPrices) ||
-            Object.keys(rarityPrices).every(key => !isNaN(parseInt(key)))
-          ) {
-            // 배열 또는 인덱스 키를 사용하는 객체를 정규화된 형태로 변환
-            const prices = Array.isArray(rarityPrices) ? rarityPrices : Object.values(rarityPrices);
-
-            // 언어별, 레어도별로 가격 정보 그룹화
-            prices.forEach(price => {
-              // price 객체에서 필요한 필드 추출
-              let language,
-                rarity,
-                priceValue,
-                site,
-                url,
-                condition,
-                cardCode,
-                available,
-                lastUpdated,
-                id;
-
-              // price가 {image, prices} 형태인 경우 처리
-              if (price.language && price.language.prices) {
-                language = price.language.prices;
-                rarity = price.rarity.prices;
-                priceValue = price.price.prices;
-                site = price.site.prices;
-                url = price.url.prices;
-                condition = price.condition.prices;
-                cardCode = price.cardCode?.prices;
-                available = price.available.prices;
-                lastUpdated = price.lastUpdated.prices;
-                id = price.id.prices;
-              } else {
-                // 일반적인 가격 정보 객체인 경우
-                language = price.language || '알 수 없음';
-                rarity = price.rarity || '알 수 없음';
-                priceValue = price.price;
-                site = price.site;
-                url = price.url;
-                condition = price.condition;
-                cardCode = price.cardCode;
-                available = price.available;
-                lastUpdated = price.lastUpdated;
-                id = price.id;
-              }
-
-              // 언어가 '알 수 없음'이거나 레어도가 '알 수 없음'인 경우 제외
-              if (language === '알 수 없음' || rarity === '알 수 없음') {
-                return;
-              }
-
-              if (!normalizedRarityPrices[language]) {
-                normalizedRarityPrices[language] = {};
-              }
-
-              if (!normalizedRarityPrices[language][rarity]) {
-                normalizedRarityPrices[language][rarity] = {
-                  image: cachedResult.image, // 기본 이미지 사용
-                  prices: [],
-                };
-              }
-
-              normalizedRarityPrices[language][rarity].prices.push({
-                id,
-                price: priceValue,
-                site,
-                url,
-                condition,
-                rarity,
-                language,
-                cardCode,
-                available,
-                lastUpdated,
-              });
-            });
-
-            // 각 레어도별 가격을 오름차순으로 정렬
-            Object.keys(normalizedRarityPrices).forEach(language => {
-              Object.keys(normalizedRarityPrices[language]).forEach(rarity => {
-                normalizedRarityPrices[language][rarity].prices.sort((a, b) => a.price - b.price);
-              });
-            });
-          }
-          // 3. 구 형식 데이터 (language -> rarity -> prices[] 형태)
-          else {
-            // 구 형식 데이터를 새 형식으로 변환
-            Object.keys(rarityPrices).forEach(language => {
-              normalizedRarityPrices[language] = {};
-
-              Object.keys(rarityPrices[language]).forEach(rarity => {
-                const prices = rarityPrices[language][rarity];
-
-                normalizedRarityPrices[language][rarity] = {
-                  image: cachedResult.image, // 기존 이미지를 사용
-                  prices: Array.isArray(prices) ? prices : [prices], // 배열이 아닌 경우 배열로 변환
-                };
-              });
-            });
-          }
+          // illustration -> language -> rarity -> {image, prices} 구조로 처리
+          normalizedRarityPrices = rarityPrices;
 
           // 품절된 상품 필터링 (available 필드가 false인 아이템 제외)
           let totalProducts = 0;
-          Object.keys(normalizedRarityPrices).forEach(language => {
-            Object.keys(normalizedRarityPrices[language]).forEach(rarity => {
-              normalizedRarityPrices[language][rarity].prices = normalizedRarityPrices[language][
-                rarity
-              ].prices.filter(price => price.available !== false);
-              totalProducts += normalizedRarityPrices[language][rarity].prices.length;
+          Object.keys(normalizedRarityPrices).forEach(illustration => {
+            Object.keys(normalizedRarityPrices[illustration] || {}).forEach(language => {
+              Object.keys(normalizedRarityPrices[illustration][language] || {}).forEach(rarity => {
+                if (
+                  normalizedRarityPrices[illustration][language][rarity] &&
+                  normalizedRarityPrices[illustration][language][rarity].prices
+                ) {
+                  normalizedRarityPrices[illustration][language][rarity].prices =
+                    normalizedRarityPrices[illustration][language][rarity].prices.filter(
+                      price => price.available !== false
+                    );
+                  totalProducts +=
+                    normalizedRarityPrices[illustration][language][rarity].prices.length;
+                }
+              });
             });
           });
 
           // 빈 레어도 그룹 제거 (필터링 후 상품이 없는 경우)
-          Object.keys(normalizedRarityPrices).forEach(language => {
-            Object.keys(normalizedRarityPrices[language]).forEach(rarity => {
-              if (normalizedRarityPrices[language][rarity].prices.length === 0) {
-                delete normalizedRarityPrices[language][rarity];
+          Object.keys(normalizedRarityPrices).forEach(illustration => {
+            Object.keys(normalizedRarityPrices[illustration] || {}).forEach(language => {
+              Object.keys(normalizedRarityPrices[illustration][language] || {}).forEach(rarity => {
+                if (
+                  normalizedRarityPrices[illustration][language][rarity] &&
+                  normalizedRarityPrices[illustration][language][rarity].prices &&
+                  normalizedRarityPrices[illustration][language][rarity].prices.length === 0
+                ) {
+                  delete normalizedRarityPrices[illustration][language][rarity];
+                }
+              });
+
+              // 빈 언어 그룹 제거
+              if (Object.keys(normalizedRarityPrices[illustration][language] || {}).length === 0) {
+                delete normalizedRarityPrices[illustration][language];
               }
             });
 
-            // 빈 언어 그룹 제거
-            if (Object.keys(normalizedRarityPrices[language]).length === 0) {
-              delete normalizedRarityPrices[language];
+            // 빈 일러스트 그룹 제거
+            if (Object.keys(normalizedRarityPrices[illustration] || {}).length === 0) {
+              delete normalizedRarityPrices[illustration];
             }
           });
 
@@ -381,10 +285,7 @@ exports.getPricesByRarity = [
         // 상품 제목에 "중고" 키워드가 포함된 제품도 추가 필터링
         const preFilteredPrices = prices.filter(price => {
           // 상품 제목이 있는 경우 "중고" 키워드 확인
-          if (
-            price.title &&
-            /\[중고\]|\(중고\)|중고|중고품|used|듀얼용|실듀용/i.test(price.title)
-          ) {
+          if (price.title && /중고|중고품|듀얼용|실듀용/i.test(price.title)) {
             return false; // 중고 상품 제외
           }
           return true;
@@ -440,26 +341,31 @@ exports.getPricesByRarity = [
           });
         }
 
-        // 언어별, 레어도별로 가격 정보 그룹화
+        // 일러스트별, 언어별, 레어도별로 가격 정보 그룹화
         const rarityPrices = {};
 
-        // 가격들을 언어별, 레어도별로 그룹화
+        // 가격들을 일러스트별, 언어별, 레어도별로 그룹화
         centerCardFilteredPrices.forEach(price => {
+          const illustration = price.illustration || 'default';
           const language = price.language || '알 수 없음';
           const rarity = price.rarity || '알 수 없음';
 
-          if (!rarityPrices[language]) {
-            rarityPrices[language] = {};
+          if (!rarityPrices[illustration]) {
+            rarityPrices[illustration] = {};
           }
 
-          if (!rarityPrices[language][rarity]) {
-            rarityPrices[language][rarity] = {
+          if (!rarityPrices[illustration][language]) {
+            rarityPrices[illustration][language] = {};
+          }
+
+          if (!rarityPrices[illustration][language][rarity]) {
+            rarityPrices[illustration][language][rarity] = {
               image: null, // 레어도별 이미지 URL을 저장할 필드 추가
               prices: [],
             };
           }
 
-          rarityPrices[language][rarity].prices.push({
+          rarityPrices[illustration][language][rarity].prices.push({
             id: price.id,
             price: price.price,
             site: price.site,
@@ -470,13 +376,16 @@ exports.getPricesByRarity = [
             cardCode: price.cardCode,
             available: price.available,
             lastUpdated: price.lastUpdated,
+            illustration: price.illustration || 'default',
           });
         });
 
-        // 각 언어와 레어도 그룹 내에서 가격 오름차순 정렬
-        Object.keys(rarityPrices).forEach(language => {
-          Object.keys(rarityPrices[language]).forEach(rarity => {
-            rarityPrices[language][rarity].prices.sort((a, b) => a.price - b.price);
+        // 각 일러스트, 언어, 레어도 그룹 내에서 가격 오름차순 정렬
+        Object.keys(rarityPrices).forEach(illustration => {
+          Object.keys(rarityPrices[illustration]).forEach(language => {
+            Object.keys(rarityPrices[illustration][language]).forEach(rarity => {
+              rarityPrices[illustration][language][rarity].prices.sort((a, b) => a.price - b.price);
+            });
           });
         });
 
@@ -485,7 +394,7 @@ exports.getPricesByRarity = [
         try {
           // 이미지가 필요한 레어도 확인 (null인 이미지만 업데이트)
           const needImage = Object.values(rarityPrices).some(lang =>
-            Object.values(lang).some(rarity => !rarity.image)
+            Object.values(lang).some(rarity => Object.values(rarity).some(item => !item.image))
           );
 
           // 이미지가 필요한 경우 이미 가져온 네이버 결과에서 이미지 추출
@@ -495,18 +404,24 @@ exports.getPricesByRarity = [
             naverResult.rawResults &&
             naverResult.rawResults.length > 0
           ) {
-            // 객체로 변환하여 레어도/언어별 이미지 찾기 최적화
+            // 객체로 변환하여 일러스트/언어/레어도별 이미지 찾기 최적화
             const imageMap = {};
 
             // 네이버 원본 검색 결과에서 이미지 데이터 추출
             naverResult.rawResults.forEach(item => {
-              // 각 상품의 이미지를 레어도/언어별로 매핑
+              // 각 상품의 이미지를 일러스트/언어/레어도별로 매핑
               if (item.language && item.rarity) {
-                const key = `${item.language}:${item.rarity}`;
+                const illustration = item.illustration || 'default';
+                const key = `${illustration}:${item.language}:${item.rarity}`;
 
                 // 상품별 이미지가 있으면 우선 사용
                 if (item.image && item.image.trim() !== '') {
-                  if (!imageMap[key]) {
+                  // 어나더 일러스트 상품인 경우, 더 구체적인 키워드가 포함된 이미지를 우선 사용
+                  if (illustration === 'another') {
+                    // 어나더 일러스트의 경우 기존 이미지를 덮어쓰기 (더 관련성 높은 이미지 찾기)
+                    imageMap[key] = item.image;
+                  } else if (!imageMap[key]) {
+                    // 기본 일러스트는 첫 번째 이미지만 사용
                     imageMap[key] = item.image;
                   }
                 }
@@ -520,42 +435,74 @@ exports.getPricesByRarity = [
             });
 
             // 레어도별 이미지 URL 설정
-            Object.keys(rarityPrices).forEach(language => {
-              Object.keys(rarityPrices[language]).forEach(rarity => {
-                // 이미 이미지가 있는 경우 건너뛰기
-                if (rarityPrices[language][rarity].image) return;
+            Object.keys(rarityPrices).forEach(illustration => {
+              Object.keys(rarityPrices[illustration]).forEach(language => {
+                Object.keys(rarityPrices[illustration][language]).forEach(rarity => {
+                  // 이미 이미지가 있는 경우 건너뛰기
+                  if (rarityPrices[illustration][language][rarity].image) return;
 
-                // 언어와 레어도에 맞는 이미지 찾기
-                const key = `${language}:${rarity}`;
-                if (imageMap[key]) {
-                  rarityPrices[language][rarity].image = imageMap[key];
-                } else if (card.image) {
-                  // 레어도별 이미지가 없으면 카드의 기본 이미지 사용
-                  rarityPrices[language][rarity].image = card.image;
-                }
-              });
-            });
-          } else if (card.image) {
-            // 네이버 검색 결과가 없거나 이미지가 필요하지 않은 경우 카드의 기본 이미지 사용
-            Object.keys(rarityPrices).forEach(language => {
-              Object.keys(rarityPrices[language]).forEach(rarity => {
-                if (!rarityPrices[language][rarity].image) {
-                  rarityPrices[language][rarity].image = card.image;
-                }
+                  // 일러스트, 언어, 레어도에 맞는 이미지 찾기
+                  const key = `${illustration}:${language}:${rarity}`;
+                  if (imageMap[key]) {
+                    rarityPrices[illustration][language][rarity].image = imageMap[key];
+                  } else if (illustration === 'another') {
+                    // 어나더 일러스트 전용 이미지가 없는 경우, 기본 이미지에 구별을 위한 파라미터 추가
+                    if (card.image) {
+                      // URL에 일러스트 타입을 구별할 수 있는 파라미터 추가
+                      const urlWithParam =
+                        card.image + (card.image.includes('?') ? '&' : '?') + 'illust=another';
+                      rarityPrices[illustration][language][rarity].image = urlWithParam;
+                    } else {
+                      rarityPrices[illustration][language][rarity].image = null;
+                    }
+                  } else if (card.image) {
+                    // 레어도별 이미지가 없으면 카드의 기본 이미지 사용
+                    rarityPrices[illustration][language][rarity].image = card.image;
+                  }
+                });
               });
             });
           } else {
-            console.log('[DEBUG] 이미지 설정을 위한 데이터가 없습니다.');
+            console.log('[DEBUG] 네이버 검색 결과가 없습니다. 기본 이미지를 사용합니다.');
+          }
+
+          // 네이버 검색 결과가 없거나 이미지가 필요하지 않은 경우 카드의 기본 이미지 사용
+          if (card.image) {
+            Object.keys(rarityPrices).forEach(illustration => {
+              Object.keys(rarityPrices[illustration]).forEach(language => {
+                Object.keys(rarityPrices[illustration][language]).forEach(rarity => {
+                  if (!rarityPrices[illustration][language][rarity].image) {
+                    if (illustration === 'another') {
+                      // 어나더 일러스트의 경우 URL에 파라미터 추가
+                      const urlWithParam =
+                        card.image + (card.image.includes('?') ? '&' : '?') + 'illust=another';
+                      rarityPrices[illustration][language][rarity].image = urlWithParam;
+                    } else {
+                      rarityPrices[illustration][language][rarity].image = card.image;
+                    }
+                  }
+                });
+              });
+            });
           }
         } catch (imageError) {
           console.error(`[ERROR] 이미지 URL 설정 오류: ${imageError.message}`);
           // 오류가 발생해도 계속 진행하고 기본 이미지 사용
           if (card.image) {
-            Object.keys(rarityPrices).forEach(language => {
-              Object.keys(rarityPrices[language]).forEach(rarity => {
-                if (!rarityPrices[language][rarity].image) {
-                  rarityPrices[language][rarity].image = card.image;
-                }
+            Object.keys(rarityPrices).forEach(illustration => {
+              Object.keys(rarityPrices[illustration]).forEach(language => {
+                Object.keys(rarityPrices[illustration][language]).forEach(rarity => {
+                  if (!rarityPrices[illustration][language][rarity].image) {
+                    if (illustration === 'another') {
+                      // 어나더 일러스트의 경우 URL에 파라미터 추가
+                      const urlWithParam =
+                        card.image + (card.image.includes('?') ? '&' : '?') + 'illust=another';
+                      rarityPrices[illustration][language][rarity].image = urlWithParam;
+                    } else {
+                      rarityPrices[illustration][language][rarity].image = card.image;
+                    }
+                  }
+                });
               });
             });
           }
@@ -572,11 +519,31 @@ exports.getPricesByRarity = [
           expiresAt,
         });
 
+        // 이미지 URL을 레어도별로 설정 (새로 저장하는 경우)
+        Object.keys(rarityPrices).forEach(illustration => {
+          Object.keys(rarityPrices[illustration]).forEach(language => {
+            Object.keys(rarityPrices[illustration][language]).forEach(rarity => {
+              if (!rarityPrices[illustration][language][rarity].image) {
+                if (illustration === 'another') {
+                  // 어나더 일러스트의 경우 URL에 파라미터 추가
+                  const urlWithParam =
+                    card.image + (card.image.includes('?') ? '&' : '?') + 'illust=another';
+                  rarityPrices[illustration][language][rarity].image = urlWithParam;
+                } else {
+                  rarityPrices[illustration][language][rarity].image = card.image;
+                }
+              }
+            });
+          });
+        });
+
         // 총 상품 개수 계산
         let productsCount = 0;
-        Object.keys(rarityPrices).forEach(language => {
-          Object.keys(rarityPrices[language]).forEach(rarity => {
-            productsCount += rarityPrices[language][rarity].prices.length;
+        Object.keys(rarityPrices).forEach(illustration => {
+          Object.keys(rarityPrices[illustration]).forEach(language => {
+            Object.keys(rarityPrices[illustration][language]).forEach(rarity => {
+              productsCount += rarityPrices[illustration][language][rarity].prices.length;
+            });
           });
         });
 
@@ -951,12 +918,19 @@ function calculateTotalProducts(rarityPrices) {
   // rarityPrices가 문자열이면 JSON으로 파싱
   const prices = typeof rarityPrices === 'string' ? JSON.parse(rarityPrices) : rarityPrices;
 
-  // 언어별, 레어도별 상품 개수 합산
-  Object.keys(prices).forEach(language => {
-    Object.keys(prices[language]).forEach(rarity => {
-      if (prices[language][rarity] && prices[language][rarity].prices) {
-        productCount += prices[language][rarity].prices.length;
-      }
+  if (!prices || Object.keys(prices).length === 0) return 0;
+
+  // illustration -> language -> rarity -> {image, prices} 구조로 처리
+  Object.keys(prices).forEach(illustration => {
+    Object.keys(prices[illustration] || {}).forEach(language => {
+      Object.keys(prices[illustration][language] || {}).forEach(rarity => {
+        if (
+          prices[illustration][language][rarity] &&
+          prices[illustration][language][rarity].prices
+        ) {
+          productCount += prices[illustration][language][rarity].prices.length;
+        }
+      });
     });
   });
 
@@ -1108,10 +1082,7 @@ exports.getOptimalPurchaseCombination = [
                   const filteredPrices = combinedPrices.filter(
                     price =>
                       // 중고 상품 제외
-                      !(
-                        price.title &&
-                        /\[중고\]|\(중고\)|중고|중고품|used|듀얼용|실듀용/i.test(price.title)
-                      ) &&
+                      !(price.title && /중고|중고품|듀얼용|실듀용/i.test(price.title)) &&
                       // 번개장터 상품 제외
                       !(
                         price.site &&
@@ -1136,25 +1107,30 @@ exports.getOptimalPurchaseCombination = [
                     return card;
                   }
 
-                  // 언어별, 레어도별로 가격 정보 그룹화
+                  // 일러스트별, 언어별, 레어도별로 가격 정보 그룹화
                   const rarityPrices = {};
 
                   filteredPrices.forEach(price => {
+                    const illustration = price.illustration || 'default';
                     const language = price.language || '알 수 없음';
                     const rarity = price.rarity || '알 수 없음';
 
-                    if (!rarityPrices[language]) {
-                      rarityPrices[language] = {};
+                    if (!rarityPrices[illustration]) {
+                      rarityPrices[illustration] = {};
                     }
 
-                    if (!rarityPrices[language][rarity]) {
-                      rarityPrices[language][rarity] = {
+                    if (!rarityPrices[illustration][language]) {
+                      rarityPrices[illustration][language] = {};
+                    }
+
+                    if (!rarityPrices[illustration][language][rarity]) {
+                      rarityPrices[illustration][language][rarity] = {
                         image: null,
                         prices: [],
                       };
                     }
 
-                    rarityPrices[language][rarity].prices.push({
+                    rarityPrices[illustration][language][rarity].prices.push({
                       id: price.id,
                       price: price.price,
                       site: price.site,
@@ -1165,16 +1141,38 @@ exports.getOptimalPurchaseCombination = [
                       cardCode: price.cardCode,
                       available: price.available,
                       lastUpdated: price.lastUpdated,
+                      illustration: price.illustration || 'default',
                     });
                   });
 
-                  // 각 언어와 레어도 그룹 내에서 가격 오름차순 정렬
-                  Object.keys(rarityPrices).forEach(language => {
-                    Object.keys(rarityPrices[language]).forEach(rarity => {
-                      rarityPrices[language][rarity].prices.sort((a, b) => a.price - b.price);
+                  // 각 일러스트, 언어, 레어도 그룹 내에서 가격 오름차순 정렬
+                  Object.keys(rarityPrices).forEach(illustration => {
+                    Object.keys(rarityPrices[illustration]).forEach(language => {
+                      Object.keys(rarityPrices[illustration][language]).forEach(rarity => {
+                        rarityPrices[illustration][language][rarity].prices.sort(
+                          (a, b) => a.price - b.price
+                        );
+                      });
+                    });
+                  });
 
-                      // 이미지 설정
-                      rarityPrices[language][rarity].image = newCard.image || null;
+                  // 이미지 설정 (어나더 일러스트의 경우 URL 파라미터 추가)
+                  Object.keys(rarityPrices).forEach(illustration => {
+                    Object.keys(rarityPrices[illustration]).forEach(language => {
+                      Object.keys(rarityPrices[illustration][language]).forEach(rarity => {
+                        if (!rarityPrices[illustration][language][rarity].image && newCard.image) {
+                          if (illustration === 'another') {
+                            // 어나더 일러스트의 경우 URL에 파라미터 추가
+                            const urlWithParam =
+                              newCard.image +
+                              (newCard.image.includes('?') ? '&' : '?') +
+                              'illust=another';
+                            rarityPrices[illustration][language][rarity].image = urlWithParam;
+                          } else {
+                            rarityPrices[illustration][language][rarity].image = newCard.image;
+                          }
+                        }
+                      });
                     });
                   });
 
@@ -1268,6 +1266,11 @@ exports.getOptimalPurchaseCombination = [
             card.cardName = card.name;
           }
 
+          // 일러스트 타입을 포함한 고유 식별자 생성
+          const illustrationType = card.illustrationType || 'default';
+          const uniqueCardKey = `${card.cardName}_${illustrationType}_${card.language || 'any'}_${card.rarity || 'any'}`;
+          card.uniqueCardKey = uniqueCardKey;
+
           // products 필드 처리 (캐시 형식 변환)
           if (!card.products && card.rarityPrices) {
             // rarityPrices가 문자열인 경우 파싱
@@ -1278,66 +1281,154 @@ exports.getOptimalPurchaseCombination = [
 
             // 이미지 정보 확인 및 설정
             if (!card.image) {
-              // 지정된 레어도와 언어에 맞는 이미지 찾기
+              // 지정된 일러스트, 언어, 레어도에 맞는 이미지 찾기
+              const illustrationType = card.illustrationType || 'default';
               if (
                 card.language &&
                 card.rarity &&
-                prices[card.language] &&
-                prices[card.language][card.rarity] &&
-                prices[card.language][card.rarity].image
+                prices[illustrationType] &&
+                prices[illustrationType][card.language] &&
+                prices[illustrationType][card.language][card.rarity] &&
+                prices[illustrationType][card.language][card.rarity].image
               ) {
-                card.image = prices[card.language][card.rarity].image;
+                card.image = prices[illustrationType][card.language][card.rarity].image;
               }
-              // 첫 번째 이미지 사용
-              else {
-                // 첫 번째 언어와 레어도 조합에서 이미지 찾기
+              // 지정된 일러스트, 언어, 레어도 조합이 정확히 없으면 대안 이미지 찾기
+              else if (card.language && card.rarity) {
+                // 해당 언어와 레어도가 있는 다른 일러스트에서 이미지 찾기
                 let foundImage = false;
-                for (const language of Object.keys(prices)) {
+                for (const illustration of Object.keys(prices)) {
                   if (foundImage) break;
-                  for (const rarity of Object.keys(prices[language])) {
-                    if (prices[language][rarity].image) {
-                      card.image = prices[language][rarity].image;
-                      foundImage = true;
-                      break;
+                  if (
+                    prices[illustration] &&
+                    prices[illustration][card.language] &&
+                    prices[illustration][card.language][card.rarity] &&
+                    prices[illustration][card.language][card.rarity].image
+                  ) {
+                    card.image = prices[illustration][card.language][card.rarity].image;
+                    foundImage = true;
+                    break;
+                  }
+                }
+
+                // 여전히 이미지가 없으면 같은 레어도의 다른 언어 이미지 찾기
+                if (!foundImage) {
+                  for (const illustration of Object.keys(prices)) {
+                    if (foundImage) break;
+                    for (const language of Object.keys(prices[illustration] || {})) {
+                      if (foundImage) break;
+                      if (
+                        prices[illustration][language] &&
+                        prices[illustration][language][card.rarity] &&
+                        prices[illustration][language][card.rarity].image
+                      ) {
+                        card.image = prices[illustration][language][card.rarity].image;
+                        foundImage = true;
+                        break;
+                      }
+                    }
+                  }
+                }
+
+                // 그래도 이미지가 없으면 임의의 이미지 사용
+                if (!foundImage) {
+                  for (const illustration of Object.keys(prices)) {
+                    if (foundImage) break;
+                    for (const language of Object.keys(prices[illustration] || {})) {
+                      if (foundImage) break;
+                      for (const rarity of Object.keys(prices[illustration][language] || {})) {
+                        if (prices[illustration][language][rarity].image) {
+                          card.image = prices[illustration][language][rarity].image;
+                          foundImage = true;
+                          break;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              // 부분적으로만 지정된 경우 해당 조건에 맞는 첫 번째 이미지 사용
+              else {
+                // 첫 번째 일러스트, 언어, 레어도 조합에서 이미지 찾기
+                let foundImage = false;
+                for (const illustration of Object.keys(prices)) {
+                  if (foundImage) break;
+                  for (const language of Object.keys(prices[illustration] || {})) {
+                    if (foundImage) break;
+                    for (const rarity of Object.keys(prices[illustration][language] || {})) {
+                      if (prices[illustration][language][rarity].image) {
+                        card.image = prices[illustration][language][rarity].image;
+                        foundImage = true;
+                        break;
+                      }
                     }
                   }
                 }
               }
             }
 
-            // 지정된 레어도와 언어가 있는 경우
+            // 지정된 일러스트, 언어, 레어도가 있는 경우
             if (
               card.language &&
               card.rarity &&
-              prices[card.language] &&
-              prices[card.language][card.rarity]
+              prices[illustrationType] &&
+              prices[illustrationType][card.language] &&
+              prices[illustrationType][card.language][card.rarity]
             ) {
-              card.products = prices[card.language][card.rarity].prices;
+              card.products = prices[illustrationType][card.language][card.rarity].prices;
+              console.log(
+                `[DEBUG] "${card.cardName}" 카드 상품 설정: 일러스트=${illustrationType}, 언어=${card.language}, 레어도=${card.rarity}, 상품수=${card.products.length}`
+              );
             }
-            // 지정된 레어도만 있는 경우
+            // 지정된 일러스트, 언어, 레어도 조합이 없는 경우 빈 배열 반환
+            else if (card.language && card.rarity) {
+              console.log(
+                `[WARN] "${card.cardName}" 카드의 일러스트: ${illustrationType}, 언어: ${card.language}, 레어도: ${card.rarity} 조합을 찾을 수 없습니다.`
+              );
+              card.products = [];
+            }
+            // 지정된 레어도만 있는 경우 (언어는 지정되지 않음)
             else if (card.rarity) {
-              // 모든 언어에서 해당 레어도 상품 통합
+              // 지정된 일러스트에서만 해당 레어도 상품 통합
               card.products = [];
-              Object.keys(prices).forEach(language => {
-                if (prices[language][card.rarity]) {
-                  card.products = [...card.products, ...prices[language][card.rarity].prices];
-                }
-              });
+              if (prices[illustrationType]) {
+                Object.keys(prices[illustrationType] || {}).forEach(language => {
+                  if (
+                    prices[illustrationType][language] &&
+                    prices[illustrationType][language][card.rarity]
+                  ) {
+                    card.products = [
+                      ...card.products,
+                      ...prices[illustrationType][language][card.rarity].prices,
+                    ];
+                  }
+                });
+              }
             }
-            // 지정된 언어만 있는 경우
-            else if (card.language && prices[card.language]) {
-              // 해당 언어의 모든 레어도 상품 통합
+            // 지정된 언어만 있는 경우 (레어도는 지정되지 않음)
+            else if (card.language) {
+              // 지정된 일러스트에서만 해당 언어의 모든 레어도 상품 통합
               card.products = [];
-              Object.keys(prices[card.language]).forEach(rarity => {
-                card.products = [...card.products, ...prices[card.language][rarity].prices];
-              });
+              if (prices[illustrationType] && prices[illustrationType][card.language]) {
+                Object.keys(prices[illustrationType][card.language]).forEach(rarity => {
+                  card.products = [
+                    ...card.products,
+                    ...prices[illustrationType][card.language][rarity].prices,
+                  ];
+                });
+              }
             }
-            // 모든 상품 통합
+            // 모든 상품 통합 (일러스트, 언어, 레어도 모두 지정되지 않음)
             else {
               card.products = [];
-              Object.keys(prices).forEach(language => {
-                Object.keys(prices[language]).forEach(rarity => {
-                  card.products = [...card.products, ...prices[language][rarity].prices];
+              Object.keys(prices).forEach(illustration => {
+                Object.keys(prices[illustration] || {}).forEach(language => {
+                  Object.keys(prices[illustration][language] || {}).forEach(rarity => {
+                    card.products = [
+                      ...card.products,
+                      ...prices[illustration][language][rarity].prices,
+                    ];
+                  });
                 });
               });
             }
@@ -1381,6 +1472,7 @@ exports.getOptimalPurchaseCombination = [
                   condition: product.condition,
                   language: product.language,
                   rarity: product.rarity,
+                  illustration: product.illustration || 'default',
                 };
               }
               // product 객체가 있지만 id가 없는 경우
@@ -1420,6 +1512,20 @@ exports.getOptimalPurchaseCombination = [
           return card;
         })
         .filter(card => card !== null && card.products && card.products.length > 0);
+
+      // 디버깅: 처리된 카드 정보 확인
+      processedCards.forEach(card => {
+        console.log(
+          `[DEBUG] 처리된 카드: ${card.cardName}, uniqueKey=${card.uniqueCardKey}, 레어도=${card.rarity}, 언어=${card.language}, 일러스트=${card.illustrationType || 'default'}, 상품수=${card.products.length}`
+        );
+        // 첫 번째 상품의 레어도 확인
+        if (card.products.length > 0) {
+          const firstProduct = card.products[0];
+          console.log(
+            `  첫 번째 상품: 레어도=${firstProduct.rarity}, 가격=${firstProduct.price}, 사이트=${firstProduct.site}`
+          );
+        }
+      });
 
       // 유효한 카드가 없는 경우
       if (processedCards.length === 0) {
@@ -1581,6 +1687,7 @@ exports.getOptimalPurchaseCombination = [
                   condition: card.condition,
                   language: card.language,
                   rarity: card.rarity,
+                  illustration: card.illustration || 'default',
                 };
               }
               // product 객체가 있지만 id가 없는 경우
