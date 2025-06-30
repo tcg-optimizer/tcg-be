@@ -1000,12 +1000,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
       cardsOptimalPurchase.forEach(card => {
         // 카드 이미지 수집 - 실제 선택된 상품의 레어도에 맞는 이미지 사용
         const imageKey = card.uniqueCardKey || card.cardName; // uniqueCardKey 우선 사용
-
-        // 디버깅: imageKey 로깅
-        console.log(
-          `[DEBUG] 이미지 처리 중: cardName="${card.cardName}", uniqueCardKey="${card.uniqueCardKey}", imageKey="${imageKey}"`
-        );
-
         if (!cardImagesMap[imageKey]) {
           const cardInfo = reducedCardsList.find(
             c => (c.uniqueCardKey || c.cardName) === (card.uniqueCardKey || card.cardName)
@@ -1019,11 +1013,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
             const selectedLanguage = card.product?.language || card.language;
             const selectedIllustration =
               card.product?.illustration || card.illustration || 'default';
-
-            // 디버깅: 선택된 속성 로깅
-            console.log(
-              `[DEBUG] "${card.cardName}" 이미지 찾기: rarity="${selectedRarity}", language="${selectedLanguage}", illustration="${selectedIllustration}"`
-            );
 
             // rarityPrices가 문자열인 경우 파싱
             const rarityPrices =
@@ -1041,7 +1030,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
             ) {
               selectedImage =
                 rarityPrices[selectedIllustration][selectedLanguage][selectedRarity].image;
-              console.log(`[DEBUG] "${card.cardName}" 이미지 찾음 (정확한 매치): ${selectedImage}`);
             }
 
             // 정확한 조합을 찾지 못했으면 다른 일러스트에서 같은 언어/레어도 조합 찾기
