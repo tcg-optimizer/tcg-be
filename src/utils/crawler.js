@@ -157,10 +157,10 @@ function parseCondition(title) {
   if (/S-급|S-등급/i.test(title)) {
     return '중고';
   }
-  if (/A급|A\+|A등급|A-|A-등급/i.test(title)) {
+  if (/A급|A\+|A등급|A-등급/i.test(title)) {
     return '중고';
   }
-  if (/B급|B등급|B-/i.test(title)) {
+  if (/B급|B등급/i.test(title)) {
     return '중고';
   }
   if (/C급|C등급/i.test(title)) {

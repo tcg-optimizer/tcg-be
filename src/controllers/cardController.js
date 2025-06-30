@@ -1376,9 +1376,6 @@ exports.getOptimalPurchaseCombination = [
               prices[illustrationType][card.language][card.rarity]
             ) {
               card.products = prices[illustrationType][card.language][card.rarity].prices;
-              console.log(
-                `[DEBUG] "${card.cardName}" 카드 상품 설정: 일러스트=${illustrationType}, 언어=${card.language}, 레어도=${card.rarity}, 상품수=${card.products.length}`
-              );
             }
             // 지정된 일러스트, 언어, 레어도 조합이 없는 경우 빈 배열 반환
             else if (card.language && card.rarity) {
@@ -1515,9 +1512,6 @@ exports.getOptimalPurchaseCombination = [
 
       // 디버깅: 처리된 카드 정보 확인
       processedCards.forEach(card => {
-        console.log(
-          `[DEBUG] 처리된 카드: ${card.cardName}, uniqueKey=${card.uniqueCardKey}, 레어도=${card.rarity}, 언어=${card.language}, 일러스트=${card.illustrationType || 'default'}, 상품수=${card.products.length}`
-        );
         // 첫 번째 상품의 레어도 확인
         if (card.products.length > 0) {
           const firstProduct = card.products[0];
