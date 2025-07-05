@@ -12,22 +12,19 @@ const CardPriceCache = sequelize.define(
     cardName: {
       type: DataTypes.STRING,
       allowNull: false,
-      comment: '카드 이름',
     },
     image: {
       type: DataTypes.STRING,
       allowNull: true,
-      comment: '카드 대표 이미지 URL',
     },
     rarityPrices: {
+      // 레어도별 가격 정보 JSON 객체, 자세한 객체 형식은 Notion API 문서 참조
       type: DataTypes.JSON,
       allowNull: false,
-      comment: '레어도별 가격 정보 JSON 객체', //자세한 JSON 객체 형식은 Notion 참조
     },
     expiresAt: {
       type: DataTypes.DATE,
       allowNull: false,
-      comment: '캐시 만료 시간',
     },
   },
   {

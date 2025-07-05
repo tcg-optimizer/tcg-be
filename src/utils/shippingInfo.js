@@ -590,6 +590,13 @@ const naverSellerShippingInfo = {
     islandShippingFee: 4000,
     freeShippingThreshold: Infinity,
   },
+
+  카드팜CARDPOM: {
+    shippingFee: 3500,
+    jejuShippingFee: 6500,
+    islandShippingFee: 6500,
+    freeShippingThreshold: 50000,
+  },
 };
 
 const REGION_TYPES = {

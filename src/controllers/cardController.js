@@ -1,6 +1,6 @@
 const { Card } = require('../models/Card');
 const { Op } = require('sequelize');
-const { searchAndSaveCardPrices } = require('../utils/crawler');
+
 const { searchAndSaveCardPricesApi } = require('../utils/naverShopApi');
 const { searchAndSaveTCGShopPrices } = require('../utils/tcgshopCrawler');
 const { searchAndSaveCardDCPrices } = require('../utils/cardDCCrawler');
@@ -569,48 +569,6 @@ exports.getPricesByRarity = [
       }
     } catch (error) {
       console.error('[ERROR] 레어도별 가격 검색 오류:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message,
-      });
-    }
-  },
-];
-
-// 네이버 스토어에서 카드 가격 크롤링
-exports.crawlNaverStorePrice = [
-  cardPriceRateLimiter,
-  cardRequestLimiter,
-  async (req, res) => {
-    try {
-      const { cardName } = req.query;
-
-      if (!cardName) {
-        return res.status(400).json({
-          success: false,
-          error: '카드 이름은 필수 파라미터입니다. ?cardName=카드이름 형식으로 요청해주세요.',
-        });
-      }
-
-      const result = await searchAndSaveCardPrices(cardName);
-
-      if (result.count === 0) {
-        return res.status(404).json({
-          success: false,
-          message: '검색 결과가 없습니다.',
-          card: result.card,
-        });
-      }
-
-      res.status(200).json({
-        success: true,
-        message: `${result.count}개의 가격 정보를 찾았습니다.`,
-        data: {
-          card: result.card,
-          prices: result.prices,
-        },
-      });
-    } catch (error) {
       res.status(500).json({
         success: false,
         error: error.message,
@@ -1738,7 +1696,6 @@ exports.getOptimalPurchaseCombination = [
 module.exports = {
   getAllCards: exports.getAllCards,
   getPricesByRarity: exports.getPricesByRarity,
-  crawlNaverStorePrice: exports.crawlNaverStorePrice,
   searchNaverShopApi: exports.searchNaverShopApi,
   searchTCGShop: exports.searchTCGShop,
   searchCardDC: exports.searchCardDC,
