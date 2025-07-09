@@ -592,6 +592,13 @@ const naverSellerShippingInfo = {
     islandShippingFee: 6500,
     freeShippingThreshold: 50000,
   },
+
+  카드바인더: {
+    shippingFee: 4000,
+    jejuShippingFee: 9000,
+    islandShippingFee: 9000,
+    freeShippingThreshold: 30000,
+  },
 };
 
 const REGION_TYPES = {
@@ -637,20 +644,17 @@ function getSellerName(seller) {
 
 // 배송비 정보를 반환
 function getShippingInfo(site) {
-  const siteStr = getSellerName(site);
+  let sellerName = getSellerName(site).toLowerCase();
 
-  const siteLower = siteStr.toLowerCase();
-
-  if (siteLower === 'tcgshop') {
+  if (sellerName === 'tcgshop') {
     return shippingInfo.tcgshop;
-  } else if (siteLower === 'carddc') {
+  } else if (sellerName === 'carddc') {
     return shippingInfo.carddc;
-  } else if (siteLower === 'onlyyugioh') {
+  } else if (sellerName === 'onlyyugioh') {
     return shippingInfo.onlyyugioh;
   } else {
-    // 네이버 판매자인 경우 판매자 이름 앞의 'Naver_' 접두사 제거해야함
-    let sellerName = siteStr;
-    if (sellerName.startsWith('Naver_')) {
+    // 네이버 판매자인 경우 판매자 이름 앞의 'naver_' 접두사 제거해야함
+    if (sellerName.startsWith('naver_')) {
       sellerName = sellerName.substring(6);
     }
 
@@ -663,6 +667,7 @@ function getShippingInfo(site) {
     }
 
     // 일치하는 판매자가 없을 경우 기본 배송비 정보 반환
+    // 이 로그를 발견하면 해당 판매자의 배송비 정보를 수동으로 추가할 것
     console.log(`[INFO] 판매자 '${sellerName}'의 배송비 정보가 없습니다. 기본값 사용.`);
     return shippingInfo.naverDefault;
   }
@@ -682,9 +687,8 @@ function calculateShippingFee(
   totalPrice = 0,
   takeoutOptions = []
 ) {
-  const siteStr = getSellerName(site);
+  let sellerName = getSellerName(site);
 
-  let sellerName = siteStr;
   if (sellerName.startsWith('Naver_')) {
     sellerName = sellerName.substring(6);
   }
@@ -713,28 +717,30 @@ function calculateShippingFee(
   }
 
   // 방문수령이 아닌 경우 기존 배송비 계산 로직 사용
-  const info = getShippingInfo(site);
+  const shippingInfo = getShippingInfo(site);
 
-  // 무료 배송 기준 금액 이상이면 무료 배송 (무료배송이 불가능한 경우(Infinity) 제외)
-  if (totalPrice >= info.freeShippingThreshold && info.freeShippingThreshold !== Infinity) {
+  // 무료 배송 기준 금액 이상이면 무료 배송 (무료배송 조건이 경우(Infinity) 제외)
+  if (
+    totalPrice >= shippingInfo.freeShippingThreshold &&
+    shippingInfo.freeShippingThreshold !== Infinity
+  ) {
     return 0;
   }
 
   // 지역에 따른 배송비 반환
   switch (region) {
     case REGION_TYPES.JEJU:
-      return info.jejuShippingFee;
+      return shippingInfo.jejuShippingFee;
     case REGION_TYPES.ISLAND:
-      return info.islandShippingFee;
+      return shippingInfo.islandShippingFee;
     case REGION_TYPES.DEFAULT:
     default:
-      return info.shippingFee;
+      return shippingInfo.shippingFee;
   }
 }
 
 module.exports = {
   shippingInfo,
-  naverSellerShippingInfo,
   getShippingInfo,
   calculateShippingFee,
   normalizeSellerName,

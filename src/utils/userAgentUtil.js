@@ -1,9 +1,3 @@
-/**
- * 웹 크롤링을 위한 User-Agent 유틸리티
- * IP 차단 방지를 위해 다양한 User-Agent와 헤더를 제공합니다.
- */
-
-// 데스크톱 브라우저 User-Agent 목록
 const desktopUserAgents = [
   // Chrome
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36',
@@ -25,7 +19,6 @@ const desktopUserAgents = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.55 Safari/537.36 Edg/96.0.1054.34',
 ];
 
-// 모바일 브라우저 User-Agent 목록
 const mobileUserAgents = [
   // Android
   'Mozilla/5.0 (Linux; Android 12; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Mobile Safari/537.36',
@@ -37,20 +30,17 @@ const mobileUserAgents = [
   'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
 ];
 
-// 다양한 Accept 헤더
 const acceptHeaders = [
   'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
   'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
   'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
 ];
 
-// 다양한 Accept-Language 헤더
 const acceptLanguageHeaders = [
   'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
   'ko-KR,ko;q=0.9,en-US,en;q=0.8',
 ];
 
-// 다양한 Cache-Control 헤더
 const cacheControlHeaders = ['max-age=0', 'no-cache', 'max-age=0, private, must-revalidate'];
 
 /**
@@ -74,7 +64,6 @@ function getRandomUserAgent(includeMobile = false) {
  * @returns {Object} - HTTP 요청 헤더 객체
  */
 function getRandomizedHeaders(includeMobile = false, additionalHeaders = {}) {
-  // 기본 헤더 설정
   const headers = {
     'User-Agent': getRandomUserAgent(includeMobile),
     Accept: acceptHeaders[Math.floor(Math.random() * acceptHeaders.length)],
@@ -96,7 +85,6 @@ function getRandomizedHeaders(includeMobile = false, additionalHeaders = {}) {
     headers['Referer'] = referers[Math.floor(Math.random() * referers.length)];
   }
 
-  // 추가 헤더 병합
   return { ...headers, ...additionalHeaders };
 }
 
