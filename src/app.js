@@ -4,6 +4,8 @@ const dotenv = require('dotenv');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const redisManager = require('./lib/redis-manager');
+const { notFoundHandler, globalErrorHandler } = require('./lib/error-handler');
 
 dotenv.config();
 
@@ -25,6 +27,43 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
+// 프로세스 레벨 에러 핸들링
+process.on('uncaughtException', err => {
+  console.error('Uncaught Exception:', err);
+  redisManager.publishError({
+    type: 'uncaught-exception',
+    error: {
+      name: err.name,
+      message: err.message,
+      stack: err.stack,
+    },
+    context: {
+      timestamp: new Date().toISOString(),
+      processId: process.pid,
+    },
+    severity: 'critical',
+  });
+
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  redisManager.publishError({
+    type: 'unhandled-rejection',
+    error: {
+      message: reason?.message || reason,
+      stack: reason?.stack,
+    },
+    context: {
+      timestamp: new Date().toISOString(),
+      processId: process.pid,
+    },
+    severity: 'critical',
+  });
+});
+
+// API 요청 제한 설정
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: 60, // IP당 1분에 최대 60개까지만 요청 가능
@@ -46,20 +85,11 @@ app.get('/', (req, res) => {
 const cardRoutes = require('./routes/cards');
 app.use('/api/cards', cardRoutes);
 
-app.use((req, res, _next) => {
-  const error = new Error('Not Found');
-  error.status = 404;
-  _next(error);
-});
+// 404 핸들러 (모든 라우트 후에)
+app.use(notFoundHandler);
 
-app.use((err, req, res) => {
-  res.status(err.status || 500);
-  res.json({
-    error: {
-      message: err.message,
-    },
-  });
-});
+// 전역 에러 핸들러 (가장 마지막에)
+app.use(globalErrorHandler);
 
 const PORT = process.env.PORT || 5000;
 
