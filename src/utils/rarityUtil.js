@@ -68,7 +68,7 @@ function parseRarity(title) {
       code: 'M',
     },
     {
-      pattern: /(시크릿\s*레어|시크릿레어|\[시크릿\]|secret\s*rare|secret)/i,
+      pattern: /(시크릿\s*레어|씨크릿|시크릿레어|\[시크릿\]|secret\s*rare|secret)/i,
       rarity: '시크릿 레어',
       code: 'SE',
     },
