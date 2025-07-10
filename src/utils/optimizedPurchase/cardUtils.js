@@ -42,6 +42,9 @@ function filterTopSellers(cardsList, options = 5) {
   // 제외할 상품 ID 목록
   const excludedProductIds = (options && options.excludedProductIds) || [];
 
+  // 제외할 상점 목록 추가
+  const excludedStores = (options && options.excludedStores) || [];
+
   return cardsList
     .map(card => {
       // 상품 목록이 없거나 비어있는 경우 처리
@@ -70,6 +73,14 @@ function filterTopSellers(cardsList, options = 5) {
 
       // 기본 상품 목록
       let filteredProducts = productsList;
+
+      // 제외할 상점 필터링 추가
+      if (excludedStores.length > 0) {
+        filteredProducts = filteredProducts.filter(product => {
+          const site = product.site || (product.product && product.product.site);
+          return !excludedStores.includes(site);
+        });
+      }
 
       // 레어도 조건이 있는 경우 해당 조건에 맞는 상품만 필터링
       if (card.desiredRarity) {

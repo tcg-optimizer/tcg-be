@@ -1,16 +1,4 @@
-/**
- * rarityUtil.js
- *
- * 카드 레어도 파싱을 위한 유틸리티 함수
- */
-
-/**
- * 카드 레어도를 파싱하고 표준화된 코드를 반환합니다.
- * @param {string} title - 상품 제목
- * @returns {Object} - 파싱된 레어도 정보 {rarity, rarityCode}
- */
 function parseRarity(title) {
-  // 레어도 우선순위(더 구체적인 것이 먼저 매칭되도록)
   const rarityPatterns = [
     {
       pattern: /(오버\s*러시\s*레어|오버\s*러쉬\s*레어|오버러시레어|오버러시|over\s*rush\s*rare)/i,
@@ -34,14 +22,13 @@ function parseRarity(title) {
       code: 'EXSE',
     },
     {
-      pattern:
-        /(20th\s*시크릿\s*레어|20시크릿\s*레어|20th\s*secret\s*rare|twentieth\s*secret\s*rare)/i,
+      pattern: /(20th\s*시크릿\s*레어|20시크릿\s*레어|20th\s*secret\s*rare)/i,
       rarity: '20th 시크릿 레어',
       code: '20th SE',
     },
     {
       pattern:
-        /(QC\s*시크릿\s*레어|25th\s*시크릿\s*레어|쿼터\s*센추리\s*시크|쿼터\s*센츄리\s*시크|QC\s*쿼터\s*시크릿\s*레어|QC시크릿레어|쿼터\s*시크릿|쿼터\s*센츄리\s*시크릿\s*레어|quarter\s*century\s*secret\s*rare|QC\s*secret\s*rare)/i,
+        /(QC\s*시크릿\s*레어|25th\s*시크릿\s*레어|쿼터\s*센추리\s*시크|쿼터\s*센츄리\s*시크|QC\s*쿼터\s*시크릿\s*레어|QC시크릿레어|쿼터\s*시크릿|Qc\s*레어|쿼터\s*센츄리\s*시크릿\s*레어|quarter\s*century\s*secret\s*rare|QC\s*secret\s*rare)/i,
       rarity: '쿼터 센츄리 시크릿 레어',
       code: 'QCSE',
     },
@@ -81,7 +68,7 @@ function parseRarity(title) {
       code: 'M',
     },
     {
-      pattern: /(시크릿\s*레어|시크릿레어|\[시크릿\]|secret\s*rare|secret)/i,
+      pattern: /(시크릿\s*레어|씨크릿|시크릿레어|\[시크릿\]|secret\s*rare|secret)/i,
       rarity: '시크릿 레어',
       code: 'SE',
     },
@@ -121,19 +108,16 @@ function parseRarity(title) {
     },
     { pattern: /(골드\s*레어|골드레어|gold\s*rare)/i, rarity: '골드 레어', code: 'GR' },
 
-    // 기본 레어도
     { pattern: /(노멀|노멀레어|normal|노말)/i, rarity: '노멀', code: 'N' },
-    { pattern: /(?<![가-힣\w])(레어|rare)(?![가-힣\w])/i, rarity: '레어', code: 'R' },
+    { pattern: /(레어|rare)/i, rarity: '레어', code: 'R' },
   ];
 
-  // 일반 패턴 매칭
   for (const { pattern, rarity, code } of rarityPatterns) {
     if (pattern.test(title)) {
       return { rarity, rarityCode: code };
     }
   }
 
-  // 기본값
   return { rarity: '알 수 없음', rarityCode: 'UNK' };
 }
 

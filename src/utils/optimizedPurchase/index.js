@@ -3,17 +3,16 @@
  * 메인 모듈 (진입점)
  */
 
-const { filterTopSellers } = require('./cardUtils');
 const { findGreedyOptimalPurchase } = require('./greedyAlgorithm');
+const { calculatePointsAmount, isNaverStore } = require('./pointsUtils');
+const { getSellerId, filterTopSellers } = require('./cardUtils');
 const {
   tryMoveCardsToReachThreshold,
   tryMultipleCardsMove,
   trySellersConsolidation,
   tryComplexOptimization,
 } = require('./optimizationStrategies');
-const { getShippingInfo } = require('../shippingInfo');
-const { calculatePointsAmount } = require('./pointsUtils');
-const { getSellerId, isNaverStore } = require('./cardUtils');
+const { calculateShippingFee, REGION_TYPES } = require('../shippingInfo');
 
 /**
  * 카드 구매의 최적 조합을 찾는 함수
@@ -213,17 +212,71 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
       };
     }
 
-    // 그리디 알고리즘으로 최적 조합 찾기
-    const result = findGreedyOptimalPurchase(processedCardsList, {
+    // 그리디 알고리즘으로 최적 조합 찾기 (1차 패스)
+    let result = findGreedyOptimalPurchase(processedCardsList, {
       ...mergedOptions,
       excludedProductIds, // 명시적으로 제외 목록 전달
       excludedStores,
     });
+    // 현재 결과에서 사용된 제외 상점 목록을 추적
+    let bestExcludedStores = [...excludedStores];
 
-    // 결과에 제외 필터 정보 추가
+    // -------------------------------------------------------------
+    // [추가 최적화] : 특정 상점을 제외했을 때 더 저렴해지는지 탐색
+    //  - 일부 상점을 제외하면 배송비 구조가 변화하여 총 비용이 낮아질 수 있음
+    //  - 각 상점을 하나씩 제외한 뒤 다시 계산하여 더 저렴한 결과가 있으면 채택
+    // -------------------------------------------------------------
+
+    try {
+      // ---------------------------------------------
+      // 제외 후보 판매처 선별: "비효율"(배송비>0 이면서 카드 수 ≤2 또는
+      //  상품금액 < 배송비*2) 인 판매처만 대상으로 함. 최대 20개.
+      // ---------------------------------------------
+
+      let candidateSellers = [];
+
+      if (result.cardsOptimalPurchase && Object.keys(result.cardsOptimalPurchase).length > 0) {
+        candidateSellers = Object.keys(result.cardsOptimalPurchase)
+          .filter(seller => {
+            if (excludedStores.includes(seller)) return false;
+            const info = result.cardsOptimalPurchase[seller];
+            if (!info) return false;
+            const { shippingCost = 0, productCost = 0, cards = [] } = info;
+            return shippingCost > 0 && (cards.length <= 2 || productCost < shippingCost * 2);
+          })
+          // 배송비가 큰 순서로 정렬 후 최대 20개까지만
+          .sort((a, b) => {
+            const shipA = result.cardsOptimalPurchase[a].shippingCost || 0;
+            const shipB = result.cardsOptimalPurchase[b].shippingCost || 0;
+            return shipB - shipA;
+          })
+          .slice(0, 20);
+      }
+
+      // 후보가 없으면 추가 탐색 생략
+      for (const sellerToExclude of candidateSellers) {
+        // 해당 상점을 추가로 제외하여 재계산
+        const altResult = findGreedyOptimalPurchase(processedCardsList, {
+          ...mergedOptions,
+          excludedProductIds,
+          excludedStores: [...excludedStores, sellerToExclude],
+        });
+
+        // 성공적으로 조합을 찾았고 총 비용이 더 낮으면 교체
+        if (altResult.success && altResult.totalCost < result.totalCost) {
+          result = altResult;
+          bestExcludedStores = [...excludedStores, sellerToExclude];
+        }
+      }
+    } catch (altErr) {
+      // 탐색 중 오류가 발생해도 기본 결과를 유지
+      console.error('[WARN] 상점 제외 탐색 중 오류 발생:', altErr.message);
+    }
+
+    // 결과에 제외 필터 정보 추가 (최종 제외 상점 목록 사용)
     result.excludedFilters = {
       excludedProductIds,
-      excludedStores,
+      excludedStores: bestExcludedStores,
     };
 
     // 추가 필터링: 결과에서 제외 목록에 있는 상품 제거 (이중 안전장치)
@@ -318,19 +371,20 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
               result.cardsOptimalPurchase[seller].productCost = newProductCost;
 
               // 무료 배송 기준 다시 확인
-              const shippingInfo = getShippingInfo(seller);
-              let newShippingCost;
+              const shippingRegionType =
+                mergedOptions.shippingRegion === 'jeju'
+                  ? REGION_TYPES.JEJU
+                  : mergedOptions.shippingRegion === 'island'
+                    ? REGION_TYPES.ISLAND
+                    : REGION_TYPES.DEFAULT;
+              const takeoutOptions = mergedOptions.takeout || [];
 
-              if (
-                shippingInfo.freeShippingThreshold > 0 &&
-                shippingInfo.freeShippingThreshold !== Infinity &&
-                newProductCost >= shippingInfo.freeShippingThreshold
-              ) {
-                newShippingCost = 0;
-              } else {
-                // 무료배송 조건을 만족하지 못하면 정상 배송비 적용
-                newShippingCost = shippingInfo.shippingFee;
-              }
+              const newShippingCost = calculateShippingFee(
+                seller,
+                shippingRegionType,
+                newProductCost,
+                takeoutOptions
+              );
 
               result.cardsOptimalPurchase[seller].shippingCost = newShippingCost;
 
@@ -473,12 +527,20 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
           result.cardsOptimalPurchase[sellerId].productCost += cardToAdd.totalPrice;
 
           // 배송비 계산
-          const shippingInfo = getShippingInfo(sellerId);
-          result.cardsOptimalPurchase[sellerId].shippingCost =
-            result.cardsOptimalPurchase[sellerId].productCost >=
-              shippingInfo.freeShippingThreshold && shippingInfo.freeShippingThreshold !== Infinity
-              ? 0
-              : shippingInfo.shippingFee;
+          const altRegionType =
+            mergedOptions.shippingRegion === 'jeju'
+              ? REGION_TYPES.JEJU
+              : mergedOptions.shippingRegion === 'island'
+                ? REGION_TYPES.ISLAND
+                : REGION_TYPES.DEFAULT;
+          const altTakeoutOptions = mergedOptions.takeout || [];
+
+          result.cardsOptimalPurchase[sellerId].shippingCost = calculateShippingFee(
+            sellerId,
+            altRegionType,
+            result.cardsOptimalPurchase[sellerId].productCost,
+            altTakeoutOptions
+          );
 
           // 적립금 계산
           let pointsEarned = 0;
@@ -552,58 +614,22 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
         let totalShippingCost = 0;
         let totalPointsEarned = 0;
 
-        Object.entries(result.cardsOptimalPurchase).forEach(([seller, sellerData]) => {
+        Object.entries(result.cardsOptimalPurchase).forEach(([_, sellerData]) => {
           totalProductCost += sellerData.productCost || 0;
           totalShippingCost += sellerData.shippingCost || 0;
+          totalPointsEarned += sellerData.pointsEarned || 0;
 
-          // 적립금 계산 로직
-          if (sellerData.pointsEarned) {
-            totalPointsEarned += sellerData.pointsEarned;
-          } else if (sellerData.productCost) {
-            // 판매처에 따라 적립률 적용 (CardDC와 TCGShop은 10%, 나머지는 0%)
-            if (seller.toLowerCase().includes('carddc') || seller.toLowerCase() === 'carddc') {
-              const points = Math.round(sellerData.productCost * 0.1);
-              totalPointsEarned += points;
-              sellerData.pointsEarned = points; // 판매처 데이터에도 적립금 설정
-            } else if (
-              seller.toLowerCase().includes('tcgshop') ||
-              seller.toLowerCase() === 'tcgshop'
-            ) {
-              const points = Math.round(sellerData.productCost * 0.1);
-              totalPointsEarned += points;
-              sellerData.pointsEarned = points; // 판매처 데이터에도 적립금 설정
-            } else if (isNaverStore(seller)) {
-              // 네이버 스토어 적립금 계산
-              const reviewedProducts = new Set(); // 리뷰 작성한 제품 목록
-
-              // 각 카드별로 적립금 계산 후 합산
-              let sellerPoints = 0;
-              sellerData.cards.forEach(card => {
-                // 카드 이름을 ID로 사용
-                const productId = card.cardName;
-
-                const cardPoints = calculatePointsAmount(
-                  seller,
-                  card.price,
-                  card.quantity,
-                  productId,
-                  reviewedProducts,
-                  options.pointsOptions || {}
-                );
-
-                sellerPoints += cardPoints;
-              });
-
-              totalPointsEarned += sellerPoints;
-              sellerData.pointsEarned = sellerPoints; // 판매처 데이터에도 적립금 설정
-            }
-          }
+          // finalPrice는 이미 적립금이 차감된 상태이므로 totalCost는 finalPrice의 합으로 계산
         });
 
         result.totalProductCost = totalProductCost;
         result.totalShippingCost = totalShippingCost;
         result.totalPointsEarned = totalPointsEarned;
-        result.totalCost = totalProductCost + totalShippingCost - totalPointsEarned;
+        // totalCost는 각 판매처의 finalPrice 합으로 계산 (적립금이 이미 차감됨)
+        result.totalCost = Object.values(result.cardsOptimalPurchase).reduce(
+          (sum, sellerData) => sum + (sellerData.finalPrice || 0),
+          0
+        );
       }
     }
 

@@ -3,6 +3,7 @@
  */
 
 const { getSellerId } = require('./cardUtils');
+const { calculateShippingFee, REGION_TYPES } = require('../shippingInfo');
 
 // 카드 식별을 위해 uniqueCardKey 우선 사용
 function getCardKey(card) {
@@ -25,7 +26,9 @@ function tryMoveCardsToReachThreshold(
   purchaseDetails,
   sellerShippingInfo,
   cardsOptimalPurchase,
-  cardsList
+  cardsList,
+  regionType = REGION_TYPES.DEFAULT,
+  takeoutOptions = []
 ) {
   const otherSellers = Object.keys(purchaseDetails).filter(
     s => s !== targetSeller && purchaseDetails[s].cards.length > 0
@@ -79,18 +82,17 @@ function tryMoveCardsToReachThreshold(
       const newTargetSubtotal = purchaseDetails[targetSeller].subtotal + targetPrice;
 
       // 새로운 배송비 계산
-      const { shippingFee: sourceShippingFee, freeShippingThreshold: sourceThreshold } =
-        sellerShippingInfo[sourceSellerName];
-      const { shippingFee: targetShippingFee, freeShippingThreshold: targetThreshold } =
-        sellerShippingInfo[targetSeller];
-
       const newSourceShippingFee =
-        newSourceSubtotal > 0 ? (newSourceSubtotal >= sourceThreshold ? 0 : sourceShippingFee) : 0;
-      // 타겟의 배송비 계산 - 임계값을 초과하는 경우에만 무료 배송
-      const newTargetShippingFee =
-        newTargetSubtotal >= targetThreshold && targetThreshold !== Infinity
-          ? 0
-          : targetShippingFee;
+        newSourceSubtotal > 0
+          ? calculateShippingFee(sourceSellerName, regionType, newSourceSubtotal, takeoutOptions)
+          : 0;
+      // 타겟의 배송비 계산
+      const newTargetShippingFee = calculateShippingFee(
+        targetSeller,
+        regionType,
+        newTargetSubtotal,
+        takeoutOptions
+      );
 
       // 현재 비용과 새 비용 비교
       const newSourceTotal = newSourceSubtotal + newSourceShippingFee;
@@ -167,7 +169,9 @@ function tryMultipleCardsMove(
   purchaseDetails,
   sellerShippingInfo,
   cardsOptimalPurchase,
-  cardsList
+  cardsList,
+  regionType = REGION_TYPES.DEFAULT,
+  takeoutOptions = []
 ) {
   // 범위를 넓혀서 무료배송 임계값에 맞는 카드 조합 찾기 시도
   // 다른 판매처의 카드 중 이동 가능한 후보 찾기
@@ -279,11 +283,12 @@ function tryMultipleCardsMove(
       // 새로운 가격이 무료배송 임계값에 얼마나 가까운지 확인
       const newTargetSubtotal = originalTargetDetails.subtotal + combinationTargetPrice;
       // 배송비 계산
-      const newTargetShippingFee =
-        newTargetSubtotal >= sellerShippingInfo[targetSeller].freeShippingThreshold &&
-        sellerShippingInfo[targetSeller].freeShippingThreshold !== Infinity
-          ? 0
-          : sellerShippingInfo[targetSeller].shippingFee;
+      const newTargetShippingFee = calculateShippingFee(
+        targetSeller,
+        regionType,
+        newTargetSubtotal,
+        takeoutOptions
+      );
 
       combination.forEach(card => {
         const seller = card.seller;
@@ -336,10 +341,7 @@ function tryMultipleCardsMove(
         const newSubtotal = originalDetails[seller].subtotal - combinationTargetPrice;
         const newShippingFee =
           newSubtotal > 0
-            ? newSubtotal >= sellerShippingInfo[seller].freeShippingThreshold &&
-              sellerShippingInfo[seller].freeShippingThreshold !== Infinity
-              ? 0
-              : sellerShippingInfo[seller].shippingFee
+            ? calculateShippingFee(seller, regionType, newSubtotal, takeoutOptions)
             : 0;
 
         const newTotal = newSubtotal + newShippingFee;
@@ -443,23 +445,24 @@ function tryMultipleCardsMove(
       seller.subtotal -= update.removedTotal;
 
       // 배송비 재계산
-      const { shippingFee, freeShippingThreshold } = sellerShippingInfo[sellerName];
-      seller.shippingFee =
-        seller.subtotal >= freeShippingThreshold && freeShippingThreshold !== Infinity
-          ? 0
-          : shippingFee;
+      seller.shippingFee = calculateShippingFee(
+        sellerName,
+        regionType,
+        seller.subtotal,
+        takeoutOptions
+      );
 
       // 총액 업데이트
       seller.total = seller.subtotal + seller.shippingFee;
     });
 
     // 타겟 판매처 배송비 재계산
-    const { shippingFee, freeShippingThreshold } = sellerShippingInfo[targetSeller];
-    purchaseDetails[targetSeller].shippingFee =
-      purchaseDetails[targetSeller].subtotal >= freeShippingThreshold &&
-      freeShippingThreshold !== Infinity
-        ? 0
-        : shippingFee;
+    purchaseDetails[targetSeller].shippingFee = calculateShippingFee(
+      targetSeller,
+      regionType,
+      purchaseDetails[targetSeller].subtotal,
+      takeoutOptions
+    );
 
     // 총액 업데이트
     purchaseDetails[targetSeller].total =
@@ -483,7 +486,9 @@ function trySellersConsolidation(
   purchaseDetails,
   sellerShippingInfo,
   cardsOptimalPurchase,
-  cardsList
+  cardsList,
+  regionType = REGION_TYPES.DEFAULT,
+  takeoutOptions = []
 ) {
   // 사용 중인 판매처 목록
   const usedSellers = Object.keys(purchaseDetails).filter(
@@ -518,9 +523,16 @@ function trySellersConsolidation(
         const targetSellerName = getSellerId(product.site);
         if (targetSellerName === sourceSellerName) return;
 
-        // 타겟 판매처가 실제로 사용중인지 확인
-        if (!purchaseDetails[targetSellerName] || purchaseDetails[targetSellerName].subtotal === 0)
-          return;
+        // 대상 판매처가 purchaseDetails에 없으면 기본 구조를 생성합니다
+        if (!purchaseDetails[targetSellerName]) {
+          purchaseDetails[targetSellerName] = {
+            cards: [],
+            subtotal: 0,
+            shippingFee: 0,
+            total: 0,
+            points: 0,
+          };
+        }
 
         // 이동 비용 계산
         potentialMoves.push({
@@ -589,13 +601,12 @@ function trySellersConsolidation(
       }
 
       // 새로운 배송비 계산
-      const { shippingFee: targetShippingFee, freeShippingThreshold: targetThreshold } =
-        sellerShippingInfo[bestTargetSeller];
-
-      const newTargetShippingFee =
-        newTargetSubtotal >= targetThreshold && targetThreshold !== Infinity
-          ? 0
-          : targetShippingFee;
+      const newTargetShippingFee = calculateShippingFee(
+        bestTargetSeller,
+        regionType,
+        newTargetSubtotal,
+        takeoutOptions
+      );
       const newTargetTotal = newTargetSubtotal + newTargetShippingFee;
 
       // 소스 판매처는 비어질 것이므로 비용은 0

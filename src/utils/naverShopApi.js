@@ -1,16 +1,13 @@
 const axios = require('axios');
 const { Card, CardPrice } = require('../models/Card');
 const { Op } = require('sequelize');
-// rarityUtil.js에서 레어도 파싱 함수를 가져옵니다
 const { parseRarity } = require('./rarityUtil');
-// crawler.js에서 나머지 파싱 함수들을 가져옵니다
 const { parseLanguage, parseCondition, extractCardCode, detectIllustration } = require('./crawler');
 const { withRateLimit } = require('./rateLimiter');
-// User-Agent 유틸리티 추가
 const { getRandomizedHeaders } = require('./userAgentUtil');
 
 /**
- * 상품명에서 직접 언어 정보를 추출합니다. 이 함수는 기존 parseLanguage보다 더 엄격한 매칭을 사용합니다.
+ * 상품명에서 직접 언어 정보를 추출합니다.
  * @param {string} title - 상품 제목
  * @returns {string|null} - 추출된 언어 정보 또는 null (매칭되지 않을 경우)
  */
@@ -161,8 +158,8 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
           language = parseLanguage(title);
 
           // 3. 여전히 알 수 없는 경우 카드코드에서 추출 시도
-          if (language === '알 수 없음' && cardCode && cardCode.fullCode) {
-            language = detectLanguageFromCardCode(cardCode.fullCode);
+          if (language === '알 수 없음' && cardCode) {
+            language = detectLanguageFromCardCode(cardCode);
           }
         }
 
@@ -180,7 +177,7 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
           rarity: rarityInfo.rarity,
           rarityCode: rarityInfo.rarityCode,
           language: language,
-          cardCode: cardCode ? cardCode.fullCode : null,
+          cardCode: cardCode,
           available: true,
           brand: item.brand,
           category: item.category1,

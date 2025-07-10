@@ -1,7 +1,3 @@
-/**
- * 각 상점의 배송비 및 무료배송 기준 정보
- */
-
 const shippingInfo = {
   naverDefault: {
     shippingFee: 3000, // 기본 배송비
@@ -32,7 +28,7 @@ const shippingInfo = {
   },
 };
 
-// 방문수령 가능한 상점과 비용 매핑
+// 방문수령 가능한 상점과 비용
 const TAKEOUT_INFO = {
   카드킹덤: 100,
   카드냥: 100,
@@ -48,7 +44,6 @@ const TAKEOUT_INFO = {
   TCG카드프리덤: 0,
 };
 
-// 프론트엔드 키와 상점명 매핑
 const TAKEOUT_KEY_MAPPING = {
   cardKingdom: '카드킹덤',
   cardNyang: '카드냥',
@@ -64,7 +59,7 @@ const TAKEOUT_KEY_MAPPING = {
   tcgCardFreedom: 'TCG카드프리덤',
 };
 
-// 네이버 쇼핑몰의 판매자별 배송비 정보
+// 네이버샵의 판매자별 배송비 정보
 const naverSellerShippingInfo = {
   카드킹덤: {
     shippingFee: 2800,
@@ -590,6 +585,20 @@ const naverSellerShippingInfo = {
     islandShippingFee: 4000,
     freeShippingThreshold: Infinity,
   },
+
+  카드팜CARDPOM: {
+    shippingFee: 3500,
+    jejuShippingFee: 6500,
+    islandShippingFee: 6500,
+    freeShippingThreshold: 50000,
+  },
+
+  카드바인더: {
+    shippingFee: 4000,
+    jejuShippingFee: 9000,
+    islandShippingFee: 9000,
+    freeShippingThreshold: 30000,
+  },
 };
 
 const REGION_TYPES = {
@@ -598,7 +607,7 @@ const REGION_TYPES = {
   ISLAND: 'island',
 };
 
-// 최저가 계산 시 스킵해야 하는 마켓플레이스 목록
+// 최저가 계산 시 스킵해야 하는 상점 목록
 const SKIP_MARKETPLACES = [
   '쿠팡',
   'SSG닷컴',
@@ -611,77 +620,54 @@ const SKIP_MARKETPLACES = [
   '티몬',
 ];
 
-/**
- * 판매자 이름의 공백과 특수 문자를 제거하여 정규화합니다
- * @param {string} sellerName - 판매자 이름
- * @returns {string} - 정규화된 판매자 이름
- */
+// 판매자 이름의 공백과 특수 문자를 제거하여 소문자로 정규화
 function normalizeSellerName(sellerName) {
   if (!sellerName) return '';
 
-  // 모든 공백과 특수 문자 제거 (알파벳, 숫자, 한글만 남김)
   return sellerName
-    .replace(/\s+/g, '') // 공백 제거
-    .replace(/[^\w가-힣]/g, '') // 특수 문자 제거
-    .toLowerCase(); // 소문자로 변환
+    .replace(/\s+/g, '')
+    .replace(/[^\w가-힣]/g, '')
+    .toLowerCase();
 }
 
-/**
- * 해당 판매자가 최저가 계산 시 스킵해야 하는 마켓플레이스인지 확인합니다
- * @param {string} sellerName - 판매자 이름
- * @returns {boolean} - 스킵 여부 (true: 스킵, false: 스킵하지 않음)
- */
+// 최저가 계산 시 스킵해야 하는 상점인지 확인
 function shouldSkipMarketplace(sellerName) {
   return SKIP_MARKETPLACES.some(
     marketplace => normalizeSellerName(sellerName) === normalizeSellerName(marketplace)
   );
 }
 
-/**
- * 판매처 객체 또는 문자열에서 ID를 추출하는 함수
- * @param {string|Object} seller - 판매처 정보
- * @returns {string} - 판매처 ID
- */
-function getSellerId(seller) {
+// 판매자 이름 추출
+function getSellerName(seller) {
   return typeof seller === 'string' ? seller : seller.name || seller.id || String(seller);
 }
 
-/**
- * 배송비 정보를 반환하는 함수
- * @param {string|Object} site - 판매 사이트
- * @returns {Object} - 배송비와 무료배송 기준액
- */
+// 배송비 정보를 반환
 function getShippingInfo(site) {
-  // site가 객체인 경우 사이트 이름 추출
-  const siteStr = getSellerId(site);
+  let sellerName = getSellerName(site).toLowerCase();
 
-  // 사이트 이름을 소문자로 변환하여 비교
-  const siteLower = siteStr.toLowerCase();
-
-  if (siteLower === 'tcgshop') {
+  if (sellerName === 'tcgshop') {
     return shippingInfo.tcgshop;
-  } else if (siteLower === 'carddc') {
+  } else if (sellerName === 'carddc') {
     return shippingInfo.carddc;
-  } else if (siteLower === 'onlyyugioh') {
+  } else if (sellerName === 'onlyyugioh') {
     return shippingInfo.onlyyugioh;
   } else {
-    // 네이버 판매자인 경우 'Naver_' 접두사 제거
-    let sellerName = siteStr;
-    if (sellerName.startsWith('Naver_')) {
-      sellerName = sellerName.substring(6); // 'Naver_' 접두사 제거
+    // 네이버 판매자인 경우 판매자 이름 앞의 'naver_' 접두사 제거해야함
+    if (sellerName.startsWith('naver_')) {
+      sellerName = sellerName.substring(6);
     }
 
-    // 정규화된 이름으로 비교
     const normalizedSellerName = normalizeSellerName(sellerName);
 
-    // 모든 판매자 키를 확인하면서 정규화된 이름과 일치하는지 검사
     for (const seller in naverSellerShippingInfo) {
       if (normalizeSellerName(seller) === normalizedSellerName) {
         return naverSellerShippingInfo[seller];
       }
     }
 
-    // 일치하는 판매자가 없으면 기본 배송비 정보 반환
+    // 일치하는 판매자가 없을 경우 기본 배송비 정보 반환
+    // 이 로그를 발견하면 해당 판매자의 배송비 정보를 수동으로 추가할 것
     console.log(`[INFO] 판매자 '${sellerName}'의 배송비 정보가 없습니다. 기본값 사용.`);
     return shippingInfo.naverDefault;
   }
@@ -701,23 +687,18 @@ function calculateShippingFee(
   totalPrice = 0,
   takeoutOptions = []
 ) {
-  // site가 객체인 경우 사이트 이름 추출
-  const siteStr = getSellerId(site);
+  let sellerName = getSellerName(site);
 
-  // 네이버 판매자인 경우 'Naver_' 접두사 제거
-  let sellerName = siteStr;
   if (sellerName.startsWith('Naver_')) {
-    sellerName = sellerName.substring(6); // 'Naver_' 접두사 제거
+    sellerName = sellerName.substring(6);
   }
 
   // 방문수령 옵션이 활성화된 상점인지 확인
   if (takeoutOptions && takeoutOptions.length > 0) {
-    // 프론트엔드 키를 실제 상점명으로 변환
     const enabledTakeoutStores = takeoutOptions
       .map(key => TAKEOUT_KEY_MAPPING[key])
       .filter(Boolean);
 
-    // 현재 상점이 방문수령 활성화된 상점인지 확인 (정규화된 이름으로 비교)
     const normalizedSellerName = normalizeSellerName(sellerName);
 
     for (const enabledStore of enabledTakeoutStores) {
@@ -736,51 +717,36 @@ function calculateShippingFee(
   }
 
   // 방문수령이 아닌 경우 기존 배송비 계산 로직 사용
-  const info = getShippingInfo(site);
+  const shippingInfo = getShippingInfo(site);
 
-  // 무료 배송 기준 금액 이상이면 무료 배송 (단, 무료배송이 불가능한 경우 제외)
-  if (totalPrice >= info.freeShippingThreshold && info.freeShippingThreshold !== Infinity) {
+  // 무료 배송 기준 금액 이상이면 무료 배송 (무료배송 조건이 경우(Infinity) 제외)
+  if (
+    totalPrice >= shippingInfo.freeShippingThreshold &&
+    shippingInfo.freeShippingThreshold !== Infinity
+  ) {
     return 0;
   }
 
   // 지역에 따른 배송비 반환
   switch (region) {
     case REGION_TYPES.JEJU:
-      return info.jejuShippingFee;
+      return shippingInfo.jejuShippingFee;
     case REGION_TYPES.ISLAND:
-      return info.islandShippingFee;
+      return shippingInfo.islandShippingFee;
     case REGION_TYPES.DEFAULT:
     default:
-      return info.shippingFee;
+      return shippingInfo.shippingFee;
   }
-}
-
-// 네이버 판매자별 배송비 정보 업데이트 함수
-function updateNaverSellerShippingInfo(
-  sellerName,
-  shippingFee,
-  jejuShippingFee,
-  islandShippingFee,
-  freeShippingThreshold
-) {
-  naverSellerShippingInfo[sellerName] = {
-    shippingFee,
-    jejuShippingFee,
-    islandShippingFee,
-    freeShippingThreshold,
-  };
 }
 
 module.exports = {
   shippingInfo,
-  naverSellerShippingInfo,
   getShippingInfo,
   calculateShippingFee,
-  updateNaverSellerShippingInfo,
   normalizeSellerName,
   REGION_TYPES,
   shouldSkipMarketplace,
-  getSellerId,
+  getSellerName,
   TAKEOUT_INFO,
   TAKEOUT_KEY_MAPPING,
 };

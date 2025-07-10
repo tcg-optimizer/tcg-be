@@ -1,4 +1,4 @@
-const { getShippingInfo } = require('../shippingInfo');
+const { getShippingInfo, calculateShippingFee, REGION_TYPES } = require('../shippingInfo');
 const { getSellerId } = require('./cardUtils');
 const { calculatePointsAmount } = require('./pointsUtils');
 const {
@@ -31,8 +31,11 @@ function generateFreeShippingCombinations(
   // 각 카드의 이 판매처에서의 가격 정보 추출
   const cardsWithPrice = availableCards.map(card => {
     const product = card.products.find(p => getSellerId(p.site) === seller);
-    // 각 카드의 모든 판매처 중 최저 가격 찾기
-    const minPriceAcrossAllSellers = Math.min(...card.products.map(p => p.price));
+    // 각 카드의 모든 판매처 중 최저 가격 찾기 (현재 사용 가능한 판매처만 고려)
+    const availablePrices = card.products.map(p => p.price);
+    const minPriceAcrossAllSellers =
+      availablePrices.length > 0 ? Math.min(...availablePrices) : product.price;
+
     return {
       card,
       product,
@@ -46,7 +49,7 @@ function generateFreeShippingCombinations(
   // 다이나믹 프로그래밍으로 무료배송 조건을 만족하는 조합 찾기
   // (배낭 문제와 유사하게 접근)
   const combinations = [];
-  const MAX_COMBINATIONS = 100; // 최대 조합 수 제한
+  const MAX_COMBINATIONS = 50; // 최대 조합 수를 줄여 성능 향상
 
   // 가격별로 정렬 (가격차이 적은 것부터)
   cardsWithPrice.sort((a, b) => a.priceDifference - b.priceDifference);
@@ -164,89 +167,44 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
 
   // 각 카드별로 상위 판매처 고려 (고정값 사용)
   const maxSellersPerCard = 30; // 고정값: 각 카드별 고려할 최대 판매처 수
-  const reducedCardsList = require('./cardUtils').filterTopSellers(cardsList, maxSellersPerCard);
+
+  // excludedStores 및 excludedProductIds 옵션 처리
+  const excludedStores = options.excludedStores || [];
+  const excludedProductIds = options.excludedProductIds || [];
+
+  const reducedCardsList = require('./cardUtils').filterTopSellers(cardsList, {
+    maxSellersPerCard,
+    excludedStores,
+    excludedProductIds,
+  });
 
   // 판매처 정보 준비
   const allSellers = new Set();
   reducedCardsList.forEach(card => {
     card.products.forEach(product => {
-      allSellers.add(getSellerId(product.site));
+      const sellerId = getSellerId(product.site);
+      if (!excludedStores.includes(sellerId)) {
+        allSellers.add(sellerId);
+      }
     });
   });
   const sellersList = Array.from(allSellers);
 
   // 각 판매처의 배송비 정보 맵
   const sellerShippingInfo = {};
+
+  // 지역 타입 변환
+  const regionType =
+    shippingRegion === 'jeju'
+      ? REGION_TYPES.JEJU
+      : shippingRegion === 'island'
+        ? REGION_TYPES.ISLAND
+        : REGION_TYPES.DEFAULT;
+
+  const takeoutOptions = options.takeout || [];
+
   sellersList.forEach(seller => {
-    const info = getShippingInfo(seller);
-
-    // 방문수령 옵션 확인
-    const { TAKEOUT_INFO, TAKEOUT_KEY_MAPPING } = require('../shippingInfo');
-    const takeoutOptions = options.takeout || [];
-
-    // 네이버 판매자인 경우 'Naver_' 접두사 제거
-    let sellerName = seller;
-    if (sellerName.startsWith('Naver_')) {
-      sellerName = sellerName.substring(6);
-    }
-
-    // 방문수령 옵션이 활성화된 상점인지 확인 (정규화된 이름으로 비교)
-    const { normalizeSellerName } = require('../shippingInfo');
-    const normalizedSellerName = normalizeSellerName(sellerName);
-
-    let isTakeoutEnabled = false;
-    let takeoutFee = null;
-
-    if (takeoutOptions && takeoutOptions.length > 0) {
-      // 프론트엔드 키를 실제 상점명으로 변환
-      const enabledTakeoutStores = takeoutOptions
-        .map(key => TAKEOUT_KEY_MAPPING[key])
-        .filter(Boolean);
-
-      // 현재 상점이 방문수령 활성화된 상점인지 확인 (정규화된 이름으로 비교)
-      for (const enabledStore of enabledTakeoutStores) {
-        const normalizedEnabledStore = normalizeSellerName(enabledStore);
-
-        if (
-          normalizedSellerName === normalizedEnabledStore &&
-          TAKEOUT_INFO[enabledStore] !== undefined
-        ) {
-          isTakeoutEnabled = true;
-          takeoutFee = TAKEOUT_INFO[enabledStore];
-          console.log(`[INFO] "${sellerName}" 상점의 방문수령 옵션 적용: ${takeoutFee}원`);
-          break;
-        }
-      }
-    }
-
-    if (isTakeoutEnabled) {
-      // 방문수령인 경우 고정 비용으로 설정
-      sellerShippingInfo[seller] = {
-        ...info,
-        shippingFee: takeoutFee,
-        jejuShippingFee: takeoutFee,
-        islandShippingFee: takeoutFee,
-        freeShippingThreshold: Infinity, // 방문수령시 무료배송 조건 무시
-      };
-    } else {
-      // 일반 배송인 경우 지역별 배송비 확인
-      switch (shippingRegion) {
-        case 'jeju':
-          sellerShippingInfo[seller] = {
-            ...info,
-            shippingFee: info.jejuShippingFee || info.shippingFee,
-          };
-          break;
-        case 'island':
-          sellerShippingInfo[seller] = {
-            ...info,
-            shippingFee: info.islandShippingFee || info.shippingFee,
-          };
-          break;
-        default:
-          sellerShippingInfo[seller] = info;
-      }
-    }
+    sellerShippingInfo[seller] = getShippingInfo(seller);
   });
 
   // 리뷰 작성한 제품 목록 (ID 또는 이름)
@@ -263,7 +221,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
     // 리뷰 제품 목록 초기화 (각 전략마다 리셋)
     reviewedProducts.clear();
 
-    // 각 판매처별로 무료 배송 조건을 충족하는 카드 조합 탐색
+    // 각 판매처별로 무료 배송 조합을 찾기
     const freeShippingCombinationsBySeller = {};
 
     sellersList.forEach(seller => {
@@ -319,122 +277,54 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
         // 조합의 카드들에 대해 다른 판매처에서의 최저 가격 합계 계산
         let totalMinPriceElsewhere = 0;
         let totalPriceInThisSeller = 0;
+        let canUseAllCards = true; // 모든 카드가 이용 가능한지 확인
 
         for (const item of combo) {
           // 같은 카드의 다른 판매처 최저가 찾기
           const cardInfo = sortedCards.find(
             c => (c.uniqueCardKey || c.cardName) === (item.card.uniqueCardKey || item.card.cardName)
           );
-          const otherProducts = cardInfo.products.filter(p => getSellerId(p.site) !== seller);
-          const minPriceElsewhere =
-            otherProducts.length > 0
-              ? Math.min(...otherProducts.map(p => p.price)) * item.quantity
-              : Infinity;
 
-          totalMinPriceElsewhere += minPriceElsewhere;
+          if (!cardInfo) {
+            canUseAllCards = false;
+            break;
+          }
+
+          // 현재 판매처를 제외한 다른 판매처의 상품들
+          const otherProducts = cardInfo.products.filter(p => getSellerId(p.site) !== seller);
+
+          if (otherProducts.length === 0) {
+            // 다른 판매처에서 구매할 수 없는 카드라면 이 조합은 반드시 필요
+            totalMinPriceElsewhere += Infinity;
+          } else {
+            const minPriceElsewhere = Math.min(...otherProducts.map(p => p.price)) * item.quantity;
+            totalMinPriceElsewhere += minPriceElsewhere;
+          }
+
           totalPriceInThisSeller += item.totalPrice;
         }
 
-        // 이 조합을 사용함으로써 절약되는 비용 (배송비 - 가격 차이)
-        const calculatedSavings = shippingFee - (totalPriceInThisSeller - totalMinPriceElsewhere);
+        // 모든 카드가 이용 가능하고, 실제 절약 효과가 있는 경우만 고려
+        if (canUseAllCards && totalMinPriceElsewhere !== Infinity) {
+          // 이 조합을 사용함으로써 절약되는 비용 (배송비 - 가격 차이)
+          const calculatedSavings = shippingFee - (totalPriceInThisSeller - totalMinPriceElsewhere);
 
-        if (calculatedSavings > 0) {
-          // 배송비 절약이 가격 차이보다 클 경우만 고려
-          efficientCombinations.push({
-            seller,
-            combo,
-            savings: calculatedSavings,
-            totalPrice: totalPriceInThisSeller,
-          });
+          // 배송비 절약이 가격 차이보다 클 경우만 고려 (실제 이득이 있는 경우)
+          if (calculatedSavings > 0) {
+            efficientCombinations.push({
+              seller,
+              combo,
+              savings: calculatedSavings,
+              totalPrice: totalPriceInThisSeller,
+              totalMinPriceElsewhere,
+            });
+          }
         }
       }
     }
 
     // 절약 효과가 큰 순서대로 정렬
     efficientCombinations.sort((a, b) => b.savings - a.savings);
-
-    // 효율적인 조합 할당
-    for (const { seller, combo } of efficientCombinations) {
-      // 이미 할당된 카드 제외
-      const availableItems = combo.filter(item => !assignedCards.has(item.card.cardName));
-
-      if (availableItems.length > 0) {
-        // 실제로 무료 배송 조건을 만족하는지 다시 확인
-        const totalPrice = availableItems.reduce((sum, item) => sum + item.totalPrice, 0);
-        const freeShippingThreshold = sellerShippingInfo[seller].freeShippingThreshold;
-
-        if (totalPrice >= freeShippingThreshold) {
-          // 선택된 조합의 카드들 할당
-          for (const item of availableItems) {
-            const { card, product, price, quantity } = item;
-            const cardName = card.cardName;
-            const uniqueCardKey = card.uniqueCardKey || cardName;
-
-            // 중복 할당 방지
-            if (assignedCards.has(uniqueCardKey)) continue;
-            assignedCards.add(uniqueCardKey);
-
-            // 적립 예정 포인트 계산
-            const productId = cardName; // 카드 이름을 제품 ID로 사용
-            const earnablePoints = calculatePointsAmount(
-              seller,
-              price,
-              quantity,
-              productId,
-              reviewedProducts,
-              pointsOptions
-            );
-
-            // 구매 내역에 추가
-            purchaseDetails[seller].cards.push({
-              cardName,
-              uniqueCardKey,
-              price,
-              product,
-              quantity,
-              points: earnablePoints, // 적립 예정 포인트
-            });
-
-            const cardPrice = price * quantity;
-            purchaseDetails[seller].subtotal += cardPrice;
-            purchaseDetails[seller].points += earnablePoints;
-
-            // 카드별 최적 구매처 정보에 추가
-            cardsOptimalPurchase.push({
-              cardName,
-              uniqueCardKey,
-              seller,
-              price,
-              totalPrice: price * quantity,
-              quantity,
-              points: earnablePoints,
-              product,
-              cardId: product.cardId,
-              // 선택된 상품의 상세 정보 추가
-              rarity: product.rarity,
-              language: product.language,
-              illustration: product.illustration || 'default',
-              url: product.url,
-              site: product.site,
-              available: product.available,
-              cardCode: product.cardCode,
-              condition: product.condition,
-            });
-          }
-
-          // 해당 판매처의 배송비 업데이트
-          const { freeShippingThreshold, shippingFee } = sellerShippingInfo[seller];
-          purchaseDetails[seller].shippingFee =
-            purchaseDetails[seller].subtotal >= freeShippingThreshold ? 0 : shippingFee;
-
-          // 총 비용 업데이트 (적립금 고려 시 차감)
-          purchaseDetails[seller].total =
-            purchaseDetails[seller].subtotal +
-            purchaseDetails[seller].shippingFee -
-            purchaseDetails[seller].points;
-        }
-      }
-    }
 
     // 2단계: 아직 할당되지 않은 카드는 일반 그리디 방식으로 할당
     const remainingCards = sortedCards.filter(
@@ -457,20 +347,21 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
         const newSubtotal = currentSubtotal + product.price * quantity;
 
         // 배송비 계산
-        const { shippingFee, freeShippingThreshold } = sellerShippingInfo[seller];
         const currentShippingFee = purchaseDetails[seller].shippingFee;
-        const newShippingFee =
-          newSubtotal >= freeShippingThreshold && freeShippingThreshold !== Infinity
-            ? 0
-            : shippingFee;
+        const newShippingFee = calculateShippingFee(
+          seller,
+          regionType,
+          newSubtotal,
+          takeoutOptions
+        );
 
-        // 적립금 계산
+        // 적립금 계산(시뮬레이션): reviewedProducts를 복사하여 원본을 오염시키지 않음
         const earnablePoints = calculatePointsAmount(
           seller,
           product.price,
           quantity,
           productId,
-          reviewedProducts,
+          new Set(reviewedProducts), // 복사본 전달 → 리뷰 적립금 중복 문제 방지
           pointsOptions
         );
 
@@ -517,12 +408,12 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
         purchaseDetails[bestSeller].points += earnablePoints; // 판매처별 총 적립 포인트
 
         // 배송비 재계산
-        const { shippingFee, freeShippingThreshold } = sellerShippingInfo[bestSeller];
-        purchaseDetails[bestSeller].shippingFee =
-          purchaseDetails[bestSeller].subtotal >= freeShippingThreshold &&
-          freeShippingThreshold !== Infinity
-            ? 0
-            : shippingFee;
+        purchaseDetails[bestSeller].shippingFee = calculateShippingFee(
+          bestSeller,
+          regionType,
+          purchaseDetails[bestSeller].subtotal,
+          takeoutOptions
+        );
 
         // 총 비용 업데이트 (적립금 고려 시 차감)
         purchaseDetails[bestSeller].total =
@@ -724,12 +615,13 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
                   ),
                 ]) {
                   const details = purchaseDetails[seller];
-                  const { shippingFee, freeShippingThreshold } = sellerShippingInfo[seller];
 
-                  details.shippingFee =
-                    details.subtotal >= freeShippingThreshold && freeShippingThreshold !== Infinity
-                      ? 0
-                      : shippingFee;
+                  details.shippingFee = calculateShippingFee(
+                    seller,
+                    regionType,
+                    details.subtotal,
+                    takeoutOptions
+                  );
 
                   details.total = details.subtotal + details.shippingFee - details.points;
                 }
@@ -737,37 +629,41 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
                 continue;
               }
             }
-          }
 
-          // 이전 방식의 최적화 시도
-          // 다른 판매처에서 이 판매처로 상품 이동 시도 (무료배송 달성)
-          let foundImprovement = tryMoveCardsToReachThreshold(
-            sourceSellerName,
-            gapToThreshold,
-            purchaseDetails,
-            sellerShippingInfo,
-            cardsOptimalPurchase,
-            reducedCardsList
-          );
+            // 이전 방식의 최적화 시도
+            // 다른 판매처에서 이 판매처로 상품 이동 시도 (무료배송 달성)
+            let foundImprovement = tryMoveCardsToReachThreshold(
+              sourceSellerName,
+              gapToThreshold,
+              purchaseDetails,
+              sellerShippingInfo,
+              cardsOptimalPurchase,
+              reducedCardsList,
+              regionType,
+              takeoutOptions
+            );
 
-          if (foundImprovement) {
-            improved = true;
-            continue;
-          }
+            if (foundImprovement) {
+              improved = true;
+              continue;
+            }
 
-          // 추가 시도: 다른 카드 조합으로 무료배송 달성 가능한지 탐색
-          foundImprovement = tryMultipleCardsMove(
-            sourceSellerName,
-            gapToThreshold,
-            purchaseDetails,
-            sellerShippingInfo,
-            cardsOptimalPurchase,
-            reducedCardsList
-          );
+            // 추가 시도: 다른 카드 조합으로 무료배송 달성 가능한지 탐색
+            foundImprovement = tryMultipleCardsMove(
+              sourceSellerName,
+              gapToThreshold,
+              purchaseDetails,
+              sellerShippingInfo,
+              cardsOptimalPurchase,
+              reducedCardsList,
+              regionType,
+              takeoutOptions
+            );
 
-          if (foundImprovement) {
-            improved = true;
-            continue;
+            if (foundImprovement) {
+              improved = true;
+              continue;
+            }
           }
         }
 
@@ -825,49 +721,45 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
             const newSourceSubtotal = sourceSeller.subtotal - cardPrice;
             const newTargetSubtotal = targetSeller.subtotal + targetPrice;
 
-            // 적립금 변화 계산
-            // 원래 소스에서 이 카드에 대한 적립금
-            const oldSourcePoints = card.points || 0;
-
-            // 타겟 판매처에서 이 카드에 대한 적립금
-            const newTargetPoints = calculatePointsAmount(
-              targetSellerName,
-              alt.price,
-              alt.quantity,
-              productId,
-              reviewedProducts,
-              pointsOptions
-            );
-
             // 새로운 배송비 계산
-            const { shippingFee: sourceShippingFee } = sellerShippingInfo[sourceSellerName];
-            const { shippingFee: targetShippingFee, freeShippingThreshold: targetThreshold } =
-              sellerShippingInfo[targetSellerName];
-
             const newSourceShippingFee =
               newSourceSubtotal > 0
-                ? newSourceSubtotal >= sourceThreshold && sourceThreshold !== Infinity
-                  ? 0
-                  : sourceShippingFee
+                ? calculateShippingFee(
+                    sourceSellerName,
+                    regionType,
+                    newSourceSubtotal,
+                    takeoutOptions
+                  )
                 : 0;
-            // 타겟의 배송비 계산 - 임계값을 초과하는 경우에만 무료 배송
-            const newTargetShippingFee =
-              newTargetSubtotal >= targetThreshold && targetThreshold !== Infinity
-                ? 0
-                : targetShippingFee;
+            // 타겟의 배송비 계산
+            const newTargetShippingFee = calculateShippingFee(
+              targetSellerName,
+              regionType,
+              newTargetSubtotal,
+              takeoutOptions
+            );
 
-            // 현재 비용과 새 비용 비교
-            const newSourceTotal =
-              newSourceSubtotal + newSourceShippingFee - (sourceSeller.points - oldSourcePoints);
-            const newTargetTotal =
-              newTargetSubtotal + newTargetShippingFee - (targetSeller.points + newTargetPoints);
+            // 현재 비용과 새 비용 비교 (적립금 제외하고 단순 비교)
+            const newSourceTotal = newSourceSubtotal + newSourceShippingFee;
+            const newTargetTotal = newTargetSubtotal + newTargetShippingFee;
             const newTotalCost = newSourceTotal + newTargetTotal;
 
             // 비용이 줄어들면 카드 이동
             if (
-              newTotalCost < originalCost &&
+              newTotalCost < originalCost - (sourceSeller.points + targetSeller.points) &&
               (newTotalCost < originalCost || newSourceSubtotal === 0)
             ) {
+              // 적립금 계산
+              const oldSourcePoints = card.points || 0;
+              const newTargetPoints = calculatePointsAmount(
+                targetSellerName,
+                alt.price,
+                alt.quantity,
+                productId,
+                reviewedProducts,
+                pointsOptions
+              );
+
               // 소스 판매처에서 카드 제거
               const cardIndex = sourceSeller.cards.findIndex(c => {
                 const cUniqueKey = c.uniqueCardKey || c.cardName;
@@ -879,7 +771,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
               sourceSeller.subtotal = newSourceSubtotal;
               sourceSeller.points -= oldSourcePoints; // 포인트 감소
               sourceSeller.shippingFee = newSourceShippingFee;
-              sourceSeller.total = newSourceTotal;
+              sourceSeller.total = newSourceTotal - sourceSeller.points;
 
               // 타겟 판매처에 카드 추가
               targetSeller.cards.push({
@@ -893,7 +785,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
 
               targetSeller.subtotal = newTargetSubtotal;
               targetSeller.shippingFee = newTargetShippingFee;
-              targetSeller.total = newTargetTotal;
+              targetSeller.total = newTargetTotal - targetSeller.points;
               targetSeller.points += newTargetPoints;
 
               // 카드별 최적 구매처 정보 업데이트
@@ -942,7 +834,9 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
         purchaseDetails,
         sellerShippingInfo,
         cardsOptimalPurchase,
-        reducedCardsList
+        reducedCardsList,
+        regionType,
+        takeoutOptions
       );
     }
 
@@ -956,11 +850,13 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
       const details = purchaseDetails[seller];
       if (details.subtotal > 0) {
         // 배송비 한번 더 검증하여 계산
-        const { freeShippingThreshold, shippingFee } = sellerShippingInfo[seller];
-        details.shippingFee =
-          details.subtotal >= freeShippingThreshold && freeShippingThreshold !== Infinity
-            ? 0
-            : shippingFee;
+        details.shippingFee = calculateShippingFee(
+          seller,
+          regionType,
+          details.subtotal,
+          takeoutOptions
+        );
+        // total은 이미 적립금이 차감된 상태이므로 재계산
         details.total = details.subtotal + details.shippingFee - details.points;
 
         totalCost += details.total;
@@ -970,14 +866,8 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
       }
     });
 
-    // 최종 적립금 합계 재계산 (리뷰 적립금이 추가되었을 수 있으므로)
-    totalPointsEarned = sellersList.reduce(
-      (sum, seller) => sum + purchaseDetails[seller].points,
-      0
-    );
-
-    // totalCost 재계산 (totalPointsEarned가 업데이트된 값으로)
-    totalCost = totalProductCost + totalShippingCost - totalPointsEarned;
+    // totalCost는 이미 적립금이 차감된 값이므로 별도 계산 불필요
+    // totalCost = totalProductCost + totalShippingCost - totalPointsEarned;
 
     // 현재 전략의 결과가 더 좋으면 저장
     if (totalCost < bestCost) {
