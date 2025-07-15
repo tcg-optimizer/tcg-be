@@ -2,51 +2,10 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const iconv = require('iconv-lite'); // EUC-KR 인코딩 처리를 위해 필요
 const { parseRarity } = require('./rarityUtil');
-const { parseLanguage, parseCondition, detectIllustration } = require('./crawler');
-const { encodeEUCKR, detectLanguageFromCardCode } = require('./tcgshopCrawler');
+const { parseLanguage, parseCondition, detectIllustration, encodeEUCKR } = require('./crawler');
 const { CardPrice } = require('../models/Card');
 const { withRateLimit } = require('./rateLimiter');
 const { createCrawlerConfig } = require('./userAgentUtil');
-
-/**
- * CardDC에서 일관된 상품 ID를 생성합니다.
- * 상품 ID에 'carddc-' 접두어를 붙여 다른 사이트와 구분합니다.
- * @param {string} url - 상품 URL
- * @param {string} existingId - 기존 상품 ID (있는 경우)
- * @returns {string} 일관된 상품 ID
- */
-const generateCardDCProductId = (url, existingId = null) => {
-  // 이미 접두어가 있는 경우 그대로 반환
-  if (existingId && existingId.startsWith('carddc-')) {
-    return existingId;
-  }
-
-  // 기존 ID가 있는 경우 접두어 추가
-  if (existingId) {
-    return `carddc-${existingId}`;
-  }
-
-  // URL에서 상품 ID 추출 (item_id=숫자 형식)
-  if (url) {
-    const productIdMatch = url.match(/item_id=(\d+)/);
-    if (productIdMatch && productIdMatch[1]) {
-      return `carddc-${productIdMatch[1]}`;
-    }
-
-    // 다른 형식으로 URL에서 ID 추출 시도
-    const altIdMatch = url.match(/\/(\d+)$/);
-    if (altIdMatch && altIdMatch[1]) {
-      return `carddc-${altIdMatch[1]}`;
-    }
-  }
-
-  // URL 해시 생성
-  const urlHash = (url || '').split('').reduce((acc, char) => {
-    return ((acc << 5) - acc + char.charCodeAt(0)) | 0;
-  }, 0);
-
-  return `carddc-${Math.abs(urlHash) || Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-};
 
 /**
  * CardDC에서 카드 가격 정보를 크롤링합니다.
@@ -64,7 +23,7 @@ const crawlCardDC = async (cardName, cardId) => {
 
     // 요청 설정 생성 - createCrawlerConfig 함수 사용
     const config = createCrawlerConfig('carddc', {
-      timeoutMs: 20000,
+      timeoutMs: 15000,
       additionalHeaders: {
         'Upgrade-Insecure-Requests': '1',
       },
@@ -118,7 +77,12 @@ const crawlCardDC = async (cardName, cardId) => {
           isMatch = cleanTitle.includes(cleanCardName);
         }
 
-        if (!title || !isMatch) return;
+        if (!title || !isMatch) {
+          if (title) {
+            return;
+          }
+          return;
+        }
 
         // 재고 여부 확인 - 품절된 상품은 처리하지 않음
         const isSoldOut = productCell.find('img[src*="icon_sortout.jpg"]').length > 0;
@@ -138,12 +102,9 @@ const crawlCardDC = async (cardName, cardId) => {
 
         // rarityUtil의 parseRarity 함수를 사용하여 레어도 표준화
         let rarity = '알 수 없음';
-        let rarityCode = 'UNK';
 
         if (rarityText) {
-          const rarityInfo = parseRarity(rarityText || title);
-          rarity = rarityInfo.rarity;
-          rarityCode = rarityInfo.rarityCode;
+          rarity = parseRarity(rarityText || title);
         }
 
         // 가격 정보
@@ -176,7 +137,7 @@ const crawlCardDC = async (cardName, cardId) => {
         // 언어 정보
         let language = '알 수 없음';
         if (extractedCardCode) {
-          language = detectLanguageFromCardCode(extractedCardCode);
+          language = parseLanguage(extractedCardCode);
         } else {
           // 제목에서 언어 정보 추정
           language = parseLanguage(title);
@@ -188,12 +149,26 @@ const crawlCardDC = async (cardName, cardId) => {
         // 일러스트 타입 판단
         const illustration = detectIllustration(title);
 
+        // URL에서 상품 ID 추출 (item_id=숫자 형식)
+        let productId = null;
+        const productIdMatch = fullUrl.match(/item_id=(\d+)/);
+        if (productIdMatch && productIdMatch[1]) {
+          productId = `carddc-${productIdMatch[1]}`;
+        }
+
+        // item_id가 없는 경우, URL에서 해시를 생성하여 고유 ID 생성
+        if (!productId) {
+          const urlHash = fullUrl.split('').reduce((acc, char) => {
+            return ((acc << 5) - acc + char.charCodeAt(0)) | 0;
+          }, 0);
+          productId = `carddc-${Math.abs(urlHash)}`;
+        }
+
         items.push({
           title,
           url: fullUrl,
           condition,
           rarity,
-          rarityCode,
           language,
           cardCode: extractedCardCode,
           price,
@@ -201,7 +176,7 @@ const crawlCardDC = async (cardName, cardId) => {
           site: 'CardDC',
           available: true, // 여기서는 항상 true (품절상품은 위에서 필터링됨)
           cardId,
-          productId: generateCardDCProductId(fullUrl),
+          productId,
           illustration, // 일러스트 타입 추가
         });
       });
@@ -253,9 +228,6 @@ const searchAndSaveCardDCPrices = async (cardName, cardId = null) => {
     if (cardId) {
       await Promise.all(
         results.map(async item => {
-          // 일관된 ID 생성
-          const consistentProductId = generateCardDCProductId(item.url, item.productId);
-
           const savedPrice = await CardPrice.create({
             cardId: cardId,
             site: 'CardDC',
@@ -267,13 +239,13 @@ const searchAndSaveCardDCPrices = async (cardName, cardId = null) => {
             available: item.available,
             cardCode: item.cardCode,
             lastUpdated: new Date(),
-            productId: consistentProductId,
+            productId: item.productId,
             illustration: item.illustration || 'default', // 일러스트 필드 추가
           });
 
           // product 객체에 id 필드 추가
           const productWithId = {
-            id: consistentProductId,
+            id: item.productId,
             url: item.url,
             site: 'CardDC',
             price: item.price,
@@ -301,15 +273,11 @@ const searchAndSaveCardDCPrices = async (cardName, cardId = null) => {
       prices: cardId
         ? prices
         : results.map(item => {
-            // 일관된 ID 생성
-            const consistentProductId = generateCardDCProductId(item.url, item.productId);
-
             // 직접 product 객체 생성하여 반환
             return {
               ...item,
-              productId: consistentProductId, // 기존 productId 갱신
               product: {
-                id: consistentProductId,
+                id: item.productId,
                 url: item.url,
                 site: 'CardDC',
                 price: item.price,

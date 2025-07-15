@@ -19,13 +19,6 @@ const shippingInfo = {
     islandShippingFee: 2500,
     freeShippingThreshold: 30000,
   },
-
-  onlyyugioh: {
-    shippingFee: 2500,
-    jejuShippingFee: 2500,
-    islandShippingFee: 2500,
-    freeShippingThreshold: 30000,
-  },
 };
 
 // 방문수령 가능한 상점과 비용
@@ -650,8 +643,6 @@ function getShippingInfo(site) {
     return shippingInfo.tcgshop;
   } else if (sellerName === 'carddc') {
     return shippingInfo.carddc;
-  } else if (sellerName === 'onlyyugioh') {
-    return shippingInfo.onlyyugioh;
   } else {
     // 네이버 판매자인 경우 판매자 이름 앞의 'naver_' 접두사 제거해야함
     if (sellerName.startsWith('naver_')) {
