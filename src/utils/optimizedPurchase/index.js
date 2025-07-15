@@ -51,7 +51,9 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
       pointsOptions: {
         tcgshop: false, // TCGShop 적립금 고려 여부
         carddc: false, // CardDC 적립금 고려 여부
-        naverBasic: false, // 네이버 기본 적립금 (2.5%, 리뷰 적립금 150원)
+
+        // 네이버 관련 적립금 옵션
+        naverBasic: false, // 네이버 기본 적립금 (2.5%, 리뷰 적립금 포함)
         naverBankbook: false, // 네이버 제휴통장 적립금 (0.5%)
         naverMembership: false, // 네이버 멤버십 적립금 (4%)
         naverHyundaiCard: false, // 네이버 현대카드 적립금 (7%)
@@ -287,33 +289,68 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
       Object.keys(result.cardsOptimalPurchase).forEach(seller => {
         const sellerData = result.cardsOptimalPurchase[seller];
         if (sellerData.cards && Array.isArray(sellerData.cards)) {
-          // 원본 카드 개수 저장
-          const originalCardCount = sellerData.cards.length;
-          
-          // 제외된 상품 제거 (정확한 비교 사용)
-          const filteredCards = sellerData.cards.filter(card => {
+          // 제외된 상품 확인
+          const excludedCards = sellerData.cards.filter(card => {
             if (card.product && card.product.id) {
               const productIdStr = String(card.product.id);
+
+              // 상품 ID가 제외 목록에 있는지 정확히 확인
+              let isExcluded = false;
               for (const excludedId of excludedProductIds) {
-                if (String(excludedId) === productIdStr) {
+                const excludedIdStr = String(excludedId);
+                if (productIdStr === excludedIdStr) {
                   console.log(
                     `[INFO] 최종 결과에서 제외된 상품 "${productIdStr}"가 발견되었습니다. (${card.cardName || '이름 없음'})`
                   );
+                  console.log(
+                    `  - 카드 정보: ${JSON.stringify(
+                      {
+                        cardName: card.cardName,
+                        price: card.price,
+                        site: card.product.site,
+                      },
+                      null,
+                      2
+                    )}`
+                  );
                   hasExcludedProducts = true;
+                  isExcluded = true;
+
+                  // 제외된 카드 이름 추가
                   excludedCardNames.add(card.cardName);
-                  return false; // 제외된 ID와 일치하면 필터링 (제거)
+                  break;
                 }
               }
-              return true; // 모든 제외 ID와 일치하지 않으면 유지
+
+              return isExcluded;
             }
-            return true; // 상품 ID가 없으면 유지
+            return false;
           });
 
-          // 실제로 카드가 제거된 경우에만 처리
-          if (filteredCards.length !== originalCardCount) {
+          // 제외된 상품이 있으면 실제로 해당 상품 제거
+          if (excludedCards.length > 0) {
             console.log(
-              `[INFO] ${seller}에서 ${originalCardCount - filteredCards.length}개의 제외된 상품을 결과에서 제거합니다.`
+              `[INFO] ${seller}에서 ${excludedCards.length}개의 제외된 상품을 결과에서 제거합니다:`
             );
+            excludedCards.forEach(card => {
+              console.log(
+                `  - ${card.cardName || '이름 없음'} (ID: ${card.product?.id || 'unknown'})`
+              );
+            });
+
+            // 제외된 상품 제거 (정확한 비교 사용)
+            const filteredCards = sellerData.cards.filter(card => {
+              if (card.product && card.product.id) {
+                const productIdStr = String(card.product.id);
+                for (const excludedId of excludedProductIds) {
+                  if (String(excludedId) === productIdStr) {
+                    return false; // 제외된 ID와 일치하면 필터링 (제거)
+                  }
+                }
+                return true; // 모든 제외 ID와 일치하지 않으면 유지
+              }
+              return true; // 상품 ID가 없으면 유지
+            });
 
             // 판매처 카드 목록 업데이트
             result.cardsOptimalPurchase[seller].cards = filteredCards;
@@ -328,16 +365,9 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
                 console.log('[INFO] 모든 판매처의 상품이 제외되어 결과가 없습니다.');
                 result.success = false;
               }
-            } else if (filteredCards.length !== sellerData.cards.length) {
-              // 실제로 카드가 제거된 경우에만 비용 재계산
-              console.log(`[INFO] ${seller}에서 카드가 제거되었으므로 비용을 재계산합니다.`);
-              
-              // 비용 재계산 - card.totalPrice 대신 card.price * card.quantity 사용
-              const newProductCost = filteredCards.reduce((sum, card) => {
-                const price = card.price || 0;
-                const quantity = card.quantity || 1;
-                return sum + (price * quantity);
-              }, 0);
+            } else {
+              // 비용 재계산
+              const newProductCost = filteredCards.reduce((sum, card) => sum + card.totalPrice, 0);
               result.cardsOptimalPurchase[seller].productCost = newProductCost;
 
               // 무료 배송 기준 다시 확인
@@ -393,8 +423,8 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
 
               result.cardsOptimalPurchase[seller].pointsEarned = newPointsEarned;
 
-              // 최종 가격 재계산 (적립금 차감)
-              result.cardsOptimalPurchase[seller].finalPrice = newProductCost + newShippingCost - newPointsEarned;
+              // 최종 가격 재계산
+              result.cardsOptimalPurchase[seller].finalPrice = newProductCost + newShippingCost;
             }
           }
         }
@@ -549,11 +579,10 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
 
           result.cardsOptimalPurchase[sellerId].pointsEarned = pointsEarned;
 
-          // 최종 가격 계산 (적립금 차감)
+          // 최종 가격 계산
           result.cardsOptimalPurchase[sellerId].finalPrice =
             result.cardsOptimalPurchase[sellerId].productCost +
-            result.cardsOptimalPurchase[sellerId].shippingCost -
-            result.cardsOptimalPurchase[sellerId].pointsEarned;
+            result.cardsOptimalPurchase[sellerId].shippingCost;
 
           // 카드 이미지 정보 업데이트
           if (!result.cardImages) {
@@ -635,6 +664,7 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
 module.exports = {
   findOptimalPurchaseCombination,
   findGreedyOptimalPurchase,
+  // 내부 유틸리티 함수도 내보내 테스트 가능하도록 함
   filterTopSellers,
   tryMoveCardsToReachThreshold,
   tryMultipleCardsMove,

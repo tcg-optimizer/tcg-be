@@ -1049,50 +1049,13 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
       });
 
       // 각 상점별 합계 정보 추가
-      Object.keys(groupedCardsByStore).forEach(seller => {
+      usedSellers.forEach(seller => {
         if (groupedCardsByStore[seller]) {
-          // finalPurchaseDetails에 있으면 사용하고, 없으면 purchaseDetails에서 직접 가져오기
-          const details = finalPurchaseDetails[seller] || purchaseDetails[seller];
-          if (details) {
-            groupedCardsByStore[seller].finalPrice = details.total;
-            groupedCardsByStore[seller].productCost = details.subtotal;
-            groupedCardsByStore[seller].shippingCost = details.shippingFee;
-            groupedCardsByStore[seller].pointsEarned = details.points;
-          } else {
-            // details가 없는 경우, 실제 카드 목록을 기반으로 다시 계산
-            console.warn(`[WARN] ${seller} 스토어의 상세 정보를 찾을 수 없습니다. 카드 목록을 기반으로 재계산합니다.`);
-            
-            const cards = groupedCardsByStore[seller].cards || [];
-            const recalculatedProductCost = cards.reduce((sum, card) => {
-              return sum + (card.price * card.quantity);
-            }, 0);
-            
-            // 배송비 재계산
-            const recalculatedShippingCost = calculateShippingFee(
-              seller,
-              regionType,
-              recalculatedProductCost,
-              takeoutOptions
-            );
-            
-            // 적립금 재계산
-            const recalculatedPoints = cards.reduce((sum, card) => {
-              const cardPoints = calculatePointsAmount(
-                seller,
-                card.price,
-                card.quantity,
-                card.cardName,
-                new Set(),
-                pointsOptions
-              );
-              return sum + cardPoints;
-            }, 0);
-            
-            groupedCardsByStore[seller].productCost = recalculatedProductCost;
-            groupedCardsByStore[seller].shippingCost = recalculatedShippingCost;
-            groupedCardsByStore[seller].pointsEarned = recalculatedPoints;
-            groupedCardsByStore[seller].finalPrice = recalculatedProductCost + recalculatedShippingCost - recalculatedPoints;
-          }
+          const details = finalPurchaseDetails[seller];
+          groupedCardsByStore[seller].finalPrice = details.total;
+          groupedCardsByStore[seller].productCost = details.subtotal;
+          groupedCardsByStore[seller].shippingCost = details.shippingFee;
+          groupedCardsByStore[seller].pointsEarned = details.points;
         }
       });
 
@@ -1145,7 +1108,9 @@ function generateConsistentProductId(card) {
   if (
     existingId &&
     typeof existingId === 'string' &&
-    (existingId.startsWith('tcg-') || existingId.startsWith('carddc-'))
+    (existingId.startsWith('tcg-') ||
+      existingId.startsWith('carddc-') ||
+      existingId.startsWith('onlyyugioh-'))
   ) {
     return existingId;
   }
@@ -1190,6 +1155,31 @@ function generateConsistentProductId(card) {
     const cardIdentity = `${cardName}-${rarity}-${language}-${cardCode}`.toLowerCase();
     const hashCode = simpleStringHash(cardIdentity);
     return `carddc-${hashCode}`;
+  }
+
+  // OnlyYugioh 상품의 경우
+  if (site === 'OnlyYugioh') {
+    // 기존 ID가 있는 경우 접두어 추가
+    if (existingId) {
+      return `onlyyugioh-${existingId}`;
+    }
+
+    // URL에서 상품 ID 추출 시도
+    if (url) {
+      const productMatch = url.match(/product\/(\d+)/);
+      if (productMatch && productMatch[1]) {
+        return `onlyyugioh-${productMatch[1]}`;
+      }
+      const productNoMatch = url.match(/product_no=(\d+)/);
+      if (productNoMatch && productNoMatch[1]) {
+        return `onlyyugioh-${productNoMatch[1]}`;
+      }
+    }
+
+    // 카드 정보로 해시 생성 (URL이 없는 경우)
+    const cardIdentity = `${cardName}-${rarity}-${language}-${cardCode}`.toLowerCase();
+    const hashCode = simpleStringHash(cardIdentity);
+    return `onlyyugioh-${hashCode}`;
   }
 
   // 그 외 사이트는 기존 ID 사용 또는 카드 정보 기반 해시 생성

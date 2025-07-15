@@ -91,7 +91,7 @@ app.use(notFoundHandler);
 // 전역 에러 핸들러 (가장 마지막에)
 app.use(globalErrorHandler);
 
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`TCG스캐너 서버가 포트 ${PORT}에서 실행 중입니다.`);

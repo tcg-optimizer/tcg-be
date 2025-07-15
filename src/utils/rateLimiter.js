@@ -10,7 +10,7 @@ const RATE_LIMITS = {
   naver: 10, // 네이버 API - 초당 10개 요청
   tcgshop: 10, // TCGShop - 초당 10개 요청
   carddc: 10, // CardDC - 초당 10개 요청
-
+  onlyyugioh: 10, // OnlyYugioh - 초당 10개 요청
   default: 5, // 기본값 - 초당 5개 요청
 };
 
