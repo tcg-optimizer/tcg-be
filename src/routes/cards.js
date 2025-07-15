@@ -11,8 +11,6 @@ router.get(
 );
 router.get('/search/tcgshop', createRequestLogger('searchTCGShop'), cardController.searchTCGShop);
 router.get('/search/carddc', createRequestLogger('searchCardDC'), cardController.searchCardDC);
-// router.get('/search/onlyyugioh', cardController.searchOnlyYugioh);
-// 온리유희왕 일시적 영업 중단으로 주석 처리
 
 router.get(
   '/rarity-prices',

@@ -114,10 +114,6 @@ function generateRandomCookies(site) {
       siteCookies.PHPSESSID = generateRandomString(26);
       siteCookies._ga = `GA1.2.${Math.floor(Math.random() * 1000000000)}.${Math.floor(Date.now() / 1000 - Math.random() * 86400 * 30)}`;
       break;
-    case 'onlyyugioh':
-      siteCookies.JSESSIONID = generateRandomString(32);
-      siteCookies.userLang = Math.random() > 0.3 ? 'ko_KR' : 'en_US';
-      break;
   }
 
   // 모든 쿠키 병합 및 문자열로 변환
@@ -145,7 +141,7 @@ function generateRandomString(length) {
 
 /**
  * 사이트별 특화된 헤더를 생성합니다. (기존 함수 확장)
- * @param {string} site - 크롤링 대상 사이트 ('tcgshop', 'carddc', 'onlyyugioh')
+ * @param {string} site - 크롤링 대상 사이트 ('tcgshop', 'carddc')
  * @param {Object} [additionalHeaders={}] - 추가할 사용자 정의 헤더
  * @param {boolean} [includeCookies=true] - 쿠키를 포함할지 여부
  * @returns {Object} - 사이트에 최적화된 HTTP 요청 헤더 객체
@@ -169,11 +165,6 @@ function getSiteSpecificHeaders(site, additionalHeaders = {}, includeCookies = t
       siteHeaders['Referer'] = 'https://www.carddc.co.kr/';
       siteHeaders['Origin'] = 'https://www.carddc.co.kr';
       siteHeaders['Host'] = 'www.carddc.co.kr';
-      break;
-    case 'onlyyugioh':
-      siteHeaders['Referer'] = 'https://www.onlyyugioh.com/';
-      siteHeaders['Origin'] = 'https://www.onlyyugioh.com';
-      siteHeaders['Host'] = 'www.onlyyugioh.com';
       break;
   }
 

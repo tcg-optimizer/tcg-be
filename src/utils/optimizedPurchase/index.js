@@ -51,9 +51,7 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
       pointsOptions: {
         tcgshop: false, // TCGShop 적립금 고려 여부
         carddc: false, // CardDC 적립금 고려 여부
-
-        // 네이버 관련 적립금 옵션
-        naverBasic: false, // 네이버 기본 적립금 (2.5%, 리뷰 적립금 포함)
+        naverBasic: false, // 네이버 기본 적립금 (2.5%, 리뷰 적립금 150원)
         naverBankbook: false, // 네이버 제휴통장 적립금 (0.5%)
         naverMembership: false, // 네이버 멤버십 적립금 (4%)
         naverHyundaiCard: false, // 네이버 현대카드 적립금 (7%)
@@ -664,7 +662,6 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
 module.exports = {
   findOptimalPurchaseCombination,
   findGreedyOptimalPurchase,
-  // 내부 유틸리티 함수도 내보내 테스트 가능하도록 함
   filterTopSellers,
   tryMoveCardsToReachThreshold,
   tryMultipleCardsMove,

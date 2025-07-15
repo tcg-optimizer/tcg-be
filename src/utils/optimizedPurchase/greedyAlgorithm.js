@@ -1108,9 +1108,7 @@ function generateConsistentProductId(card) {
   if (
     existingId &&
     typeof existingId === 'string' &&
-    (existingId.startsWith('tcg-') ||
-      existingId.startsWith('carddc-') ||
-      existingId.startsWith('onlyyugioh-'))
+    (existingId.startsWith('tcg-') || existingId.startsWith('carddc-'))
   ) {
     return existingId;
   }
@@ -1157,30 +1155,7 @@ function generateConsistentProductId(card) {
     return `carddc-${hashCode}`;
   }
 
-  // OnlyYugioh 상품의 경우
-  if (site === 'OnlyYugioh') {
-    // 기존 ID가 있는 경우 접두어 추가
-    if (existingId) {
-      return `onlyyugioh-${existingId}`;
-    }
 
-    // URL에서 상품 ID 추출 시도
-    if (url) {
-      const productMatch = url.match(/product\/(\d+)/);
-      if (productMatch && productMatch[1]) {
-        return `onlyyugioh-${productMatch[1]}`;
-      }
-      const productNoMatch = url.match(/product_no=(\d+)/);
-      if (productNoMatch && productNoMatch[1]) {
-        return `onlyyugioh-${productNoMatch[1]}`;
-      }
-    }
-
-    // 카드 정보로 해시 생성 (URL이 없는 경우)
-    const cardIdentity = `${cardName}-${rarity}-${language}-${cardCode}`.toLowerCase();
-    const hashCode = simpleStringHash(cardIdentity);
-    return `onlyyugioh-${hashCode}`;
-  }
 
   // 그 외 사이트는 기존 ID 사용 또는 카드 정보 기반 해시 생성
   if (existingId) {
