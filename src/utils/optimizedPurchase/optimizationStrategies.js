@@ -94,12 +94,13 @@ function tryMoveCardsToReachThreshold(
         takeoutOptions
       );
 
-      // 포인트 재계산 (카드 이동에 따른 포인트 변화 반영)
-      const sourcePointsRatio = newSourceSubtotal > 0 ? newSourceSubtotal / sourceSeller.subtotal : 0;
-      const newSourcePoints = (sourceSeller.points || 0) * sourcePointsRatio;
+      // 포인트 재계산 (실제 이동하는 카드의 포인트를 기준으로)
+      // 이동하는 카드의 포인트를 찾기
+      const movingCard = sourceSeller.cards.find(c => getCardKey(c) === getCardKey(candidate));
+      const movingCardPoints = movingCard ? (movingCard.points || 0) : 0;
       
-      const targetPointsRatio = purchaseDetails[targetSeller].subtotal > 0 ? newTargetSubtotal / purchaseDetails[targetSeller].subtotal : 1;
-      const newTargetPoints = (purchaseDetails[targetSeller].points || 0) * targetPointsRatio;
+      const newSourcePoints = (sourceSeller.points || 0) - movingCardPoints;
+      const newTargetPoints = (purchaseDetails[targetSeller].points || 0) + movingCardPoints;
 
       // 현재 비용과 새 비용 비교 (포인트 포함)
       const newSourceTotal = newSourceSubtotal + newSourceShippingFee - newSourcePoints;
@@ -324,9 +325,14 @@ function tryMultipleCardsMove(
         delete originalDetails[seller].processed;
       });
 
-      // 타겟 판매처의 포인트 재계산
-      const targetPointsRatio = originalTargetDetails.subtotal > 0 ? newTargetSubtotal / originalTargetDetails.subtotal : 1;
-      const newTargetPoints = (originalTargetDetails.points || 0) * targetPointsRatio;
+      // 타겟 판매처의 포인트 재계산 (이동하는 카드들의 포인트 추가)
+      let combinationMovingPoints = 0;
+      combination.forEach(card => {
+        const sourceSellerData = purchaseDetails[card.seller];
+        const movingCard = sourceSellerData.cards.find(c => getCardKey(c) === getCardKey(card));
+        combinationMovingPoints += movingCard ? (movingCard.points || 0) : 0;
+      });
+      const newTargetPoints = (originalTargetDetails.points || 0) + combinationMovingPoints;
       const newTargetTotal = newTargetSubtotal + newTargetShippingFee - newTargetPoints;
 
       // 소스 판매처들의 새 총액 계산
@@ -349,9 +355,16 @@ function tryMultipleCardsMove(
             ? calculateShippingFee(seller, regionType, newSubtotal, takeoutOptions)
             : 0;
 
-        // 포인트 재계산 (카드 이동에 따른 포인트 변화 반영)
-        const sourcePointsRatio = newSubtotal > 0 ? newSubtotal / originalDetails[seller].subtotal : 0;
-        const newSourcePoints = (originalDetails[seller].points || 0) * sourcePointsRatio;
+        // 포인트 재계산 (이동하는 카드들의 실제 포인트를 차감)
+        const movingCardsFromSeller = allCardsFromSeller;
+        let totalMovingPoints = 0;
+        movingCardsFromSeller.forEach(card => {
+          const cardInSeller = purchaseDetails[seller].cards.find(c => getCardKey(c) === getCardKey(card));
+          if (cardInSeller) {
+            totalMovingPoints += cardInSeller.points || 0;
+          }
+        });
+        const newSourcePoints = (originalDetails[seller].points || 0) - totalMovingPoints;
 
         const newTotal = newSubtotal + newShippingFee - newSourcePoints;
         newSourceTotals += newTotal;
@@ -398,6 +411,7 @@ function tryMultipleCardsMove(
           originalPoints: sourceSeller.points || 0,
           newSubtotal: sourceSeller.subtotal,
           removedTotal: 0,
+          removedPoints: 0, // 이동하는 카드들의 포인트 합계
         };
       }
 
@@ -405,10 +419,15 @@ function tryMultipleCardsMove(
       const cardPrice = card.currentPrice * card.quantity;
       const targetPrice = card.targetPrice * card.quantity;
 
+      // 이동하는 카드의 포인트 찾기
+      const movingCard = sourceSeller.cards.find(c => getCardKey(c) === getCardKey(card));
+      const movingCardPoints = movingCard ? (movingCard.points || 0) : 0;
+
       // 소스 판매처 업데이트 추적
       sourceUpdates[sourceSellerName].cards.push(card);
       sourceUpdates[sourceSellerName].newSubtotal -= cardPrice;
       sourceUpdates[sourceSellerName].removedTotal += cardPrice;
+      sourceUpdates[sourceSellerName].removedPoints += movingCardPoints;
 
       // 타겟 판매처에 카드 추가
       targetSellerData.cards.push({
@@ -467,9 +486,8 @@ function tryMultipleCardsMove(
         takeoutOptions
       );
 
-      // 포인트 재계산 (카드 이동에 따른 포인트 변화 반영)
-      const pointsRatio = seller.subtotal > 0 ? seller.subtotal / update.originalSubtotal : 0;
-      seller.points = update.originalPoints * pointsRatio;
+      // 포인트 재계산 (이동한 카드들의 실제 포인트를 차감)
+      seller.points = update.originalPoints - update.removedPoints;
 
       // 총액 업데이트
       seller.total = seller.subtotal + seller.shippingFee - seller.points;
@@ -483,10 +501,12 @@ function tryMultipleCardsMove(
       takeoutOptions
     );
 
-    // 타겟 판매처 포인트 재계산 (올바른 비율 계산)
-    const targetPointsRatio = originalTargetSubtotal > 0 ? 
-      purchaseDetails[targetSeller].subtotal / originalTargetSubtotal : 1;
-    const newTargetPoints = originalTargetPoints * targetPointsRatio;
+    // 타겟 판매처 포인트 재계산 (이동한 카드들의 포인트 추가)
+    let totalMovedPoints = 0;
+    Object.values(sourceUpdates).forEach(update => {
+      totalMovedPoints += update.removedPoints;
+    });
+    const newTargetPoints = originalTargetPoints + totalMovedPoints;
     purchaseDetails[targetSeller].points = newTargetPoints;
 
     // 총액 업데이트
