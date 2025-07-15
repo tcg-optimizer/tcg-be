@@ -4,6 +4,7 @@
 
 const { getSellerId } = require('./cardUtils');
 const { calculateShippingFee, REGION_TYPES } = require('../shippingInfo');
+const { calculatePointsAmount } = require('./pointsUtils');
 
 // 카드 식별을 위해 uniqueCardKey 우선 사용
 function getCardKey(card) {
@@ -28,7 +29,9 @@ function tryMoveCardsToReachThreshold(
   cardsOptimalPurchase,
   cardsList,
   regionType = REGION_TYPES.DEFAULT,
-  takeoutOptions = []
+  takeoutOptions = [],
+  pointsOptions = {},
+  reviewedProducts = new Set()
 ) {
   const otherSellers = Object.keys(purchaseDetails).filter(
     s => s !== targetSeller && purchaseDetails[s].cards.length > 0
@@ -122,11 +125,21 @@ function tryMoveCardsToReachThreshold(
         sourceSeller.total = newSourceSubtotal + newSourceShippingFee - newSourcePoints;
 
         // 타겟 판매처에 카드 추가
+        const targetCardPoints = calculatePointsAmount(
+          targetSeller,
+          candidate.targetPrice,
+          candidate.quantity,
+          candidate.cardName,
+          reviewedProducts,
+          pointsOptions
+        );
+        
         purchaseDetails[targetSeller].cards.push({
           cardName: candidate.cardName,
           price: candidate.targetPrice,
           product: candidate.targetProduct,
           quantity: candidate.quantity,
+          points: targetCardPoints,
         });
         purchaseDetails[targetSeller].subtotal = newTargetSubtotal;
         purchaseDetails[targetSeller].shippingFee = newTargetShippingFee;
@@ -181,7 +194,9 @@ function tryMultipleCardsMove(
   cardsOptimalPurchase,
   cardsList,
   regionType = REGION_TYPES.DEFAULT,
-  takeoutOptions = []
+  takeoutOptions = [],
+  pointsOptions = {},
+  reviewedProducts = new Set()
 ) {
   // 범위를 넓혀서 무료배송 임계값에 맞는 카드 조합 찾기 시도
   // 다른 판매처의 카드 중 이동 가능한 후보 찾기
@@ -430,11 +445,21 @@ function tryMultipleCardsMove(
       sourceUpdates[sourceSellerName].removedPoints += movingCardPoints;
 
       // 타겟 판매처에 카드 추가
+      const targetCardPoints = calculatePointsAmount(
+        targetSeller,
+        card.targetPrice,
+        card.quantity,
+        card.cardName,
+        reviewedProducts,
+        pointsOptions
+      );
+      
       targetSellerData.cards.push({
         cardName: card.cardName,
         price: card.targetPrice,
         product: card.targetProduct,
         quantity: card.quantity,
+        points: targetCardPoints,
       });
 
       // 타겟 판매처 금액 업데이트
@@ -533,7 +558,9 @@ function trySellersConsolidation(
   cardsOptimalPurchase,
   cardsList,
   regionType = REGION_TYPES.DEFAULT,
-  takeoutOptions = []
+  takeoutOptions = [],
+  pointsOptions = {},
+  reviewedProducts = new Set()
 ) {
   // 사용 중인 판매처 목록
   const usedSellers = Object.keys(purchaseDetails).filter(
@@ -671,11 +698,21 @@ function trySellersConsolidation(
           }
 
           // 타겟 판매처에 카드 추가
+          const targetCardPoints = calculatePointsAmount(
+            bestTargetSeller,
+            move.targetPrice,
+            move.sourceQuantity,
+            move.cardName,
+            reviewedProducts,
+            pointsOptions
+          );
+          
           targetSeller.cards.push({
             cardName: move.cardName,
             price: move.targetPrice,
             product: move.targetProduct,
             quantity: move.sourceQuantity,
+            points: targetCardPoints,
           });
 
           // 카드별 최적 구매처 정보 업데이트

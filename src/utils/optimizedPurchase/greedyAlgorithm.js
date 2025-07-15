@@ -640,7 +640,9 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
               cardsOptimalPurchase,
               reducedCardsList,
               regionType,
-              takeoutOptions
+              takeoutOptions,
+              pointsOptions,
+              reviewedProducts
             );
 
             if (foundImprovement) {
@@ -657,7 +659,9 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
               cardsOptimalPurchase,
               reducedCardsList,
               regionType,
-              takeoutOptions
+              takeoutOptions,
+              pointsOptions,
+              reviewedProducts
             );
 
             if (foundImprovement) {
@@ -836,7 +840,9 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
         cardsOptimalPurchase,
         reducedCardsList,
         regionType,
-        takeoutOptions
+        takeoutOptions,
+        pointsOptions,
+        reviewedProducts
       );
     }
 
@@ -1084,7 +1090,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
                 card.price,
                 card.quantity,
                 card.cardName,
-                new Set(),
+                reviewedProducts,
                 pointsOptions
               );
               return sum + cardPoints;
