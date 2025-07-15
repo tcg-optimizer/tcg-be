@@ -110,7 +110,7 @@ function tryMoveCardsToReachThreshold(
         }
         sourceSeller.subtotal = newSourceSubtotal;
         sourceSeller.shippingFee = newSourceShippingFee;
-        sourceSeller.total = newSourceTotal;
+        sourceSeller.total = newSourceSubtotal + newSourceShippingFee - (sourceSeller.points || 0);
 
         // 타겟 판매처에 카드 추가
         purchaseDetails[targetSeller].cards.push({
@@ -121,7 +121,7 @@ function tryMoveCardsToReachThreshold(
         });
         purchaseDetails[targetSeller].subtotal = newTargetSubtotal;
         purchaseDetails[targetSeller].shippingFee = newTargetShippingFee;
-        purchaseDetails[targetSeller].total = newTargetTotal;
+        purchaseDetails[targetSeller].total = newTargetSubtotal + newTargetShippingFee - (purchaseDetails[targetSeller].points || 0);
 
         // 카드별 최적 구매처 정보 업데이트
         const cardPurchaseIndex = cardsOptimalPurchase.findIndex(
@@ -453,7 +453,7 @@ function tryMultipleCardsMove(
       );
 
       // 총액 업데이트
-      seller.total = seller.subtotal + seller.shippingFee;
+      seller.total = seller.subtotal + seller.shippingFee - (seller.points || 0);
     });
 
     // 타겟 판매처 배송비 재계산
@@ -466,7 +466,7 @@ function tryMultipleCardsMove(
 
     // 총액 업데이트
     purchaseDetails[targetSeller].total =
-      purchaseDetails[targetSeller].subtotal + purchaseDetails[targetSeller].shippingFee;
+      purchaseDetails[targetSeller].subtotal + purchaseDetails[targetSeller].shippingFee - (purchaseDetails[targetSeller].points || 0);
 
     return true;
   }
@@ -657,10 +657,11 @@ function trySellersConsolidation(
         sourceSeller.subtotal = 0;
         sourceSeller.shippingFee = 0;
         sourceSeller.total = 0;
+        sourceSeller.points = 0; // 포인트도 0으로 초기화
 
         targetSeller.subtotal = newTargetSubtotal;
         targetSeller.shippingFee = newTargetShippingFee;
-        targetSeller.total = newTargetTotal;
+        targetSeller.total = newTargetSubtotal + newTargetShippingFee - (targetSeller.points || 0);
 
         improved = true;
         break; // 한 번에 하나의 판매처만 통합

@@ -287,68 +287,33 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
       Object.keys(result.cardsOptimalPurchase).forEach(seller => {
         const sellerData = result.cardsOptimalPurchase[seller];
         if (sellerData.cards && Array.isArray(sellerData.cards)) {
-          // 제외된 상품 확인
-          const excludedCards = sellerData.cards.filter(card => {
+          // 원본 카드 개수 저장
+          const originalCardCount = sellerData.cards.length;
+          
+          // 제외된 상품 제거 (정확한 비교 사용)
+          const filteredCards = sellerData.cards.filter(card => {
             if (card.product && card.product.id) {
               const productIdStr = String(card.product.id);
-
-              // 상품 ID가 제외 목록에 있는지 정확히 확인
-              let isExcluded = false;
               for (const excludedId of excludedProductIds) {
-                const excludedIdStr = String(excludedId);
-                if (productIdStr === excludedIdStr) {
+                if (String(excludedId) === productIdStr) {
                   console.log(
                     `[INFO] 최종 결과에서 제외된 상품 "${productIdStr}"가 발견되었습니다. (${card.cardName || '이름 없음'})`
                   );
-                  console.log(
-                    `  - 카드 정보: ${JSON.stringify(
-                      {
-                        cardName: card.cardName,
-                        price: card.price,
-                        site: card.product.site,
-                      },
-                      null,
-                      2
-                    )}`
-                  );
                   hasExcludedProducts = true;
-                  isExcluded = true;
-
-                  // 제외된 카드 이름 추가
                   excludedCardNames.add(card.cardName);
-                  break;
+                  return false; // 제외된 ID와 일치하면 필터링 (제거)
                 }
               }
-
-              return isExcluded;
+              return true; // 모든 제외 ID와 일치하지 않으면 유지
             }
-            return false;
+            return true; // 상품 ID가 없으면 유지
           });
 
-          // 제외된 상품이 있으면 실제로 해당 상품 제거
-          if (excludedCards.length > 0) {
+          // 실제로 카드가 제거된 경우에만 처리
+          if (filteredCards.length !== originalCardCount) {
             console.log(
-              `[INFO] ${seller}에서 ${excludedCards.length}개의 제외된 상품을 결과에서 제거합니다:`
+              `[INFO] ${seller}에서 ${originalCardCount - filteredCards.length}개의 제외된 상품을 결과에서 제거합니다.`
             );
-            excludedCards.forEach(card => {
-              console.log(
-                `  - ${card.cardName || '이름 없음'} (ID: ${card.product?.id || 'unknown'})`
-              );
-            });
-
-            // 제외된 상품 제거 (정확한 비교 사용)
-            const filteredCards = sellerData.cards.filter(card => {
-              if (card.product && card.product.id) {
-                const productIdStr = String(card.product.id);
-                for (const excludedId of excludedProductIds) {
-                  if (String(excludedId) === productIdStr) {
-                    return false; // 제외된 ID와 일치하면 필터링 (제거)
-                  }
-                }
-                return true; // 모든 제외 ID와 일치하지 않으면 유지
-              }
-              return true; // 상품 ID가 없으면 유지
-            });
 
             // 판매처 카드 목록 업데이트
             result.cardsOptimalPurchase[seller].cards = filteredCards;
@@ -363,9 +328,16 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
                 console.log('[INFO] 모든 판매처의 상품이 제외되어 결과가 없습니다.');
                 result.success = false;
               }
-            } else {
-              // 비용 재계산
-              const newProductCost = filteredCards.reduce((sum, card) => sum + card.totalPrice, 0);
+            } else if (filteredCards.length !== sellerData.cards.length) {
+              // 실제로 카드가 제거된 경우에만 비용 재계산
+              console.log(`[INFO] ${seller}에서 카드가 제거되었으므로 비용을 재계산합니다.`);
+              
+              // 비용 재계산 - card.totalPrice 대신 card.price * card.quantity 사용
+              const newProductCost = filteredCards.reduce((sum, card) => {
+                const price = card.price || 0;
+                const quantity = card.quantity || 1;
+                return sum + (price * quantity);
+              }, 0);
               result.cardsOptimalPurchase[seller].productCost = newProductCost;
 
               // 무료 배송 기준 다시 확인
@@ -421,8 +393,8 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
 
               result.cardsOptimalPurchase[seller].pointsEarned = newPointsEarned;
 
-              // 최종 가격 재계산
-              result.cardsOptimalPurchase[seller].finalPrice = newProductCost + newShippingCost;
+              // 최종 가격 재계산 (적립금 차감)
+              result.cardsOptimalPurchase[seller].finalPrice = newProductCost + newShippingCost - newPointsEarned;
             }
           }
         }
@@ -577,10 +549,11 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
 
           result.cardsOptimalPurchase[sellerId].pointsEarned = pointsEarned;
 
-          // 최종 가격 계산
+          // 최종 가격 계산 (적립금 차감)
           result.cardsOptimalPurchase[sellerId].finalPrice =
             result.cardsOptimalPurchase[sellerId].productCost +
-            result.cardsOptimalPurchase[sellerId].shippingCost;
+            result.cardsOptimalPurchase[sellerId].shippingCost -
+            result.cardsOptimalPurchase[sellerId].pointsEarned;
 
           // 카드 이미지 정보 업데이트
           if (!result.cardImages) {
