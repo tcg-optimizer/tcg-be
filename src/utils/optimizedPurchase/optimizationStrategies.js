@@ -492,7 +492,7 @@ function trySellersConsolidation(
 ) {
   // 사용 중인 판매처 목록
   const usedSellers = Object.keys(purchaseDetails).filter(
-    seller => purchaseDetails[seller].subtotal > 0
+    seller => purchaseDetails[seller].cards && purchaseDetails[seller].cards.length > 0
   );
 
   // 판매처가 1-2개만 있으면 통합 불필요
@@ -690,7 +690,7 @@ function tryComplexOptimization(
 ) {
   // 사용 중인 판매처 목록
   const usedSellers = Object.keys(purchaseDetails).filter(
-    seller => purchaseDetails[seller].subtotal > 0
+    seller => purchaseDetails[seller].cards && purchaseDetails[seller].cards.length > 0
   );
 
   // 판매처가 2개 이하면 복잡한 최적화 불필요

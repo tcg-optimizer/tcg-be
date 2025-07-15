@@ -848,7 +848,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
 
     sellersList.forEach(seller => {
       const details = purchaseDetails[seller];
-      if (details.subtotal > 0) {
+      if (details.cards && details.cards.length > 0) {
         // 배송비 한번 더 검증하여 계산
         details.shippingFee = calculateShippingFee(
           seller,
@@ -873,8 +873,10 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
     if (totalCost < bestCost) {
       bestCost = totalCost;
 
-      // 사용된 판매처만 필터링
-      const usedSellers = sellersList.filter(seller => purchaseDetails[seller].subtotal > 0);
+      // 사용된 판매처만 필터링 (카드가 있는 모든 판매처 포함)
+      const usedSellers = sellersList.filter(seller => 
+        purchaseDetails[seller].cards && purchaseDetails[seller].cards.length > 0
+      );
 
       // 빈 판매처 제거
       const finalPurchaseDetails = {};
