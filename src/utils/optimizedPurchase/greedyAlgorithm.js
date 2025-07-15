@@ -1098,9 +1098,12 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
         }
       });
 
-      // 최종 적립금 합계 재계산 (리뷰 적립금이 추가되었을 수 있으므로)
-      totalPointsEarned = usedSellers.reduce(
-        (sum, seller) => sum + finalPurchaseDetails[seller].points,
+      // 최종 적립금 합계 재계산 (groupedCardsByStore에서 재계산된 포인트 포함)
+      totalPointsEarned = Object.keys(groupedCardsByStore).reduce(
+        (sum, seller) => {
+          const storePoints = groupedCardsByStore[seller]?.pointsEarned || 0;
+          return sum + storePoints;
+        },
         0
       );
 
