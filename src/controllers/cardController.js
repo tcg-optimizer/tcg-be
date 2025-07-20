@@ -16,6 +16,14 @@ const { cardRequestLimiter } = require('../utils/rateLimiter');
  * @returns {Promise<Object>} - 검색된 카드와 가격 정보
  */
 async function searchCardPricesFromAllSources(cardName) {
+  // 카드 정보 미리 조회 (중복 쿼리 방지)
+  let existingCard = await Card.findOne({
+    where: {
+      name: { [Op.like]: `%${cardName}%` }
+    }
+  });
+  const cardId = existingCard ? existingCard.id : null;
+
   // 모든 소스에서 병렬로 검색 (Promise.all 사용)
   const [naverResult, tcgshopResult, cardDCResult] = await Promise.all([
     // 네이버 쇼핑 API 검색
@@ -25,13 +33,13 @@ async function searchCardPricesFromAllSources(cardName) {
     }),
 
     // TCGShop 검색
-    searchAndSaveTCGShopPrices(cardName, null).catch(error => {
+    searchAndSaveTCGShopPrices(cardName, cardId).catch(error => {
       console.error(`[ERROR] TCGShop 검색 오류: ${error.message}`);
       return { count: 0, prices: [] };
     }),
 
     // CardDC 검색
-    searchAndSaveCardDCPrices(cardName, null).catch(error => {
+    searchAndSaveCardDCPrices(cardName, cardId).catch(error => {
       console.error(`[ERROR] CardDC 검색 오류: ${error.message}`);
       return { count: 0, prices: [] };
     }),
@@ -55,15 +63,15 @@ async function searchCardPricesFromAllSources(cardName) {
   ];
 
   // 카드 정보 설정 (네이버 API 결과 우선)
-  let card = null;
+  let cardInfo = null;
   if (naverResult && naverResult.card) {
-    card = naverResult.card;
+    cardInfo = naverResult.card;
   } else {
-    card = { name: cardName };
+    cardInfo = { name: cardName };
   }
 
   return {
-    card,
+    card: cardInfo,
     prices: combinedPrices,
     naverResult,
   };
@@ -934,10 +942,7 @@ exports.searchTCGShop = [
       // 카드 ID 찾기 (이미 DB에 존재하는지 확인)
       let card = await Card.findOne({
         where: {
-          [Op.or]: [
-            { name: { [Op.like]: `%${cardName}%` } },
-            { koName: { [Op.like]: `%${cardName}%` } },
-          ],
+          name: { [Op.like]: `%${cardName}%` }
         },
       });
 
@@ -990,10 +995,7 @@ exports.searchCardDC = [
       // 카드 ID 찾기 (이미 DB에 존재하는지 확인)
       let card = await Card.findOne({
         where: {
-          [Op.or]: [
-            { name: { [Op.like]: `%${cardName}%` } },
-            { koName: { [Op.like]: `%${cardName}%` } },
-          ],
+          name: { [Op.like]: `%${cardName}%` }
         },
       });
 

@@ -1,9 +1,4 @@
 /**
- * 사용자 요청 로깅 미들웨어
- * User-Agent, 요청 경로, 파라미터 등을 상세하게 로깅
- */
-
-/**
  * 요청 정보를 상세하게 로깅하는 미들웨어
  * @param {string} endpointName - API 엔드포인트 이름
  * @returns {Function} Express 미들웨어 함수
