@@ -6,30 +6,27 @@ const { parseLanguage, parseCondition, extractCardCode, detectIllustration } = r
 const { withRateLimit } = require('./rateLimiter');
 const { getRandomizedHeaders } = require('./userAgentUtil');
 
-/**
- * 지정된 시간(ms) 동안 실행을 지연시키는 함수
- * @param {number} ms - 지연 시간 (밀리초)
- * @returns {Promise} - 지정된 시간 후 해결되는 Promise
- */
-const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 /**
- * 실제 네이버 API 검색을 수행하는 함수
- * @param {string} searchQuery - 검색 쿼리
- * @param {string} clientId - 네이버 클라이언트 ID
- * @param {string} clientSecret - 네이버 클라이언트 시크릿
+ * 네이버 쇼핑 검색 API를 사용해 카드 가격 정보를 가져오는 함수
+ * @param {string} searchQuery - 검색할 카드 이름
+ * @param {string} clientId
+ * @param {string} clientSecret
  * @param {number} maxPages - 최대 검색 페이지 수
- * @param {number} startPage - 시작 페이지 (기본값: 1)
- * @returns {Promise<Array>} - 검색된 상품 정보 배열
+ * @param {number} startPage - 검색을 시작할 페이지 (기본값: 1)
+ * @returns {Promise<Array>} - 검색된 카드 가격 정보 배열
  */
 const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages, startPage = 1) => {
   const query = encodeURIComponent(searchQuery);
-  const display = 100; // 검색 결과 개수 (최대 100)
-  const sort = 'sim'; // 정렬 (sim: 정확도순, date: 날짜순, asc: 가격오름차순, dsc: 가격내림차순)
-  const exclude = 'used:rental:cbshop'; // 중고, 렌탈, 해외직구/구매대행 제외
-  // 네이버 샵들이 중고 상품을 중고 카테고리로 분류하지 않는 경우가 많아 여전히 추가적인 중고 파싱 로직은 필요함
+  const display = 100; // 한 페이지에 표시할 검색 결과 개수
+  const sort = 'sim'; // 정확도순으로 내림차순 정렬
+  const exclude = 'used:rental:cbshop'; // 중고, 렌탈, 해외직구/구매대행 상품 제외
+  // 단, 네이버 샵들이 중고 상품을 중고 카테고리로 분류하지 않는 경우가 많아 여전히 추가적인 중고 파싱 로직은 필요함
 
-  let allItems = [];
+  let allItems = []; // 검색 결과를 저장할 배열
   let start = (startPage - 1) * display + 1; // 시작 페이지에 맞게 start 계산
   let hasMoreItems = true;
   const maxItems = maxPages * display; // 최대 아이템 수
@@ -104,24 +101,21 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
       }
     } catch (error) {
       if (error.response && error.response.status === 429) {
-        console.log('[WARN] 네이버 API 요청 한도 초과. 2초 대기 후 재시도합니다.');
+        console.log('[WARN] 네이버 API 속도 제한 초과. 2초 대기 후 재시도.');
         await delay(2000);
-      } else if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') {
-        // 소켓 오류나 타임아웃 처리
+      } else {
         retryCount++;
         if (retryCount <= maxRetries) {
           console.log(
-            `[WARN] 네이버 API 연결 오류(${error.code}). ${retryCount}/${maxRetries} 재시도 중...`
+            `[WARN] 네이버 API 오류(${error.code || error.message}). ${retryCount}/${maxRetries} 재시도 중...`
           );
-          await delay(2000 * retryCount);
-          continue; // 현재 시도 건너뛰기
+          await delay(2000);
+          continue;
         } else {
-          console.log('[WARN] 네이버 API 연결 오류. 최대 재시도 횟수 초과, 검색 종료.');
-          break; // 최대 재시도 횟수 초과하면 루프 종료
+          console.log('[WARN] 네이버 API 오류. 최대 재시도 횟수 초과, 검색 종료.');
+          console.error(`[ERROR] 최종 오류: ${error.message}`);
+          break;
         }
-      } else {
-        console.error(`[ERROR] 네이버 API 오류: ${error.message}`);
-        break;
       }
     }
   }
@@ -133,7 +127,7 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
 };
 
 /**
- * 네이버 쇼핑 검색 API를 사용하여 카드 가격 정보를 가져옵니다.
+ * performNaverSearch를 사용해 실제 카드 가격 정보를 가져오는 함수
  * @param {string} cardName - 검색할 카드 이름
  * @returns {Promise<Array>} - 검색된 상품 정보 배열
  */
@@ -146,24 +140,24 @@ const searchNaverShop = async cardName => {
       throw new Error('네이버 API 인증 정보가 설정되지 않았습니다.');
     }
 
-    // 첫 번째 검색 시도 (3페이지까지) - 카드 이름으로 검색
+    // 첫 번째 검색 시도 (3페이지까지)
     let searchQuery = cardName;
     let allItems = await performNaverSearch(searchQuery, clientId, clientSecret, 3);
 
-    // 3페이지 검색 후 유효한 유희왕 카드가 4개 미만이면 "유희왕 카드이름"으로 재검색
+    // 3페이지까지 검색 후 유효한 유희왕 카드가 4개 미만이면 카드 이름 앞에 "유희왕" 추가해 재검색
     if (allItems.length < 4) {
       console.log(
         `[INFO] "${cardName}" 검색에서 유효한 유희왕 카드가 ${allItems.length}개로 부족합니다. 유희왕 "${cardName}"으로 재검색합니다.`
       );
       searchQuery = `유희왕 "${cardName}"`;
-      const additionalItems = await performNaverSearch(searchQuery, clientId, clientSecret, 10); // 10페이지까지 재검색
+      const additionalItems = await performNaverSearch(searchQuery, clientId, clientSecret, 10);
       allItems = [...allItems, ...additionalItems];
     } else if (allItems.length >= 4) {
       // 유효한 카드가 4개 이상이면 나머지 7페이지 추가 검색
       console.log(
         `[INFO] "${cardName}" 검색에서 유효한 유희왕 카드가 ${allItems.length}개 발견. 나머지 7페이지를 추가 검색합니다.`
       );
-      const additionalItems = await performNaverSearch(searchQuery, clientId, clientSecret, 10, 4); // 4페이지부터 10페이지까지
+      const additionalItems = await performNaverSearch(searchQuery, clientId, clientSecret, 10, 4);
       allItems = [...allItems, ...additionalItems];
     }
 
@@ -178,7 +172,7 @@ const searchNaverShop = async cardName => {
 const searchNaverShopWithRateLimit = withRateLimit(searchNaverShop, 'naver');
 
 /**
- * 카드 이름으로 검색하여 가격 정보를 저장합니다.
+ * 카드 이름으로 검색하여 가격 정보를 저장하는 함수
  * @param {string} cardName - 검색할 카드 이름
  * @returns {Promise<Object>} - 저장된 카드와 가격 정보
  */
@@ -235,7 +229,7 @@ const searchAndSaveCardPricesApi = async (cardName, options = {}) => {
       card,
       prices: savedPrices,
       count: savedPrices.length,
-      rawResults: results, // 원본 네이버 API 결과 (이미지 포함)
+      rawResults: results,
     };
   } catch (error) {
     console.error('카드 가격 저장 오류:', error);
