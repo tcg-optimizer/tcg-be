@@ -225,8 +225,8 @@ async function getOrCreateCardPriceData(cardName, cacheId = null) {
     // 품절 상품 제외
     if (price.available === false) return false;
     
-    // 레어도나 언어가 '알 수 없음'인 경우 제외
-    if (price.rarity === '알 수 없음' || price.language === '알 수 없음') return false;
+    // 레어도나 언어가 유효하지 않은 경우 제외 (null, undefined, 빈 문자열, '알 수 없음' 모두 제외)
+    if (!price.rarity || price.rarity === '알 수 없음' || !price.language || price.language === '알 수 없음') return false;
     
     // 센터 카드 제외
     if (price.cardCode && /^ST19-KRFC[1-4]$/i.test(price.cardCode)) return false;
