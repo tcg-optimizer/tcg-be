@@ -22,7 +22,7 @@ async function crawlTCGShop(cardName, cardId) {
 
     // 요청 설정 생성
     const config = createCrawlerConfig('tcgshop', {
-      timeoutMs: 15000,
+      timeoutMs: 10000,
       additionalHeaders: {
         'Upgrade-Insecure-Requests': '1',
       },
