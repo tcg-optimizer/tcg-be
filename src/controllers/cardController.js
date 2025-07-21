@@ -208,57 +208,40 @@ async function getOrCreateCardPriceData(cardName, cacheId = null) {
     throw new Error('센터 카드는 가격 정보를 제공하지 않습니다.');
   }
 
-  // 4. 가격 정보 필터링
+  // 4. 가격 정보 필터링 (모든 조건을 한 번에 처리 - 성능 최적화)
   const filteredPrices = combinedPrices.filter(price => {
-    // condition이 신품이 아닌 경우 필터링
-    if (price.condition !== '신품') {
-      return false;
-    }
+    // 상품 제목에 "중고" 키워드가 포함된 제품 제외
+    if (price.title && /중고|중고품|듀얼용|실듀용/i.test(price.title)) return false;
+    
+    // 번개장터 상품 제외
+    if (price.site && (price.site === 'Naver_번개장터' || price.site.includes('번개장터'))) return false;
+    
+    // condition이 신품이 아닌 경우 제외
+    if (price.condition !== '신품') return false;
+    
+    // 판매 사이트가 "네이버"인 경우 제외
+    if (price.site === 'Naver_네이버') return false;
+    
+    // 품절 상품 제외
+    if (price.available === false) return false;
+    
+    // 레어도나 언어가 '알 수 없음'인 경우 제외
+    if (price.rarity === '알 수 없음' || price.language === '알 수 없음') return false;
+    
+    // 센터 카드 제외
+    if (price.cardCode && /^ST19-KRFC[1-4]$/i.test(price.cardCode)) return false;
+    
     return true;
   });
 
-  // 판매 사이트가 "네이버"인 경우 제외
-  const siteFilteredPrices = filteredPrices.filter(
-    price => {
-      const isNaverSite = !price.site || price.site !== 'Naver_네이버';
-      return isNaverSite;
-    }
-  );
-
-  // 품절 상품 제외
-  const stockFilteredPrices = siteFilteredPrices.filter(
-    price => price.available !== false
-  );
-
-  // 레어도나 언어가 '알 수 없음'인 경우 제외
-  const finalFilteredPrices = stockFilteredPrices.filter(
-    price => {
-      const hasValidRarity = price.rarity && price.rarity !== '알 수 없음';
-      const hasValidLanguage = price.language && price.language !== '알 수 없음';
-      return hasValidRarity && hasValidLanguage;
-    }
-  );
-
-  if (!finalFilteredPrices || finalFilteredPrices.length === 0) {
-    throw new Error('현재 구매 가능한 가격 정보가 없습니다.');
-  }
-
-  // 모든 가격 정보에서 센터 카드 필터링
-  const centerCardFilteredPrices = finalFilteredPrices.filter(
-    price => {
-      const isCenterCard = price.cardCode && /^ST19-KRFC[1-4]$/i.test(price.cardCode);
-      return !isCenterCard;
-    }
-  );
-
-  if (!centerCardFilteredPrices || centerCardFilteredPrices.length === 0) {
+  if (!filteredPrices || filteredPrices.length === 0) {
     throw new Error('현재 구매 가능한 가격 정보가 없습니다.');
   }
 
   // 5. 일러스트별, 언어별, 레어도별로 가격 정보 그룹화
         const rarityPrices = {};
 
-        centerCardFilteredPrices.forEach(price => {
+        filteredPrices.forEach(price => {
           const illustration = price.illustration || 'default';
           const language = price.language || '알 수 없음';
           const rarity = price.rarity || '알 수 없음';

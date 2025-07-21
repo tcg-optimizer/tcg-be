@@ -38,8 +38,9 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
     const apiUrl = `https://openapi.naver.com/v1/search/shop.json?query=${query}&display=${display}&start=${start}&sort=${sort}&exclude=${exclude}`;
 
     try {
-      // 네이버 429 에러 방지를 위한 지연 시간
-      await delay(100);
+      if (currentPage > startPage) {
+        await delay(50);
+      }
 
       const combinedHeaders = {
         ...getRandomizedHeaders(false),

@@ -23,7 +23,7 @@ const crawlCardDC = async (cardName, cardId) => {
 
     // 요청 설정 생성 - createCrawlerConfig 함수 사용
     const config = createCrawlerConfig('carddc', {
-      timeoutMs: 15000,
+      timeoutMs: 10000,
       additionalHeaders: {
         'Upgrade-Insecure-Requests': '1',
       },
