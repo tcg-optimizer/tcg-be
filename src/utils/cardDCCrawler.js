@@ -240,7 +240,8 @@ const searchAndSaveCardDCPrices = async (cardName, cardId = null) => {
             cardCode: item.cardCode,
             lastUpdated: new Date(),
             productId: item.productId,
-            illustration: item.illustration || 'default', // 일러스트 필드 추가
+            illustration: item.illustration || 'default',
+            expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
           });
 
           // product 객체에 id 필드 추가

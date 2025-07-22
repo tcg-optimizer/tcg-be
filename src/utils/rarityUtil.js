@@ -14,7 +14,7 @@ function parseRarity(title) {
       rarity: '러시 레어',
     },
     {
-      pattern: /(엑스트라\s*시크릿\s*레어|엑스트라시크릿레어|엑시크|extra\s*secret\s*rare)/i,
+      pattern: /(엑스트라\s*시크릿\s*레어|엑스트라시크릿레어|엑스트라\s*씨그릿|엑시크|extra\s*secret\s*rare)/i,
       rarity: '엑스트라 시크릿 레어',
     },
     {

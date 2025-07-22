@@ -12,6 +12,7 @@ dotenv.config();
 const { sequelize, connectDB } = require('./utils/db');
 require('./models/Card');
 require('./models/CardPriceCache');
+const { startPeriodicCleanup } = require('./utils/cleanup');
 
 const app = express();
 
@@ -19,6 +20,9 @@ const app = express();
   await connectDB();
   await sequelize.sync();
   console.log('데이터베이스 테이블 동기화 완료');
+  
+  // 만료된 데이터 정리 스케줄러 시작 (1시간마다)
+  startPeriodicCleanup(60);
 })();
 
 app.use(helmet());
@@ -27,7 +31,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
-// 프로세스 레벨 에러 핸들링
 process.on('uncaughtException', err => {
   console.error('Uncaught Exception:', err);
   redisManager.publishError({
@@ -63,7 +66,6 @@ process.on('unhandledRejection', (reason, promise) => {
   });
 });
 
-// API 요청 제한 설정
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: 60, // IP당 1분에 최대 60개까지만 요청 가능
@@ -75,7 +77,6 @@ const apiLimiter = rateLimit({
   },
 });
 
-// API 경로에 요청 제한 적용
 app.use('/api', apiLimiter);
 
 app.get('/', (req, res) => {

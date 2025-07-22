@@ -1,6 +1,6 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
-const iconv = require('iconv-lite'); // EUC-KR 인코딩 처리를 위해 필요
+const iconv = require('iconv-lite');
 const { parseRarity } = require('./rarityUtil');
 const { parseLanguage, parseCondition, detectIllustration, encodeEUCKR } = require('./crawler');
 const { withRateLimit } = require('./rateLimiter');
@@ -254,6 +254,7 @@ async function searchAndSaveTCGShopPrices(cardName, cardId) {
             lastUpdated: new Date(),
             productId: item.productId,
             illustration: item.illustration || 'default',
+            expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
           });
 
           // product 객체에 id 필드 추가

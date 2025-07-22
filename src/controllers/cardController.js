@@ -19,7 +19,8 @@ async function searchCardPricesFromAllSources(cardName) {
   // 카드 정보 미리 조회 (중복 쿼리 방지)
   let existingCard = await Card.findOne({
     where: {
-      name: { [Op.like]: `%${cardName}%` }
+      name: { [Op.like]: `%${cardName}%` },
+      expiresAt: { [Op.gt]: new Date() }
     }
   });
   const cardId = existingCard ? existingCard.id : null;
@@ -925,7 +926,8 @@ exports.searchTCGShop = [
       // 카드 ID 찾기 (이미 DB에 존재하는지 확인)
       let card = await Card.findOne({
         where: {
-          name: { [Op.like]: `%${cardName}%` }
+          name: { [Op.like]: `%${cardName}%` },
+          expiresAt: { [Op.gt]: new Date() }
         },
       });
 
@@ -978,7 +980,8 @@ exports.searchCardDC = [
       // 카드 ID 찾기 (이미 DB에 존재하는지 확인)
       let card = await Card.findOne({
         where: {
-          name: { [Op.like]: `%${cardName}%` }
+          name: { [Op.like]: `%${cardName}%` },
+          expiresAt: { [Op.gt]: new Date() }
         },
       });
 

@@ -18,6 +18,10 @@ const Card = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    expiresAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+    },
   },
   {
     timestamps: true,
@@ -85,6 +89,10 @@ const CardPrice = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
       defaultValue: 'default',
+    },
+    expiresAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
     },
   },
   {

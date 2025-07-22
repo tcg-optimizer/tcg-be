@@ -183,7 +183,10 @@ const searchAndSaveCardPricesApi = async (cardName, options = {}) => {
 
     let [card] = await Card.findOrCreate({
       where: { name: cardName },
-      defaults: { name: cardName },
+      defaults: { 
+        name: cardName,
+        expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000)
+      },
     });
 
     if (results.length === 0) {
@@ -222,6 +225,7 @@ const searchAndSaveCardPricesApi = async (cardName, options = {}) => {
           lastUpdated: new Date(),
           productId: item.productId,
           illustration: item.illustration,
+          expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
         });
       })
     );
