@@ -592,6 +592,13 @@ const naverSellerShippingInfo = {
     islandShippingFee: 9000,
     freeShippingThreshold: 30000,
   },
+
+  덱인사이드: {
+    shippingFee: 3200,
+    jejuShippingFee: 7200,
+    islandShippingFee: 7200,
+    freeShippingThreshold: 50000,
+  },
 };
 
 const REGION_TYPES = {
