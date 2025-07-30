@@ -599,6 +599,20 @@ const naverSellerShippingInfo = {
     islandShippingFee: 7200,
     freeShippingThreshold: 50000,
   },
+
+  방해꾼샵: {
+    shippingFee: 3000,
+    jejuShippingFee: 6000,
+    islandShippingFee: 6000,
+    freeShippingThreshold: 50000,
+  },
+  
+  해피네샵: {
+    shippingFee: 3500,
+    jejuShippingFee: 8500,
+    islandShippingFee: 8500,
+    freeShippingThreshold: 100000,
+  },
 };
 
 const REGION_TYPES = {
