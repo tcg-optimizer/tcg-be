@@ -382,7 +382,7 @@ async function getOrCreateCardPriceData(cardName, cacheId = null) {
 
   // 7. 캐시에 저장
         const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + 12); // 2시간 유효
+  expiresAt.setHours(expiresAt.getHours() + 12); // 12시간 유효
 
   let cacheEntry;
   if (cachedResult) {
