@@ -613,6 +613,20 @@ const naverSellerShippingInfo = {
     islandShippingFee: 8500,
     freeShippingThreshold: 100000,
   },
+
+  카드슬래쉬: {
+    shippingFee: 2000,
+    jejuShippingFee: 2000,
+    islandShippingFee: 2000,
+    freeShippingThreshold: Infinity,
+  },
+
+  카드펀: {
+    shippingFee: 3000,
+    jejuShippingFee: 6000,
+    islandShippingFee: 6000,
+    freeShippingThreshold: 50000,
+  },
 };
 
 const REGION_TYPES = {
