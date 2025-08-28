@@ -1,16 +1,6 @@
-/**
- * 카드 관련 유틸리티 함수 모듈
- */
-
 const { getShippingInfo } = require('../shippingInfo');
 
-/**
- * 판매처 ID를 가져오는 함수
- * @param {string|Object} seller - 판매처 정보
- * @returns {string} - 판매처 ID
- */
 function getSellerId(seller) {
-  // 문자열인 경우 그대로 반환
   if (typeof seller === 'string') {
     return seller;
   }
@@ -22,32 +12,20 @@ function getSellerId(seller) {
   return seller.name || seller.id || String(seller);
 }
 
-/**
- * 각 카드별로 상위 N개의 저렴한 판매처만 선택하여 탐색 공간 축소
- * 추가적으로 레어도 조건을 적용하여 필터링
- * @param {Array<Object>} cardsList - 카드 목록
- * @param {number|Object} options - 각 카드별로 선택할 최대 판매처 수 또는 옵션 객체
- * @returns {Array<Object>} - 축소된 카드 목록
- */
 function filterTopSellers(cardsList, options = 5) {
-  // topN 값 추출 (숫자 또는 options 객체에서)
-  let topN = 5; // 기본값
+  let topN = 5;
 
   if (typeof options === 'number') {
     topN = options;
   } else if (typeof options === 'object' && options !== null) {
-    topN = options.maxSellersPerCard || 50; // 객체에서 maxSellersPerCard 속성을 찾아 사용
+    topN = options.maxSellersPerCard || 50;
   }
 
-  // 제외할 상품 ID 목록
   const excludedProductIds = (options && options.excludedProductIds) || [];
-
-  // 제외할 상점 목록 추가
   const excludedStores = (options && options.excludedStores) || [];
 
   return cardsList
     .map(card => {
-      // 상품 목록이 없거나 비어있는 경우 처리
       if (!card.products) {
         return {
           ...card,
@@ -55,7 +33,6 @@ function filterTopSellers(cardsList, options = 5) {
         };
       }
 
-      // products가 배열이 아닌 경우 체크 (prices 필드가 있는 형태)
       let productsList = card.products;
 
       // products 객체가 배열이 아니고 prices 속성을 가지고 있는 경우 (캐시된 형식)
@@ -71,10 +48,8 @@ function filterTopSellers(cardsList, options = 5) {
         };
       }
 
-      // 기본 상품 목록
       let filteredProducts = productsList;
 
-      // 제외할 상점 필터링 추가
       if (excludedStores.length > 0) {
         filteredProducts = filteredProducts.filter(product => {
           const site = product.site || (product.product && product.product.site);
@@ -208,11 +183,6 @@ function filterTopSellers(cardsList, options = 5) {
     });
 }
 
-/**
- * 판매처가 네이버 스토어인지 확인하는 함수
- * @param {string} seller - 판매처 이름
- * @returns {boolean} - 네이버 스토어 여부
- */
 function isNaverStore(seller) {
   if (!seller) return false;
 

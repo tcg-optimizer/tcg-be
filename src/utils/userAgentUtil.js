@@ -43,11 +43,6 @@ const acceptLanguageHeaders = [
 
 const cacheControlHeaders = ['max-age=0', 'no-cache', 'max-age=0, private, must-revalidate'];
 
-/**
- * 랜덤 User-Agent 문자열을 생성합니다.
- * @param {boolean} [includeMobile=false] - 모바일 User-Agent도 포함할지 여부
- * @returns {string} - 랜덤 User-Agent 문자열
- */
 function getRandomUserAgent(includeMobile = false) {
   const userAgents = includeMobile
     ? [...desktopUserAgents, ...mobileUserAgents]
@@ -57,12 +52,6 @@ function getRandomUserAgent(includeMobile = false) {
   return userAgents[randomIndex];
 }
 
-/**
- * 크롤링을 위한 랜덤 헤더 세트를 생성합니다.
- * @param {boolean} [includeMobile=false] - 모바일 User-Agent도 포함할지 여부
- * @param {Object} [additionalHeaders={}] - 추가할 사용자 정의 헤더
- * @returns {Object} - HTTP 요청 헤더 객체
- */
 function getRandomizedHeaders(includeMobile = false, additionalHeaders = {}) {
   const headers = {
     'User-Agent': getRandomUserAgent(includeMobile),
@@ -88,13 +77,7 @@ function getRandomizedHeaders(includeMobile = false, additionalHeaders = {}) {
   return { ...headers, ...additionalHeaders };
 }
 
-/**
- * 랜덤 쿠키 헤더를 생성합니다.
- * @param {string} site - 크롤링 대상 사이트
- * @returns {string} - 쿠키 헤더 문자열
- */
 function generateRandomCookies(site) {
-  // 공통 쿠키 속성
   const commonCookies = {
     visited: 'true',
     sessionStarted: Date.now().toString(),
@@ -116,18 +99,12 @@ function generateRandomCookies(site) {
       break;
   }
 
-  // 모든 쿠키 병합 및 문자열로 변환
   const allCookies = { ...commonCookies, ...siteCookies };
   return Object.entries(allCookies)
     .map(([key, value]) => `${key}=${value}`)
     .join('; ');
 }
 
-/**
- * 랜덤 문자열을 생성합니다.
- * @param {number} length - 문자열 길이
- * @returns {string} - 랜덤 문자열
- */
 function generateRandomString(length) {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let result = '';
@@ -139,20 +116,12 @@ function generateRandomString(length) {
   return result;
 }
 
-/**
- * 사이트별 특화된 헤더를 생성합니다. (기존 함수 확장)
- * @param {string} site - 크롤링 대상 사이트 ('tcgshop', 'carddc')
- * @param {Object} [additionalHeaders={}] - 추가할 사용자 정의 헤더
- * @param {boolean} [includeCookies=true] - 쿠키를 포함할지 여부
- * @returns {Object} - 사이트에 최적화된 HTTP 요청 헤더 객체
- */
 function getSiteSpecificHeaders(site, additionalHeaders = {}, includeCookies = true) {
   if (!site) {
     console.warn('[WARN] 사이트 이름이 제공되지 않았습니다. 기본 헤더만 사용합니다.');
     return getRandomizedHeaders(false, additionalHeaders);
   }
 
-  // 사이트별 특화 헤더
   const siteHeaders = {};
 
   switch (site.toLowerCase()) {
@@ -168,12 +137,10 @@ function getSiteSpecificHeaders(site, additionalHeaders = {}, includeCookies = t
       break;
   }
 
-  // 쿠키 추가
   if (includeCookies) {
     siteHeaders['Cookie'] = generateRandomCookies(site);
   }
 
-  // 기본 랜덤 헤더 + 사이트별 특화 헤더 + 추가 헤더 병합
   return {
     ...getRandomizedHeaders(false),
     ...siteHeaders,
@@ -181,12 +148,6 @@ function getSiteSpecificHeaders(site, additionalHeaders = {}, includeCookies = t
   };
 }
 
-/**
- * 크롤링 요청에 대한 Axios 설정을 생성합니다.
- * @param {string} site - 크롤링 대상 사이트
- * @param {Object} [options={}] - 추가 옵션
- * @returns {Object} - Axios 요청 설정 객체
- */
 function createCrawlerConfig(site, options = {}) {
   const {
     timeoutMs = 10000,
@@ -196,7 +157,6 @@ function createCrawlerConfig(site, options = {}) {
     responseType = 'arraybuffer',
   } = options;
 
-  // 헤더 생성
   const headers = getSiteSpecificHeaders(site, additionalHeaders, useCookies);
 
   // gzip 압축 지원 추가
@@ -204,7 +164,6 @@ function createCrawlerConfig(site, options = {}) {
     headers['Accept-Encoding'] = 'gzip, deflate';
   }
 
-  // 기본 설정
   const config = {
     headers,
     timeout: timeoutMs,

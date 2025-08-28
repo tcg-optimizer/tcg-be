@@ -1,6 +1,4 @@
-/**
- * 다양한 최적화 전략 관련 함수 모듈
- */
+
 
 const { getSellerId } = require('./cardUtils');
 const { calculateShippingFee, REGION_TYPES } = require('../shippingInfo');
@@ -11,16 +9,7 @@ function getCardKey(card) {
   return card && (card.uniqueCardKey || card.cardName);
 }
 
-/**
- * 무료배송 임계값에 도달하기 위해 다른 판매처에서 카드를 이동하는 함수
- * @param {string} targetSeller - 대상 판매처
- * @param {number} gapToThreshold - 무료배송 임계값까지의 차이
- * @param {Object} purchaseDetails - 판매처별 구매 내역
- * @param {Object} sellerShippingInfo - 판매처별 배송비 정보
- * @param {Array} cardsOptimalPurchase - 카드별 최적 구매처 정보
- * @param {Array} cardsList - 카드 목록
- * @returns {boolean} - 최적화 성공 여부
- */
+
 function tryMoveCardsToReachThreshold(
   targetSeller,
   gapToThreshold,
@@ -176,16 +165,7 @@ function tryMoveCardsToReachThreshold(
   return false;
 }
 
-/**
- * 여러 카드의 조합으로 무료배송 임계값에 도달하기 위한 최적화 시도
- * @param {string} targetSeller - 대상 판매처
- * @param {number} gapToThreshold - 무료배송 임계값까지의 차이
- * @param {Object} purchaseDetails - 판매처별 구매 내역
- * @param {Object} sellerShippingInfo - 판매처별 배송비 정보
- * @param {Array} cardsOptimalPurchase - 카드별 최적 구매처 정보
- * @param {Array} cardsList - 카드 목록
- * @returns {boolean} - 최적화 성공 여부
- */
+
 function tryMultipleCardsMove(
   targetSeller,
   gapToThreshold,
@@ -544,14 +524,7 @@ function tryMultipleCardsMove(
   return false;
 }
 
-/**
- * 판매처 통합 최적화 - 판매처 수를 줄이기 위한 시도
- * @param {Object} purchaseDetails - 판매처별 구매 내역
- * @param {Object} sellerShippingInfo - 판매처별 배송비 정보
- * @param {Array} cardsOptimalPurchase - 카드별 최적 구매처 정보
- * @param {Array} cardsList - 카드 목록
- * @returns {boolean} - 최적화 성공 여부
- */
+
 function trySellersConsolidation(
   purchaseDetails,
   sellerShippingInfo,
@@ -758,16 +731,7 @@ function trySellersConsolidation(
   return improved;
 }
 
-/**
- * 여러 판매처에서 다수의 카드를 동시에 이동하는 복합 최적화 시도
- * 더 복잡한 패턴의 최적화를 찾기 위한 고급 전략
- *
- * @param {Object} purchaseDetails - 판매처별 구매 내역
- * @param {Object} sellerShippingInfo - 판매처별 배송비 정보
- * @param {Array} cardsOptimalPurchase - 카드별 최적 구매처 정보
- * @param {Array} cardsList - 카드 목록
- * @returns {boolean} - 최적화 성공 여부
- */
+
 function tryComplexOptimization(
   purchaseDetails,
   _sellerShippingInfo,

@@ -1,7 +1,4 @@
-/**
- * 여러 카드를 최저가로 구매하기 위한 최적 조합 알고리즘
- * 메인 모듈 (진입점)
- */
+
 
 const { findGreedyOptimalPurchase } = require('./greedyAlgorithm');
 const { calculatePointsAmount, isNaverStore } = require('./pointsUtils');
@@ -14,14 +11,7 @@ const {
 } = require('./optimizationStrategies');
 const { calculateShippingFee, REGION_TYPES } = require('../shippingInfo');
 
-/**
- * 카드 구매의 최적 조합을 찾는 함수
- * 그리디 알고리즘만 사용
- *
- * @param {Array<Object>} cardsList - 각 카드의 구매 가능한 상품 목록
- * @param {Object} options - 알고리즘 선택 및 성능 옵션
- * @returns {Object} - 최적 구매 조합 정보
- */
+
 function findOptimalPurchaseCombination(cardsList, options = {}) {
   try {
     // 입력 데이터 검증

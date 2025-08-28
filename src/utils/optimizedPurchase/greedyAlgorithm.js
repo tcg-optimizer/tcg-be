@@ -7,15 +7,7 @@ const {
   trySellersConsolidation,
 } = require('./optimizationStrategies');
 
-/**
- * 무료 배송 조건을 만족하는 카드 조합 생성
- * @param {Array<Object>} sortedCards - 정렬된 카드 목록
- * @param {string} seller - 판매처
- * @param {number} freeShippingThreshold - 무료배송 임계값
- * @param {Object} pointsOptions - 적립금 옵션
- * @param {Object} sellerShippingInfo - 판매처별 배송비 정보
- * @returns {Array<Object>} - 가능한 카드 조합 목록
- */
+
 function generateFreeShippingCombinations(
   sortedCards,
   seller,
@@ -103,12 +95,7 @@ function generateFreeShippingCombinations(
   return combinations;
 }
 
-/**
- * 탐욕 알고리즘을 사용한 준최적해 찾기
- * @param {Array<Object>} cardsList - 카드 목록
- * @param {Object} options - 추가 옵션
- * @returns {Object} - 최적 구매 조합
- */
+
 function findGreedyOptimalPurchase(cardsList, options = {}) {
   const shippingRegion = options.shippingRegion || 'default';
   const pointsOptions = options.pointsOptions || {
@@ -1135,12 +1122,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
   return bestSolution;
 }
 
-/**
- * 상품의 일관된 ID 생성 함수
- * 사이트별로 다른 접두어를 사용하여 동일 상품이 항상 같은 ID를 갖도록 합니다
- * @param {Object} card - 카드 정보 객체
- * @returns {string} 일관된 상품 ID
- */
+
 function generateConsistentProductId(card) {
   const site = card.site || card.product?.site;
   const url = card.url || card.product?.url;
@@ -1215,12 +1197,7 @@ function generateConsistentProductId(card) {
   return `${site || 'unknown'}-${hashCode}`;
 }
 
-/**
- * 문자열에서 일관된 해시 코드를 생성하는 간단한 함수
- * 동일한 입력에 대해 항상 동일한 출력을 보장합니다
- * @param {string} str - 해시할 문자열
- * @returns {string} - 해시 코드 (16진수 문자열)
- */
+
 function simpleStringHash(str) {
   let hash = 0;
 

@@ -1,20 +1,14 @@
 const { Card } = require('../models/Card');
 const { Op } = require('sequelize');
-
 const { searchAndSaveCardPricesApi } = require('../utils/naverShopApi');
 const { searchAndSaveTCGShopPrices } = require('../utils/tcgshopCrawler');
 const { searchAndSaveCardDCPrices } = require('../utils/cardDCCrawler');
-const { findOptimalPurchaseCombination } = require('../utils/optimizedPurchase');
+const { findOptimalPurchaseCombination } = require('../utils/optimizedPurchase/index');
 const { shouldSkipMarketplace } = require('../utils/shippingInfo');
 const CardPriceCache = require('../models/CardPriceCache');
 const rateLimit = require('express-rate-limit');
 const { cardRequestLimiter } = require('../utils/rateLimiter');
 
-/**
- * 카드 이름으로 모든 소스에서 가격 정보를 검색하는 공통 함수
- * @param {string} cardName - 검색할 카드 이름
- * @returns {Promise<Object>} - 검색된 카드와 가격 정보
- */
 async function searchCardPricesFromAllSources(cardName) {
   // 카드 정보 미리 조회 (중복 쿼리 방지)
   let existingCard = await Card.findOne({
@@ -27,19 +21,16 @@ async function searchCardPricesFromAllSources(cardName) {
 
   // 모든 소스에서 병렬로 검색 (Promise.all 사용)
   const [naverResult, tcgshopResult, cardDCResult] = await Promise.all([
-    // 네이버 쇼핑 API 검색
     searchAndSaveCardPricesApi(cardName).catch(error => {
       console.error(`[ERROR] 네이버 API 검색 오류: ${error.message}`);
       return { count: 0, prices: [], rawResults: [] };
     }),
 
-    // TCGShop 검색
     searchAndSaveTCGShopPrices(cardName, cardId).catch(error => {
       console.error(`[ERROR] TCGShop 검색 오류: ${error.message}`);
       return { count: 0, prices: [] };
     }),
 
-    // CardDC 검색
     searchAndSaveCardDCPrices(cardName, cardId).catch(error => {
       console.error(`[ERROR] CardDC 검색 오류: ${error.message}`);
       return { count: 0, prices: [] };
@@ -56,14 +47,13 @@ async function searchCardPricesFromAllSources(cardName) {
     return null;
   }
 
-  // 결과 합치기
   const combinedPrices = [
     ...(naverResult.prices || []),
     ...(tcgshopResult.prices || []),
     ...(cardDCResult.prices || []),
   ];
 
-  // 카드 정보 설정 (네이버 API 결과 우선)
+  // 카드 대표 정보 설정 (네이버 API 결과 우선)
   let cardInfo = null;
   if (naverResult && naverResult.card) {
     cardInfo = naverResult.card;
@@ -78,14 +68,9 @@ async function searchCardPricesFromAllSources(cardName) {
   };
 }
 
-/**
- * 카드의 캐시된 가격 정보를 조회하거나 새로 검색하는 공통 함수
- * @param {string} cardName - 검색할 카드 이름
- * @param {string} cacheId - 선택적 캐시 ID (최적 구매 조합에서 사용)
- * @returns {Promise<Object>} - 정규화된 가격 정보
- */
 async function getOrCreateCardPriceData(cardName, cacheId = null) {
       // 센터 카드인지 확인 (ST19-KRFC1~4)
+      // 추후 센터 카드 추가 발매 시 예외 처리 해줘야함
       if (/^ST19-KRFC[1-4]$/i.test(cardName)) {
     throw new Error('센터 카드는 가격 정보를 제공하지 않습니다.');
   }
@@ -424,11 +409,6 @@ async function getOrCreateCardPriceData(cardName, cacheId = null) {
   };
 }
 
-/**
- * 카드 배열을 처리하여 캐시 데이터를 조회하고 데이터를 보강하는 공통 함수
- * @param {Array} cards - 처리할 카드 배열
- * @returns {Promise<Array>} - 보강된 카드 배열
- */
 async function enhanceCardsWithCacheData(cards) {
   return await Promise.all(
     cards.map(async card => {
@@ -499,11 +479,6 @@ async function enhanceCardsWithCacheData(cards) {
   );
 }
 
-/**
- * 카드 데이터를 처리하여 products 필드를 생성하고 구조를 검증하는 공통 함수
- * @param {Array} cards - 처리할 카드 배열
- * @returns {Array} - 처리된 카드 배열
- */
 function processCardDataStructure(cards) {
   return cards
     .map(card => {
@@ -1016,12 +991,6 @@ exports.searchCardDC = [
   },
 ];
 
-/**
- * 캐시된 카드 가격 정보 조회
- * @param {Object} req - HTTP 요청 객체
- * @param {Object} res - HTTP 응답 객체
- * @returns {Promise<void>}
- */
 exports.getCachedPrices = [
   cardSearchRateLimiter,
   async (req, res) => {
@@ -1085,11 +1054,6 @@ exports.getCachedPrices = [
   },
 ];
 
-/**
- * 레어도별 가격 정보에서 총 상품 개수 계산
- * @param {Object} rarityPrices - 레어도별 가격 정보
- * @returns {number} 총 상품 개수
- */
 function calculateTotalProducts(rarityPrices) {
   let productCount = 0;
 
@@ -1115,12 +1079,6 @@ function calculateTotalProducts(rarityPrices) {
   return productCount;
 }
 
-/**
- * 여러 카드의 최적 구매 조합 계산
- * @param {Object} req - HTTP 요청 객체
- * @param {Object} res - HTTP 응답 객체
- * @returns {Promise<void>}
- */
 exports.getOptimalPurchaseCombination = [
   optimalPurchaseRateLimiter,
   async (req, res) => {

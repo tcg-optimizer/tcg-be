@@ -13,19 +13,12 @@ class DiscordBot {
   }
 
   async initialize() {
-    // Discord 토큰 확인
-    if (!process.env.DISCORD_BOT_TOKEN) {
-      console.error('❌ DISCORD_BOT_TOKEN이 환경변수에 설정되지 않았습니다.');
-      return;
-    }
-
-    if (!process.env.DISCORD_CHANNEL_ID) {
-      console.error('❌ DISCORD_CHANNEL_ID가 환경변수에 설정되지 않았습니다.');
+    if (!process.env.DISCORD_BOT_TOKEN || !process.env.DISCORD_CHANNEL_ID) {
+      console.error('❌ DISCORD_BOT_TOKEN 또는 DISCORD_CHANNEL_ID가 환경변수에 설정되지 않았습니다.');
       return;
     }
 
     try {
-      // Discord bot 로그인
       console.log('🤖 Discord bot 로그인 시도 중...');
       await this.client.login(process.env.DISCORD_BOT_TOKEN);
 
@@ -40,24 +33,13 @@ class DiscordBot {
       });
     } catch (error) {
       console.error('❌ Discord bot 로그인 실패:', error.message);
-
-      if (error.message.includes('An invalid token was provided')) {
-        console.log('💡 해결 방법:');
-        console.log(
-          '1. Discord Developer Portal (https://discord.com/developers/applications)에서 봇 토큰을 확인하세요.'
-        );
-        console.log('2. .env 파일의 DISCORD_BOT_TOKEN이 올바른지 확인하세요.');
-        console.log('3. 토큰이 재생성된 경우 새 토큰으로 업데이트하세요.');
-      }
     }
   }
 
   async startListening() {
     try {
-      // Subscriber 클라이언트 가져오기 (Publisher와 완전히 분리)
       this.subscriber = redisManager.getSubscriber();
 
-      // 에러 로그 채널 구독
       await this.subscriber.subscribe('error-logs');
       console.log('✅ Subscribed to error-logs channel');
 
@@ -74,7 +56,6 @@ class DiscordBot {
       });
     } catch (err) {
       console.error('Failed to start Redis subscription:', err);
-      // 재연결 시도
       setTimeout(() => this.startListening(), 5000);
     }
   }
@@ -150,12 +131,10 @@ class DiscordBot {
   }
 }
 
-// Discord bot 시작 (환경변수가 설정된 경우에만)
 if (process.env.DISCORD_BOT_TOKEN && process.env.DISCORD_CHANNEL_ID) {
   const bot = new DiscordBot();
   bot.initialize().catch(console.error);
 
-  // Graceful shutdown
   process.on('SIGTERM', () => {
     console.log('Shutting down Discord bot...');
     if (bot.subscriber) {
