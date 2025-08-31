@@ -1,14 +1,10 @@
-
-
 const { getSellerId } = require('./cardUtils');
 const { calculateShippingFee, REGION_TYPES } = require('../shippingInfo');
 const { calculatePointsAmount } = require('./pointsUtils');
 
-// 카드 식별을 위해 uniqueCardKey 우선 사용
 function getCardKey(card) {
   return card && (card.uniqueCardKey || card.cardName);
 }
-
 
 function tryMoveCardsToReachThreshold(
   targetSeller,

@@ -12,13 +12,13 @@ function getSellerId(seller) {
   return seller.name || seller.id || String(seller);
 }
 
-function filterTopSellers(cardsList, options = 5) {
-  let topN = 5;
+function filterTopSellers(cardsList, options) {
+  let topN = 30;
 
   if (typeof options === 'number') {
     topN = options;
   } else if (typeof options === 'object' && options !== null) {
-    topN = options.maxSellersPerCard || 50;
+    topN = options.maxSellersPerCard || 30;
   }
 
   const excludedProductIds = (options && options.excludedProductIds) || [];

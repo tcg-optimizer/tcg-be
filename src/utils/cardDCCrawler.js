@@ -194,24 +194,54 @@ const searchAndSaveCardDCPrices = async (cardName, cardId = null) => {
     const prices = [];
 
     if (cardId) {
-      await Promise.all(
-        results.map(async item => {
-          const savedPrice = await CardPrice.create({
-            cardId: cardId,
-            site: 'CardDC',
-            price: item.price,
-            url: item.url,
-            condition: item.condition,
-            rarity: item.rarity,
-            language: item.language,
-            available: item.available,
-            cardCode: item.cardCode,
-            lastUpdated: new Date(),
-            productId: item.productId,
-            illustration: item.illustration || 'default',
-            expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
-          });
+      const priceDataArray = results.map(item => ({
+        cardId: cardId,
+        site: 'CardDC',
+        price: item.price,
+        url: item.url,
+        condition: item.condition,
+        rarity: item.rarity,
+        language: item.language,
+        available: item.available,
+        cardCode: item.cardCode,
+        lastUpdated: new Date(),
+        productId: item.productId,
+        illustration: item.illustration || 'default',
+        expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
+      }));
 
+      let savedPrices = [];
+
+      try {
+        // 1차 시도: Bulk Insert
+        savedPrices = await CardPrice.bulkCreate(priceDataArray, {
+          validate: true,
+          returning: true,
+        });
+        console.log(`[SUCCESS] CardDC Bulk insert: ${savedPrices.length}개 저장`);
+
+      } catch (bulkError) {
+        console.warn(`[WARN] CardDC Bulk insert 실패, 개별 insert로 fallback: ${bulkError.message}`);
+
+        // 2차 시도: 개별 Insert (문제 있는 레코드는 건너뛰기)
+        for (const priceData of priceDataArray) {
+          try {
+            const savedPrice = await CardPrice.create(priceData);
+            savedPrices.push(savedPrice);
+          } catch (individualError) {
+            console.warn(`[WARN] CardDC 개별 레코드 저장 실패 (productId: ${priceData.productId}): ${individualError.message}`);
+            // 실패한 레코드는 건너뛰고 계속 진행
+          }
+        }
+        
+        console.log(`[INFO] CardDC Fallback 완료: ${savedPrices.length}/${priceDataArray.length}개 저장`);
+      }
+
+      savedPrices.forEach((savedPrice) => {
+        // productId로 원본 item 데이터 매칭
+        const item = results.find(result => result.productId === savedPrice.productId);
+        
+        if (item) {
           const productWithId = {
             id: item.productId,
             url: item.url,
@@ -226,11 +256,10 @@ const searchAndSaveCardDCPrices = async (cardName, cardId = null) => {
           };
 
           savedPrice.dataValues.product = productWithId;
-
-          prices.push(savedPrice);
-          return savedPrice;
-        })
-      );
+        }
+        
+        prices.push(savedPrice);
+      });
     }
 
     return {

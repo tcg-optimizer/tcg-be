@@ -1,5 +1,3 @@
-
-
 const { findGreedyOptimalPurchase } = require('./greedyAlgorithm');
 const { calculatePointsAmount, isNaverStore } = require('./pointsUtils');
 const { getSellerId, filterTopSellers } = require('./cardUtils');
@@ -10,7 +8,6 @@ const {
   tryComplexOptimization,
 } = require('./optimizationStrategies');
 const { calculateShippingFee, REGION_TYPES } = require('../shippingInfo');
-
 
 function findOptimalPurchaseCombination(cardsList, options = {}) {
   try {

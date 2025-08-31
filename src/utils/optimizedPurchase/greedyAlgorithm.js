@@ -135,8 +135,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
         const bDiff = Math.max(...bPrices) - Math.min(...bPrices);
         return bDiff - aDiff; // 차이가 큰 순서로
       }),
-    // 4. 원본 순서 유지 (입력된 순서)
-    cards => [...cards],
   ];
 
   // 적립금 고려 여부 출력
