@@ -211,28 +211,20 @@ const searchAndSaveCardPricesApi = async (cardName, options = {}) => {
     let savedPrices = [];
 
     try {
-      // 1차 시도: Bulk Insert
       savedPrices = await CardPrice.bulkCreate(priceDataArray, {
         validate: true,
         returning: true,
       });
-      console.log(`[SUCCESS] Naver Bulk insert: ${savedPrices.length}개 저장`);
 
     } catch (bulkError) {
-      console.warn(`[WARN] Naver Bulk insert 실패, 개별 insert로 fallback: ${bulkError.message}`);
 
-      // 2차 시도: 개별 Insert (문제 있는 레코드는 건너뛰기)
       for (const priceData of priceDataArray) {
         try {
           const savedPrice = await CardPrice.create(priceData);
           savedPrices.push(savedPrice);
         } catch (individualError) {
-          console.warn(`[WARN] Naver 개별 레코드 저장 실패 (productId: ${priceData.productId}): ${individualError.message}`);
-          // 실패한 레코드는 건너뛰고 계속 진행
         }
       }
-      
-      console.log(`[INFO] Naver Fallback 완료: ${savedPrices.length}/${priceDataArray.length}개 저장`);
     }
 
     return {

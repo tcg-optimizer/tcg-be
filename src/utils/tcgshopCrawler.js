@@ -228,37 +228,28 @@ async function searchAndSaveTCGShopPrices(cardName, cardId) {
       let savedPrices = [];
 
       try {
-        // 1차 시도: Bulk Insert
         savedPrices = await CardPrice.bulkCreate(priceDataArray, {
           validate: true,
           returning: true,
         });
-        console.log(`[SUCCESS] TCGShop Bulk insert: ${savedPrices.length}개 저장`);
 
       } catch (bulkError) {
-        console.warn(`[WARN] TCGShop Bulk insert 실패, 개별 insert로 fallback: ${bulkError.message}`);
 
-        // 2차 시도: 개별 Insert (문제 있는 레코드는 건너뛰기)
         for (const priceDataItem of priceDataArray) {
           try {
             const savedPrice = await CardPrice.create(priceDataItem);
             savedPrices.push(savedPrice);
           } catch (individualError) {
-            console.warn(`[WARN] TCGShop 개별 레코드 저장 실패 (productId: ${priceDataItem.productId}): ${individualError.message}`);
-            // 실패한 레코드는 건너뛰고 계속 진행
           }
         }
-        
-        console.log(`[INFO] TCGShop Fallback 완료: ${savedPrices.length}/${priceDataArray.length}개 저장`);
       }
 
       savedPrices.forEach((savedPrice) => {
-        // productId로 원본 item 데이터 매칭
         const item = priceData.find(data => data.productId === savedPrice.productId);
         
         if (item) {
           const productWithId = {
-            id: item.productId.toString(), // productId를 id로 사용 (문자열로 변환)
+            id: item.productId.toString(),
             url: item.url,
             site: 'TCGShop',
             price: item.price,

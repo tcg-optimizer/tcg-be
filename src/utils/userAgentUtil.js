@@ -118,7 +118,6 @@ function generateRandomString(length) {
 
 function getSiteSpecificHeaders(site, additionalHeaders = {}, includeCookies = true) {
   if (!site) {
-    console.warn('[WARN] 사이트 이름이 제공되지 않았습니다. 기본 헤더만 사용합니다.');
     return getRandomizedHeaders(false, additionalHeaders);
   }
 

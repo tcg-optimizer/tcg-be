@@ -8,9 +8,9 @@ const { shouldSkipMarketplace } = require('../utils/shippingInfo');
 const CardPriceCache = require('../models/CardPriceCache');
 const rateLimit = require('express-rate-limit');
 const { cardRequestLimiter } = require('../utils/rateLimiter');
+const { parseCondition } = require('../utils/crawler');
 
 async function searchCardPricesFromAllSources(cardName) {
-  // 카드 정보 미리 조회 (중복 쿼리 방지)
   let existingCard = await Card.findOne({
     where: {
       name: { [Op.like]: `%${cardName}%` },
@@ -19,7 +19,6 @@ async function searchCardPricesFromAllSources(cardName) {
   });
   const cardId = existingCard ? existingCard.id : null;
 
-  // 모든 소스에서 병렬로 검색 (Promise.all 사용)
   const [naverResult, tcgshopResult, cardDCResult] = await Promise.all([
     searchAndSaveCardPricesApi(cardName).catch(error => {
       console.error(`[ERROR] 네이버 API 검색 오류: ${error.message}`);
@@ -37,7 +36,6 @@ async function searchCardPricesFromAllSources(cardName) {
     }),
   ]);
 
-  // 결과가 하나라도 있는지 확인
   const hasResults =
     (naverResult && naverResult.count > 0) ||
     (tcgshopResult && tcgshopResult.count > 0) ||
@@ -77,7 +75,6 @@ async function getOrCreateCardPriceData(cardName, cacheId = null) {
 
   let cachedResult = null;
 
-  // 1. 캐시에서 먼저 검색 (cacheId가 있으면 해당 ID로, 없으면 cardName으로)
   if (cacheId) {
     cachedResult = await CardPriceCache.findByPk(cacheId);
     if (cachedResult && new Date() > new Date(cachedResult.expiresAt)) {
@@ -93,7 +90,6 @@ async function getOrCreateCardPriceData(cardName, cacheId = null) {
       });
   }
 
-  // 2. 캐시에서 데이터를 찾았으면 정규화하여 반환
       if (cachedResult) {
     console.log(`[DEBUG] 캐시에서 "${cardName}" 검색 결과 발견`);
 
@@ -124,7 +120,6 @@ async function getOrCreateCardPriceData(cardName, cacheId = null) {
             });
           });
 
-          // 빈 레어도 그룹 제거 (필터링 후 상품이 없는 경우)
       Object.keys(rarityPrices).forEach(illustration => {
         Object.keys(rarityPrices[illustration] || {}).forEach(language => {
           Object.keys(rarityPrices[illustration][language] || {}).forEach(rarity => {
@@ -137,13 +132,11 @@ async function getOrCreateCardPriceData(cardName, cacheId = null) {
                 }
               });
 
-              // 빈 언어 그룹 제거
           if (Object.keys(rarityPrices[illustration][language] || {}).length === 0) {
             delete rarityPrices[illustration][language];
               }
             });
 
-            // 빈 일러스트 그룹 제거
         if (Object.keys(rarityPrices[illustration] || {}).length === 0) {
           delete rarityPrices[illustration];
             }
@@ -154,7 +147,7 @@ async function getOrCreateCardPriceData(cardName, cacheId = null) {
             await cachedResult.update({
               expiresAt: new Date(Date.now() - 1000), // 현재 시간보다 이전으로 설정하여 만료 처리
             });
-        cachedResult = null; // 다음 단계로 진행
+        cachedResult = null;
       } else {
         return {
           source: 'cache',
@@ -172,15 +165,13 @@ async function getOrCreateCardPriceData(cardName, cacheId = null) {
           console.error(`[ERROR] 캐시 데이터 정규화 중 오류 발생: ${error.message}`);
           console.error(error.stack);
 
-          // 캐시 항목 만료 설정
           await cachedResult.update({
         expiresAt: new Date(Date.now() - 1000),
           });
-      cachedResult = null; // 다음 단계로 진행
+      cachedResult = null;
         }
       }
 
-  // 3. 캐시에 없으면 모든 소스에서 동시에 검색
         const searchResult = await searchCardPricesFromAllSources(cardName);
 
         if (!searchResult) {
@@ -189,32 +180,23 @@ async function getOrCreateCardPriceData(cardName, cacheId = null) {
 
         const { card: searchCard, prices: combinedPrices, naverResult } = searchResult;
 
-        // 카드 코드가 ST19-KRFC1~4인 경우 가격 정보를 보내지 않음
   if (searchCard.cardCode && /^ST19-KRFC[1-4]$/i.test(searchCard.cardCode)) {
     throw new Error('센터 카드는 가격 정보를 제공하지 않습니다.');
   }
 
-  // 4. 가격 정보 필터링 (모든 조건을 한 번에 처리 - 성능 최적화)
   const filteredPrices = combinedPrices.filter(price => {
-    // 상품 제목에 "중고" 키워드가 포함된 제품 제외
-    if (price.title && /중고|중고품|듀얼용|실듀용/i.test(price.title)) return false;
+    if (price.title && parseCondition(price.title) === '중고') return false;
     
-    // 번개장터 상품 제외
     if (price.site && (price.site === 'Naver_번개장터' || price.site.includes('번개장터'))) return false;
     
-    // condition이 신품이 아닌 경우 제외
-    if (price.condition !== '신품') return false;
+    if (price.condition && price.condition !== '신품') return false;
     
-    // 판매 사이트가 "네이버"인 경우 제외
     if (price.site === 'Naver_네이버') return false;
     
-    // 품절 상품 제외
     if (price.available === false) return false;
     
-    // 레어도나 언어가 유효하지 않은 경우 제외 (null, undefined, 빈 문자열, '알 수 없음' 모두 제외)
     if (!price.rarity || price.rarity === '알 수 없음' || !price.language || price.language === '알 수 없음') return false;
     
-    // 센터 카드 제외
     if (price.cardCode && /^ST19-KRFC[1-4]$/i.test(price.cardCode)) return false;
     
     return true;
@@ -224,7 +206,6 @@ async function getOrCreateCardPriceData(cardName, cacheId = null) {
     throw new Error('현재 구매 가능한 가격 정보가 없습니다.');
   }
 
-  // 5. 일러스트별, 언어별, 레어도별로 가격 정보 그룹화
         const rarityPrices = {};
 
         filteredPrices.forEach(price => {
@@ -271,9 +252,7 @@ async function getOrCreateCardPriceData(cardName, cacheId = null) {
           });
         });
 
-  // 6. 이미지 URL 설정
         try {
-    // 네이버 API 결과에서 이미지 추출
           const needImage = Object.values(rarityPrices).some(lang =>
             Object.values(lang).some(rarity => Object.values(rarity).some(item => !item.image))
           );
@@ -325,7 +304,6 @@ async function getOrCreateCardPriceData(cardName, cacheId = null) {
             });
           }
 
-    // 네이버 검색 결과가 없는 경우 카드의 기본 이미지 사용
     if (searchCard.image) {
             Object.keys(rarityPrices).forEach(illustration => {
               Object.keys(rarityPrices[illustration]).forEach(language => {
@@ -345,7 +323,6 @@ async function getOrCreateCardPriceData(cardName, cacheId = null) {
           }
         } catch (imageError) {
           console.error(`[ERROR] 이미지 URL 설정 오류: ${imageError.message}`);
-          // 오류가 발생해도 계속 진행하고 기본 이미지 사용
     if (searchCard.image) {
             Object.keys(rarityPrices).forEach(illustration => {
               Object.keys(rarityPrices[illustration]).forEach(language => {
@@ -365,13 +342,11 @@ async function getOrCreateCardPriceData(cardName, cacheId = null) {
           }
         }
 
-  // 7. 캐시에 저장
         const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + 12); // 12시간 유효
+  expiresAt.setHours(expiresAt.getHours() + 12); // 캐시는 12시간 유효
 
   let cacheEntry;
   if (cachedResult) {
-    // 기존 캐시 업데이트
     await cachedResult.update({
       cardName: searchCard.name || cardName,
       image: searchCard.image || null,
@@ -380,7 +355,6 @@ async function getOrCreateCardPriceData(cardName, cacheId = null) {
         });
     cacheEntry = cachedResult;
   } else {
-    // 새 캐시 생성
     cacheEntry = await CardPriceCache.create({
       cardName: searchCard.name || cardName,
       image: searchCard.image || null,
@@ -389,7 +363,6 @@ async function getOrCreateCardPriceData(cardName, cacheId = null) {
     });
   }
 
-  // 총 상품 개수 계산
   let totalProducts = 0;
         Object.keys(rarityPrices).forEach(illustration => {
           Object.keys(rarityPrices[illustration]).forEach(language => {
@@ -412,18 +385,15 @@ async function getOrCreateCardPriceData(cardName, cacheId = null) {
 async function enhanceCardsWithCacheData(cards) {
   return await Promise.all(
     cards.map(async card => {
-      // 이미 rarityPrices가 있으면 그대로 사용
       if (card.rarityPrices) {
         return card;
       }
 
-      // cacheId가 있으면 캐시에서 데이터 조회
       if (card.cacheId) {
         try {
           const priceCache = await CardPriceCache.findByPk(card.cacheId);
 
           if (priceCache && new Date() <= new Date(priceCache.expiresAt)) {
-            // 캐시된 데이터 설정
             return {
               ...card,
               cardName: card.cardName || card.name || priceCache.cardName,
@@ -435,7 +405,6 @@ async function enhanceCardsWithCacheData(cards) {
               `[WARN] "${card.name || card.cardName}" 카드의 캐시 데이터가 만료되었습니다. 새로 조회합니다.`
             );
 
-            // 캐시가 만료된 경우 새로 조회
             const cardName = card.cardName || card.name || priceCache.cardName;
             try {
               const freshResult = await getOrCreateCardPriceData(cardName);
@@ -448,12 +417,10 @@ async function enhanceCardsWithCacheData(cards) {
               const { card: searchCard, rarityPrices: freshRarityPrices } = freshResult;
               let newCard = searchCard;
 
-              // 현재 이미지 보존
               if (card.image) {
                 newCard.image = card.image;
               }
 
-              // 새 데이터 반환
               return {
                 ...card,
                 cardName: newCard.name || cardName,
@@ -465,7 +432,6 @@ async function enhanceCardsWithCacheData(cards) {
               console.error(
                 `[ERROR] "${cardName}" 카드의 가격 정보 새로 조회 중 오류 발생: ${error.message}`
               );
-              // 오류 발생 시 기존 카드 정보 반환
               return card;
             }
           }
@@ -482,33 +448,26 @@ async function enhanceCardsWithCacheData(cards) {
 function processCardDataStructure(cards) {
   return cards
     .map(card => {
-      // 핵심 필드 누락 여부 확인
       if (!card.cardName && !card.name) {
         console.log('[WARN] 카드 이름이 없는 카드 항목이 발견되었습니다:', card);
         return null;
       }
 
-      // cardName 필드 보장 (name을 cardName으로 변환)
       if (!card.cardName && card.name) {
         card.cardName = card.name;
       }
 
-      // 일러스트 타입을 포함한 고유 식별자 생성
       const illustrationType = card.illustrationType || 'default';
       const uniqueCardKey = `${card.cardName}_${illustrationType}_${card.language || 'any'}_${card.rarity || 'any'}`;
       card.uniqueCardKey = uniqueCardKey;
 
-      // products 필드 처리 (캐시 형식 변환)
       if (!card.products && card.rarityPrices) {
-        // rarityPrices가 문자열인 경우 파싱
         const prices =
           typeof card.rarityPrices === 'string'
             ? JSON.parse(card.rarityPrices)
             : card.rarityPrices;
 
-        // 이미지 정보 확인 및 설정
         if (!card.image) {
-          // 지정된 일러스트, 언어, 레어도에 맞는 이미지 찾기
           const illustrationType = card.illustrationType || 'default';
           if (
             card.language &&
@@ -520,9 +479,7 @@ function processCardDataStructure(cards) {
           ) {
             card.image = prices[illustrationType][card.language][card.rarity].image;
           }
-          // 지정된 일러스트, 언어, 레어도 조합이 정확히 없으면 대안 이미지 찾기
           else if (card.language && card.rarity) {
-            // 해당 언어와 레어도가 있는 다른 일러스트에서 이미지 찾기
             let foundImage = false;
             for (const illustration of Object.keys(prices)) {
               if (foundImage) break;
@@ -538,7 +495,6 @@ function processCardDataStructure(cards) {
               }
             }
 
-            // 여전히 이미지가 없으면 같은 레어도의 다른 언어 이미지 찾기
             if (!foundImage) {
               for (const illustration of Object.keys(prices)) {
                 if (foundImage) break;
@@ -557,7 +513,6 @@ function processCardDataStructure(cards) {
               }
             }
 
-            // 그래도 이미지가 없으면 임의의 이미지 사용
             if (!foundImage) {
               for (const illustration of Object.keys(prices)) {
                 if (foundImage) break;
@@ -574,9 +529,7 @@ function processCardDataStructure(cards) {
               }
             }
           }
-          // 부분적으로만 지정된 경우 해당 조건에 맞는 첫 번째 이미지 사용
           else {
-            // 첫 번째 일러스트, 언어, 레어도 조합에서 이미지 찾기
             let foundImage = false;
             for (const illustration of Object.keys(prices)) {
               if (foundImage) break;
@@ -594,7 +547,6 @@ function processCardDataStructure(cards) {
           }
         }
 
-        // 지정된 일러스트, 언어, 레어도가 있는 경우
         if (
           card.language &&
           card.rarity &&
@@ -604,16 +556,13 @@ function processCardDataStructure(cards) {
         ) {
           card.products = prices[illustrationType][card.language][card.rarity].prices;
         }
-        // 지정된 일러스트, 언어, 레어도 조합이 없는 경우 빈 배열 반환
         else if (card.language && card.rarity) {
           console.log(
             `[WARN] "${card.cardName}" 카드의 일러스트: ${illustrationType}, 언어: ${card.language}, 레어도: ${card.rarity} 조합을 찾을 수 없습니다.`
           );
           card.products = [];
         }
-        // 지정된 레어도만 있는 경우 (언어는 지정되지 않음)
         else if (card.rarity) {
-          // 지정된 일러스트에서만 해당 레어도 상품 통합
           card.products = [];
           if (prices[illustrationType]) {
             Object.keys(prices[illustrationType] || {}).forEach(language => {
@@ -629,9 +578,7 @@ function processCardDataStructure(cards) {
             });
           }
         }
-        // 지정된 언어만 있는 경우 (레어도는 지정되지 않음)
         else if (card.language) {
-          // 지정된 일러스트에서만 해당 언어의 모든 레어도 상품 통합
           card.products = [];
           if (prices[illustrationType] && prices[illustrationType][card.language]) {
             Object.keys(prices[illustrationType][card.language]).forEach(rarity => {
@@ -642,7 +589,6 @@ function processCardDataStructure(cards) {
             });
           }
         }
-        // 모든 상품 통합 (일러스트, 언어, 레어도 모두 지정되지 않음)
         else {
           card.products = [];
           Object.keys(prices).forEach(illustration => {
@@ -663,10 +609,8 @@ function processCardDataStructure(cards) {
         return null;
       }
 
-      // 각 상품에 대해 product 객체에 id 필드가 있는지 확인하고 없으면 추가
       if (card.products && card.products.length > 0) {
         card.products = card.products.map(product => {
-          // product 객체가 없는 경우 새로 생성
           if (!product.product) {
             // URL에서 TCGShop의 goodsIdx 추출 시도
             let productId = null;
@@ -699,9 +643,7 @@ function processCardDataStructure(cards) {
               illustration: product.illustration || 'default',
             };
           }
-          // product 객체가 있지만 id가 없는 경우
           else if (product.product && !product.product.id) {
-            // URL에서 TCGShop의 goodsIdx 추출 시도
             let productId = null;
             if (
               product.product.url &&
@@ -721,7 +663,6 @@ function processCardDataStructure(cards) {
               `generated-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`
             ).toString();
           }
-          // id가 숫자인 경우 문자열로 변환
           else if (
             product.product &&
             product.product.id &&
@@ -738,9 +679,9 @@ function processCardDataStructure(cards) {
     .filter(card => card !== null && card.products && card.products.length > 0);
 }
 
-// 카드 가격 검색 API에 대한 특별 제한 설정
+// 카드 가격 검색 API에 대한 IP당 제한 설정
 const cardPriceRateLimiter = rateLimit({
-  windowMs: 30 * 1000, // 30초
+  windowMs: 30 * 1000,
   max: 20, // 30초당 20개까지만 요청 가능
   standardHeaders: true,
   legacyHeaders: false,
@@ -749,14 +690,13 @@ const cardPriceRateLimiter = rateLimit({
     error: '카드 가격 검색 요청이 너무 많습니다. 30초 후에 다시 시도해주세요.',
   },
   keyGenerator: req => {
-    // IP와 카드 이름을 조합하여 키 생성 (같은 카드 반복 요청 방지)
     return `${req.ip}:${req.query.cardName || 'unknown'}`;
   },
 });
 
-// 최적 구매 조합 API에 대한 제한 설정
+// 최적 구매 조합 API에 대한 IP당 제한 설정
 const optimalPurchaseRateLimiter = rateLimit({
-  windowMs: 30 * 1000, // 30초
+  windowMs: 30 * 1000,
   max: 15, // 30초당 15개 요청
   standardHeaders: true,
   legacyHeaders: false,
@@ -766,7 +706,7 @@ const optimalPurchaseRateLimiter = rateLimit({
   },
 });
 
-// 카드 검색 API에 대한 제한 설정
+// 카드 검색 API에 대한 IP당 제한 설정
 const cardSearchRateLimiter = rateLimit({
   windowMs: 10 * 1000, // 10초
   max: 15, // 10초당 15개 요청
@@ -778,7 +718,6 @@ const cardSearchRateLimiter = rateLimit({
   },
 });
 
-// 레어도별 카드 가격 정보 가져오기
 exports.getPricesByRarity = [
   cardPriceRateLimiter,
   cardRequestLimiter,
@@ -840,7 +779,6 @@ exports.getPricesByRarity = [
   },
 ];
 
-// 네이버 쇼핑 API를 사용하여 카드 가격 검색
 exports.searchNaverShopApi = [
   cardPriceRateLimiter,
   cardRequestLimiter,
@@ -883,7 +821,6 @@ exports.searchNaverShopApi = [
   },
 ];
 
-// TCGShop에서 카드 가격 검색
 exports.searchTCGShop = [
   cardPriceRateLimiter,
   cardRequestLimiter,
@@ -898,7 +835,6 @@ exports.searchTCGShop = [
         });
       }
 
-      // 카드 ID 찾기 (이미 DB에 존재하는지 확인)
       let card = await Card.findOne({
         where: {
           name: { [Op.like]: `%${cardName}%` },
@@ -908,7 +844,6 @@ exports.searchTCGShop = [
 
       const cardId = card ? card.id : null;
 
-      // TCGShop 크롤링 및 가격 정보 저장
       const result = await searchAndSaveTCGShopPrices(cardName, cardId);
 
       if (result.count === 0) {
@@ -937,7 +872,6 @@ exports.searchTCGShop = [
   },
 ];
 
-// CardDC에서 카드 가격 검색
 exports.searchCardDC = [
   cardPriceRateLimiter,
   cardRequestLimiter,
@@ -952,7 +886,6 @@ exports.searchCardDC = [
         });
       }
 
-      // 카드 ID 찾기 (이미 DB에 존재하는지 확인)
       let card = await Card.findOne({
         where: {
           name: { [Op.like]: `%${cardName}%` },
@@ -962,7 +895,6 @@ exports.searchCardDC = [
 
       const cardId = card ? card.id : null;
 
-      // CardDC 크롤링 및 가격 정보 저장
       const result = await searchAndSaveCardDCPrices(cardName, cardId);
 
       if (result.count === 0) {
@@ -997,7 +929,6 @@ exports.getCachedPrices = [
     try {
       const { id } = req.params;
 
-      // UUID 유효성 검사
       if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
         return res.status(400).json({
           success: false,
@@ -1005,7 +936,6 @@ exports.getCachedPrices = [
         });
       }
 
-      // 캐시 정보 조회
       const priceCache = await CardPriceCache.findByPk(id);
 
       if (!priceCache) {
@@ -1015,7 +945,6 @@ exports.getCachedPrices = [
         });
       }
 
-      // 캐시가 만료되었는지 확인
       if (new Date() > new Date(priceCache.expiresAt)) {
         return res.status(410).json({
           success: false,
@@ -1023,15 +952,6 @@ exports.getCachedPrices = [
         });
       }
 
-      // 센터 카드 체크
-      if (/^ST19-KRFC[1-4]$/i.test(priceCache.cardName)) {
-        return res.status(404).json({
-          success: false,
-          message: '센터 카드는 실제 유희왕 카드가 아니므로 가격 정보를 제공하지 않습니다.',
-        });
-      }
-
-      // 응답 반환
       return res.json({
         success: true,
         data: {
@@ -1057,12 +977,10 @@ exports.getCachedPrices = [
 function calculateTotalProducts(rarityPrices) {
   let productCount = 0;
 
-  // rarityPrices가 문자열이면 JSON으로 파싱
   const prices = typeof rarityPrices === 'string' ? JSON.parse(rarityPrices) : rarityPrices;
 
   if (!prices || Object.keys(prices).length === 0) return 0;
 
-  // illustration -> language -> rarity -> {image, prices} 구조로 처리
   Object.keys(prices).forEach(illustration => {
     Object.keys(prices[illustration] || {}).forEach(language => {
       Object.keys(prices[illustration][language] || {}).forEach(rarity => {
@@ -1091,22 +1009,18 @@ exports.getOptimalPurchaseCombination = [
         ...purchaseOptions
       } = req.body;
 
-      // 입력 데이터 유효성 검사
       if (!cards || !Array.isArray(cards) || cards.length === 0) {
         return res.status(400).json({
           error: 'Invalid input: cards array is required and must not be empty',
         });
       }
 
-      // 센터 카드 필터링
       const filteredCards = cards.filter(card => {
-        // cardCode 필드로 센터 카드 확인
         if (card.cardCode && /^ST19-KRFC[1-4]$/i.test(card.cardCode)) {
           console.log(`[INFO] 센터 카드(${card.cardCode}) "${card.name || card.cardName}" 제외됨`);
           return false;
         }
 
-        // 카드 이름으로 확인 (코드가 없는 경우)
         if (
           (card.name && /^ST19-KRFC[1-4]$/i.test(card.name)) ||
           (card.cardName && /^ST19-KRFC[1-4]$/i.test(card.cardName))
@@ -1125,15 +1039,11 @@ exports.getOptimalPurchaseCombination = [
         });
       }
 
-      // cacheId를 사용해 rarityPrices를 조회하고 카드 데이터 보강
       const enhancedCards = await enhanceCardsWithCacheData(filteredCards);
 
-      // 카드 데이터 구조 검증 및 변환
       const processedCards = processCardDataStructure(enhancedCards);
 
-      // 디버깅: 처리된 카드 정보 확인
       processedCards.forEach(card => {
-        // 첫 번째 상품의 레어도 확인
         if (card.products.length > 0) {
           const firstProduct = card.products[0];
           console.log(
@@ -1142,7 +1052,6 @@ exports.getOptimalPurchaseCombination = [
         }
       });
 
-      // 유효한 카드가 없는 경우
       if (processedCards.length === 0) {
         return res.status(400).json({
           success: false,
@@ -1153,11 +1062,9 @@ exports.getOptimalPurchaseCombination = [
       // 제외할 상품 ID와 상점 기반으로 필터링 적용
       const filteredCardsData = processedCards
         .map(card => {
-          // 제외 목록을 기반으로 상품 필터링
           const beforeFilterCount = card.products.length;
 
           const filteredProducts = card.products.filter(product => {
-            // 상품 ID 확인 (product.product.id 또는 product.id)
             const productId =
               product.product && product.product.id
                 ? String(product.product.id)
@@ -1165,7 +1072,6 @@ exports.getOptimalPurchaseCombination = [
                   ? String(product.id)
                   : null;
 
-            // 제외할 상품인지 확인
             let isExcluded = false;
 
             if (productId) {
@@ -1177,14 +1083,12 @@ exports.getOptimalPurchaseCombination = [
               }
             }
 
-            // 사이트 제외 확인
             const siteToCheck = product.site || (product.product && product.product.site);
             const isSiteExcluded = siteToCheck && excludedStores.includes(siteToCheck);
 
             // 마켓플레이스 제외 확인 (쿠팡, G마켓 등)
             let isMarketplaceExcluded = false;
             if (siteToCheck) {
-              // 'Naver_' 접두사가 있는 경우 제거하여 판매자 이름만 추출
               let sellerName = siteToCheck;
               if (sellerName.startsWith('Naver_')) {
                 sellerName = sellerName.substring(6);
@@ -1192,7 +1096,6 @@ exports.getOptimalPurchaseCombination = [
               isMarketplaceExcluded = shouldSkipMarketplace(sellerName);
             }
 
-            // 제외되지 않은 상품만 통과
             return !isExcluded && !isSiteExcluded && !isMarketplaceExcluded;
           });
 
@@ -1210,7 +1113,6 @@ exports.getOptimalPurchaseCombination = [
         })
         .filter(card => card.products.length > 0);
 
-      // 필터링 후 유효한 카드가 없는 경우
       if (filteredCardsData.length === 0) {
         return res.status(400).json({
           success: false,
@@ -1219,26 +1121,24 @@ exports.getOptimalPurchaseCombination = [
         });
       }
 
-      // 필터링으로 제외된 카드가 있는 경우 로그
       if (filteredCardsData.length < processedCards.length) {
         console.log(
           `[WARN] 제외 목록에 의해 ${processedCards.length - filteredCardsData.length}개 카드가 완전히 제외됨`
         );
       }
 
-      // 기본 옵션 설정 - 고정값 사용
       const options = {
         maxSellersPerCard: 30,
         maxIterations: 50,
         shippingRegion: purchaseOptions.shippingRegion,
-        takeout: takeout, // 방문수령 옵션 추가
+        takeout: takeout,
         pointsOptions: {
-          tcgshop: purchaseOptions.tcgshopPoints || false, // 티씨지샵 기본 적립금 (10%)
-          carddc: purchaseOptions.carddcPoints || false, // 카드디씨 기본 적립금 (10%)
-          naverBasic: purchaseOptions.naverBasicPoints || false, // 네이버 기본 적립금 (2.5%, 리뷰 적립금 포함)
-          naverBankbook: purchaseOptions.naverBankbookPoints || false, // 네이버 제휴통장 적립금 (0.5%)
-          naverMembership: purchaseOptions.naverMembershipPoints || false, // 네이버 멤버십 적립금 (4%)
-          naverHyundaiCard: purchaseOptions.naverHyundaiCardPoints || false, // 네이버 현대카드 적립금 (7%)
+          tcgshop: purchaseOptions.tcgshopPoints || false,
+          carddc: purchaseOptions.carddcPoints || false,
+          naverBasic: purchaseOptions.naverBasicPoints || false,
+          naverBankbook: purchaseOptions.naverBankbookPoints || false,
+          naverMembership: purchaseOptions.naverMembershipPoints || false,
+          naverHyundaiCard: purchaseOptions.naverHyundaiCardPoints || false,
         },
       };
 
@@ -1249,15 +1149,12 @@ exports.getOptimalPurchaseCombination = [
         pointsOptions: options.pointsOptions,
       });
 
-      // 최적 구매 조합 찾기 - 필터링된 카드 배열 사용
       const result = findOptimalPurchaseCombination(filteredCardsData, {
         ...options,
-        excludedProductIds, // 옵션에 excludedProductIds 추가
-        excludedStores, // 옵션에 excludedStores 추가
+        excludedProductIds,
+        excludedStores,
       });
 
-      // 제외 필터 정보가 이미 optimizedPurchase 모듈에서 추가되지만,
-      // 여기서도 명시적으로 설정 (호환성 유지)
       if (!result.excludedFilters) {
         result.excludedFilters = {
           excludedProductIds,
@@ -1265,16 +1162,13 @@ exports.getOptimalPurchaseCombination = [
         };
       }
 
-      // 모든 판매처에 product.id가 있는지 확인하고 없으면 추가
       const processSellerDetails = sellerDetails => {
         if (!sellerDetails) return sellerDetails;
 
         Object.entries(sellerDetails).forEach(([, details]) => {
           if (details && details.cards && Array.isArray(details.cards)) {
             details.cards = details.cards.map(card => {
-              // product 객체가 없으면 새로 생성
               if (!card.product) {
-                // URL에서 TCGShop의 goodsIdx 추출 시도
                 let productId = null;
                 if (
                   card.url &&
@@ -1305,9 +1199,7 @@ exports.getOptimalPurchaseCombination = [
                   illustration: card.illustration || 'default',
                 };
               }
-              // product 객체가 있지만 id가 없는 경우
               else if (card.product && !card.product.id) {
-                // URL에서 TCGShop의 goodsIdx 추출 시도
                 let productId = null;
                 if (
                   card.product.url &&
@@ -1327,7 +1219,6 @@ exports.getOptimalPurchaseCombination = [
                   `generated-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`
                 ).toString();
               }
-              // id가 숫자인 경우 문자열로 변환
               else if (card.product && card.product.id && typeof card.product.id === 'number') {
                 card.product.id = card.product.id.toString();
               }
@@ -1338,12 +1229,10 @@ exports.getOptimalPurchaseCombination = [
         return sellerDetails;
       };
 
-      // 결과의 최적 판매처 정보에서 product.id 확인 및 추가
       if (result.optimalSellers) {
         result.optimalSellers = processSellerDetails(result.optimalSellers);
       }
 
-      // 결과의 대안 판매처 정보에서 product.id 확인 및 추가
       if (result.alternativeSellers) {
         result.alternativeSellers = processSellerDetails(result.alternativeSellers);
       }

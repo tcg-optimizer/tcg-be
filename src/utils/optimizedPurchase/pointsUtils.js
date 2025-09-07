@@ -5,7 +5,6 @@ const pointsInfo = {
   tcgshop: { rate: 0.1 }, // TCGShop 10% 적립
   carddc: { rate: 0.1 }, // CardDC 10% 적립
 
-  // 네이버 관련 적립금 정보
   naverBasic: { rate: 0.025 }, // 네이버 기본 적립금 (2.5%)
   naverReview: { amount: 150, minPrice: 3000 }, // 리뷰 적립금 (3000원 이상 제품당 150원)
   naverBankbook: { rate: 0.005 }, // 네이버 제휴통장 적립금 (0.5%)
@@ -56,31 +55,6 @@ function calculateNaverPoints(
   return totalPoints;
 }
 
-function isPointsEligible(seller, pointsOptions) {
-  const sellerLower = seller.toLowerCase();
-
-  if (sellerLower === 'tcgshop' && pointsOptions.tcgshop) {
-    return true;
-  }
-
-  if (sellerLower === 'carddc' && pointsOptions.carddc) {
-    return true;
-  }
-
-  if (
-    isNaverStore(seller) &&
-    (pointsOptions.naverBasic ||
-      pointsOptions.naverBankbook ||
-      pointsOptions.naverMembership ||
-      pointsOptions.naverHyundaiCard)
-  ) {
-    return true;
-  }
-
-  return false;
-}
-
-
 function calculatePointsAmount(
   seller,
   productPrice,
@@ -116,6 +90,5 @@ function calculatePointsAmount(
 module.exports = {
   pointsInfo,
   calculateNaverPoints,
-  isPointsEligible,
   calculatePointsAmount,
 };

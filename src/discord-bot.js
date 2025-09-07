@@ -1,4 +1,3 @@
-// discord-bot.js
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const redisManager = require('./lib/redis-manager');
 require('dotenv').config();
@@ -123,9 +122,9 @@ class DiscordBot {
 
   getErrorColor(severity) {
     const colors = {
-      critical: 0xff0000, // 빨간색
-      warning: 0xff9900, // 주황색
-      info: 0x0099ff, // 파란색
+      critical: 0xff0000,
+      warning: 0xff9900,
+      info: 0x0099ff,
     };
     return colors[severity] || 0x808080;
   }

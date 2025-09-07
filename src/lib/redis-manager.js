@@ -6,7 +6,6 @@ class RedisManager {
     this.subscriber = null;
   }
 
-  // Publisher 클라이언트 (에러 발생 시 사용)
   getPublisher() {
     if (!this.publisher) {
       this.publisher = new Redis({
@@ -25,7 +24,6 @@ class RedisManager {
     return this.publisher;
   }
 
-  // Subscriber 클라이언트 (Discord bot에서 사용)
   getSubscriber() {
     if (!this.subscriber) {
       this.subscriber = new Redis({
@@ -44,7 +42,6 @@ class RedisManager {
     return this.subscriber;
   }
 
-  // 에러를 Redis에 publish
   async publishError(errorData) {
     try {
       const publisher = this.getPublisher();
@@ -57,7 +54,6 @@ class RedisManager {
     }
   }
 
-  // 연결 종료
   async disconnect() {
     try {
       if (this.publisher) {

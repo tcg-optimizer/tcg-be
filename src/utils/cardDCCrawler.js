@@ -213,7 +213,6 @@ const searchAndSaveCardDCPrices = async (cardName, cardId = null) => {
       let savedPrices = [];
 
       try {
-        // 1차 시도: Bulk Insert
         savedPrices = await CardPrice.bulkCreate(priceDataArray, {
           validate: true,
           returning: true,
@@ -223,14 +222,12 @@ const searchAndSaveCardDCPrices = async (cardName, cardId = null) => {
       } catch (bulkError) {
         console.warn(`[WARN] CardDC Bulk insert 실패, 개별 insert로 fallback: ${bulkError.message}`);
 
-        // 2차 시도: 개별 Insert (문제 있는 레코드는 건너뛰기)
         for (const priceData of priceDataArray) {
           try {
             const savedPrice = await CardPrice.create(priceData);
             savedPrices.push(savedPrice);
           } catch (individualError) {
             console.warn(`[WARN] CardDC 개별 레코드 저장 실패 (productId: ${priceData.productId}): ${individualError.message}`);
-            // 실패한 레코드는 건너뛰고 계속 진행
           }
         }
         
@@ -238,7 +235,6 @@ const searchAndSaveCardDCPrices = async (cardName, cardId = null) => {
       }
 
       savedPrices.forEach((savedPrice) => {
-        // productId로 원본 item 데이터 매칭
         const item = results.find(result => result.productId === savedPrice.productId);
         
         if (item) {

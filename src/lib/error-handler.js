@@ -12,7 +12,6 @@ class AppError extends Error {
   }
 }
 
-// 에러 데이터 생성 헬퍼
 const createErrorData = (error, req = null, context = {}) => {
   return {
     type: 'server-error',
@@ -45,9 +44,7 @@ const determineSeverity = error => {
   return 'info';
 };
 
-// 전역 에러 핸들러 미들웨어
 const globalErrorHandler = (err, req, res, next) => {
-  // Redis에 에러 publish (논블로킹)
   setImmediate(async () => {
     try {
       console.log('Publishing error to Redis...');
@@ -64,7 +61,6 @@ const globalErrorHandler = (err, req, res, next) => {
     }
   });
 
-  // 클라이언트 응답
   const statusCode = err.statusCode || 500;
   const message = err.isOperational ? err.message : 'Internal Server Error';
 
@@ -84,13 +80,11 @@ const globalErrorHandler = (err, req, res, next) => {
   });
 };
 
-// 404 핸들러
 const notFoundHandler = (req, res, next) => {
   const error = new AppError(`Route ${req.originalUrl} not found`, 404);
   next(error);
 };
 
-// 비동기 에러 래퍼
 const asyncHandler = fn => {
   return (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next);
