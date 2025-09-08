@@ -10,15 +10,6 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-/**
- * 네이버 쇼핑 검색 API를 사용해 카드 가격 정보를 가져오는 함수
- * @param {string} searchQuery - 검색할 카드 이름
- * @param {string} clientId
- * @param {string} clientSecret
- * @param {number} maxPages - 최대 검색 페이지 수
- * @param {number} startPage - 검색을 시작할 페이지 (기본값: 1)
- * @returns {Promise<Array>} - 검색된 카드 가격 정보 배열
- */
 const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages, startPage = 1) => {
   const query = encodeURIComponent(searchQuery);
   const display = 100; // 한 페이지에 표시할 검색 결과 개수
@@ -26,7 +17,7 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
   const exclude = 'used:rental:cbshop'; // 중고, 렌탈, 해외직구/구매대행 상품 제외
   // 단, 네이버 샵들이 중고 상품을 중고 카테고리로 분류하지 않는 경우가 많아 여전히 추가적인 중고 파싱 로직은 필요함
 
-  let allItems = []; // 검색 결과를 저장할 배열
+  let allItems = [];
   let start = (startPage - 1) * display + 1; // 시작 페이지에 맞게 start 계산
   let hasMoreItems = true;
   const maxItems = maxPages * display; // 최대 아이템 수
@@ -127,11 +118,7 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
   return allItems;
 };
 
-/**
- * performNaverSearch를 사용해 실제 카드 가격 정보를 가져오는 함수
- * @param {string} cardName - 검색할 카드 이름
- * @returns {Promise<Array>} - 검색된 상품 정보 배열
- */
+
 const searchNaverShop = async cardName => {
   try {
     const clientId = process.env.NAVER_CLIENT_ID;
@@ -172,11 +159,6 @@ const searchNaverShop = async cardName => {
 // 요청 제한이 적용된 함수 생성
 const searchNaverShopWithRateLimit = withRateLimit(searchNaverShop, 'naver');
 
-/**
- * 카드 이름으로 검색하여 가격 정보를 저장하는 함수
- * @param {string} cardName - 검색할 카드 이름
- * @returns {Promise<Object>} - 저장된 카드와 가격 정보
- */
 const searchAndSaveCardPricesApi = async (cardName, options = {}) => {
   try {
     const results = await searchNaverShopWithRateLimit(cardName, options);
@@ -210,25 +192,40 @@ const searchAndSaveCardPricesApi = async (cardName, options = {}) => {
       }
     }
 
-    const savedPrices = await Promise.all(
-      results.map(async item => {
-        return CardPrice.create({
-          cardId: card.id,
-          site: `Naver_${item.site}`,
-          price: item.price,
-          url: item.url,
-          condition: item.condition,
-          rarity: item.rarity,
-          language: item.language,
-          available: item.available,
-          cardCode: item.cardCode,
-          lastUpdated: new Date(),
-          productId: item.productId,
-          illustration: item.illustration,
-          expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
-        });
-      })
-    );
+    const priceDataArray = results.map(item => ({
+      cardId: card.id,
+      site: `Naver_${item.site}`,
+      price: item.price,
+      url: item.url,
+      condition: item.condition,
+      rarity: item.rarity,
+      language: item.language,
+      available: item.available,
+      cardCode: item.cardCode,
+      lastUpdated: new Date(),
+      productId: item.productId,
+      illustration: item.illustration,
+      expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
+    }));
+
+    let savedPrices = [];
+
+    try {
+      savedPrices = await CardPrice.bulkCreate(priceDataArray, {
+        validate: true,
+        returning: true,
+      });
+
+    } catch (bulkError) {
+
+      for (const priceData of priceDataArray) {
+        try {
+          const savedPrice = await CardPrice.create(priceData);
+          savedPrices.push(savedPrice);
+        } catch (individualError) {
+        }
+      }
+    }
 
     return {
       card,

@@ -6,21 +6,13 @@ const { parseLanguage, parseCondition, detectIllustration, encodeEUCKR } = requi
 const { withRateLimit } = require('./rateLimiter');
 const { createCrawlerConfig } = require('./userAgentUtil');
 
-/**
- * TCGShop에서 카드 가격 정보를 크롤링합니다.
- * @param {string} cardName - 검색할 카드 이름
- * @param {string} [cardId] - 카드 ID (선택적)
- * @returns {Promise<Array>} - 크롤링된 가격 정보 배열
- */
+
 async function crawlTCGShop(cardName, cardId) {
   try {
-    // EUC-KR로 인코딩된 검색어 생성
     const encodedQuery = encodeEUCKR(cardName);
 
-    // 직접 검색 URL
     const searchUrl = `http://www.tcgshop.co.kr/search_result.php?search=meta_str&searchstring=${encodedQuery.replace(/%20/g, '+')}`;
 
-    // 요청 설정 생성
     const config = createCrawlerConfig('tcgshop', {
       timeoutMs: 10000,
       additionalHeaders: {
@@ -28,18 +20,14 @@ async function crawlTCGShop(cardName, cardId) {
       },
     });
 
-    // 검색 결과 페이지 요청
     const response = await axios.get(searchUrl, config);
 
-    // 응답 디코딩
     const html = iconv.decode(response.data, 'euc-kr');
 
-    // Cheerio로 HTML 파싱
     const $ = cheerio.load(html);
     const items = [];
 
-    // 직접 검색 결과 처리
-    // TCGShop 검색 결과는 td.glist_01 요소로 시작하는 테이블 구조
+    // TCGShop 검색 결과는 td.glist_01 요소로 시작함
     const productCells = $('td.glist_01');
 
     productCells.each((index, element) => {
@@ -59,7 +47,6 @@ async function crawlTCGShop(cardName, cardId) {
       // 상품 행 (tr) 찾기
       const productRow = productCell.closest('tr');
 
-      // 코드 정보 (다음 행에 있음)
       let codeRow = productRow.next();
       const codeElement = codeRow.find('.glist_02');
       let extractedCardCode = null;
@@ -93,7 +80,6 @@ async function crawlTCGShop(cardName, cardId) {
         return;
       }
 
-      // 레어도 정보 (코드 다음 행에 있음)
       let rarityRow = codeRow.next();
       const rarityElement = rarityRow.find('.glist_03');
       let rarity = '알 수 없음';
@@ -105,8 +91,6 @@ async function crawlTCGShop(cardName, cardId) {
         }
       }
 
-      // 가격 정보 (레어도 행 이후에 있음)
-      // 원래 가격 행 (삭제선)
       let priceRow = rarityRow.next();
       let originalPrice = 0;
 
@@ -131,19 +115,15 @@ async function crawlTCGShop(cardName, cardId) {
         price = originalPrice;
       }
 
-      // 상태 정보 (노멀, 중고 여부 등)
       let language = parseLanguage(title);
       const condition = parseCondition(title);
 
-      // 언어 정보가 제목에서 추출되지 않았다면 카드 코드에서 추출 시도
       if (language === '알 수 없음' && extractedCardCode) {
         language = parseLanguage(extractedCardCode);
       }
 
-      // 일러스트 타입 판단
       const illustration = detectIllustration(title);
 
-      // 재고 여부 확인 - 검색 결과 페이지에서 확인
       let available = true;
 
       // 해당 상품 행에서 품절 이미지 확인
@@ -166,7 +146,7 @@ async function crawlTCGShop(cardName, cardId) {
       let productId = null;
       const goodsIdxMatch = fullUrl.match(/goodsIdx=(\d+)/);
       if (goodsIdxMatch && goodsIdxMatch[1]) {
-        productId = `tcgshop-${goodsIdxMatch[1]}`; // 숫자가 아닌 문자열로 유지하고 접두어 추가
+        productId = `tcgshop-${goodsIdxMatch[1]}`;
       }
 
       // goodsIdx가 없는 경우, URL에서 해시를 생성하여 고유 ID 생성
@@ -200,17 +180,10 @@ async function crawlTCGShop(cardName, cardId) {
   }
 }
 
-// crawlTCGShop 함수를 요청 제한으로 래핑
 const crawlTCGShopWithRateLimit = withRateLimit(crawlTCGShop, 'tcgshop');
 
-/**
- * 카드 이름으로 검색하여 TCGShop 가격 정보를 저장합니다.
- * @param {string} cardName - 검색할 카드 이름
- * @returns {Promise<Object>} - 저장된 카드와 가격 정보
- */
 async function searchAndSaveTCGShopPrices(cardName, cardId) {
   try {
-    // 요청 제한이 적용된 함수 호출
     const priceData = await crawlTCGShopWithRateLimit(cardName);
 
     if (priceData.length === 0) {
@@ -221,7 +194,6 @@ async function searchAndSaveTCGShopPrices(cardName, cardId) {
       };
     }
 
-    // 모델 불러오기
     const { CardPrice } = require('../models/Card');
 
     // 기존 TCGShop 가격 정보 삭제 (최신 정보로 갱신)
@@ -234,32 +206,50 @@ async function searchAndSaveTCGShopPrices(cardName, cardId) {
       });
     }
 
-    // 가격 정보 저장을 위한 배열
     const prices = [];
 
-    // 새 가격 정보 저장
     if (cardId) {
-      await Promise.all(
-        priceData.map(async item => {
-          const savedPrice = await CardPrice.create({
-            cardId: cardId,
-            site: 'TCGShop',
-            price: item.price,
-            url: item.url,
-            condition: item.condition,
-            rarity: item.rarity,
-            language: item.language,
-            available: item.available,
-            cardCode: item.cardCode,
-            lastUpdated: new Date(),
-            productId: item.productId,
-            illustration: item.illustration || 'default',
-            expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
-          });
+      const priceDataArray = priceData.map(item => ({
+        cardId: cardId,
+        site: 'TCGShop',
+        price: item.price,
+        url: item.url,
+        condition: item.condition,
+        rarity: item.rarity,
+        language: item.language,
+        available: item.available,
+        cardCode: item.cardCode,
+        lastUpdated: new Date(),
+        productId: item.productId,
+        illustration: item.illustration || 'default',
+        expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
+      }));
 
-          // product 객체에 id 필드 추가
+      let savedPrices = [];
+
+      try {
+        savedPrices = await CardPrice.bulkCreate(priceDataArray, {
+          validate: true,
+          returning: true,
+        });
+
+      } catch (bulkError) {
+
+        for (const priceDataItem of priceDataArray) {
+          try {
+            const savedPrice = await CardPrice.create(priceDataItem);
+            savedPrices.push(savedPrice);
+          } catch (individualError) {
+          }
+        }
+      }
+
+      savedPrices.forEach((savedPrice) => {
+        const item = priceData.find(data => data.productId === savedPrice.productId);
+        
+        if (item) {
           const productWithId = {
-            id: item.productId.toString(), // productId를 id로 사용 (문자열로 변환)
+            id: item.productId.toString(),
             url: item.url,
             site: 'TCGShop',
             price: item.price,
@@ -268,16 +258,15 @@ async function searchAndSaveTCGShopPrices(cardName, cardId) {
             condition: item.condition,
             language: item.language,
             rarity: item.rarity,
-            illustration: item.illustration || 'default', // 일러스트 필드 추가
+            illustration: item.illustration || 'default',
           };
 
           // savedPrice에 product 필드 추가
           savedPrice.dataValues.product = productWithId;
-
-          prices.push(savedPrice);
-          return savedPrice;
-        })
-      );
+        }
+        
+        prices.push(savedPrice);
+      });
     }
 
     return {
@@ -287,7 +276,6 @@ async function searchAndSaveTCGShopPrices(cardName, cardId) {
       prices: cardId
         ? prices
         : priceData.map(item => {
-            // 직접 product 객체 생성하여 반환
             return {
               ...item,
               product: {

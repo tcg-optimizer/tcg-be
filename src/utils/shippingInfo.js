@@ -699,14 +699,6 @@ function getShippingInfo(site) {
   }
 }
 
-/**
- * 지역에 따른 배송비를 계산합니다
- * @param {string|Object} site - 판매 사이트
- * @param {string} region - 지역 타입 (default, jeju, island)
- * @param {number} totalPrice - 주문 총 금액
- * @param {Array} takeoutOptions - 방문수령 옵션 활성화된 상점 목록
- * @returns {number} - 최종 배송비
- */
 function calculateShippingFee(
   site,
   region = REGION_TYPES.DEFAULT,
@@ -745,7 +737,7 @@ function calculateShippingFee(
   // 방문수령이 아닌 경우 기존 배송비 계산 로직 사용
   const shippingInfo = getShippingInfo(site);
 
-  // 무료 배송 기준 금액 이상이면 무료 배송 (무료배송 조건이 경우(Infinity) 제외)
+  // 무료 배송 기준 금액 이상이면 무료 배송 (무료배송 조건이 없는 경우(Infinity) 제외)
   if (
     totalPrice >= shippingInfo.freeShippingThreshold &&
     shippingInfo.freeShippingThreshold !== Infinity
@@ -753,7 +745,6 @@ function calculateShippingFee(
     return 0;
   }
 
-  // 지역에 따른 배송비 반환
   switch (region) {
     case REGION_TYPES.JEJU:
       return shippingInfo.jejuShippingFee;

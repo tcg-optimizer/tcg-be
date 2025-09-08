@@ -86,10 +86,10 @@ app.get('/', (req, res) => {
 const cardRoutes = require('./routes/cards');
 app.use('/api/cards', cardRoutes);
 
-// 404 핸들러 (모든 라우트 후에)
+// 404 핸들러 - 모든 라우터 후에 위치하도록 해야 함 
 app.use(notFoundHandler);
 
-// 전역 에러 핸들러 (가장 마지막에)
+// 전역 에러 핸들러 - 가장 마지막에 위치하도록 해야 함
 app.use(globalErrorHandler);
 
 const PORT = process.env.PORT;

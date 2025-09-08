@@ -1,20 +1,326 @@
-# **유희왕 카드 가격 비교 API 문서**
+# 유희왕 카드 가격 비교 프로젝트
 
-## **개요**
+이 프로젝트는 여러 온라인 쇼핑몰에서 유희왕 카드 가격을 비교하고 최적의 구매 조합을 찾아주는 웹 애플리케이션입니다.
 
-이 문서는 유희왕 카드 가격 비교 API의 사용 방법을 설명합니다. 이 API는 여러 사이트(네이버, TCGShop, CardDC)에서 유희왕 카드의 가격 정보를 수집하고 비교하는 기능을 제공합니다.
+## 📋 목차
 
-## **기본 정보**
+- [주요 기능]
+- [기술 스택]
+- [설치 및 실행]
+  - [사전 준비 사항]
+  - [백엔드 설치 및 실행]
+- [환경 변수 설정]
+- [Discord 봇 (선택사항)]
+- [문제 해결]
 
-- 기본 URL: /api/cards
-- 서버 포트: 5000 (기본값, 환경 변수로 변경 가능)
+## 🎯 주요 기능
 
-## **API 엔드포인트**
+- **카드 가격 검색**: 네이버, TCGShop, CardDC에서 실시간 가격 조회
+- **레어도별 가격 비교**: 다양한 레어도와 언어별 가격 정보 제공
+- **최적 구매 조합**: 여러 카드를 가장 저렴하게 구매할 수 있는 조합 계산
+- **적립금 계산**: 각 쇼핑몰의 적립금을 고려한 실제 비용 계산
+- **배송비 최적화**: 사이트별 배송비를 고려한 총 비용 계산
+
+## 🛠 기술 스택
+
+### 백엔드
+- **Node.js** - 서버 환경
+- **Express.js** - 웹 프레임워크
+- **MySQL** - 데이터베이스
+- **Redis** - 캐싱 및 세션 관리
+- **Sequelize** - ORM
+- **Discord.js** - Discord 봇 (선택사항)
+
+### 프론트엔드
+- **Next.js 15** - React 프레임워크
+- **TypeScript** - 타입 안전성
+- **Tailwind CSS** - 스타일링
+- **Radix UI** - UI 컴포넌트
+
+## 🚀 설치 및 실행
+
+### 사전 준비 사항
+
+다음 소프트웨어들이 설치되어 있어야 합니다:
+
+1. **Node.js** (v18 이상)
+   ```bash
+   # 설치 확인
+   node --version
+   npm --version
+   ```
+   설치가 필요한 경우: [Node.js 공식 사이트](https://nodejs.org/)
+
+2. **MySQL** (v8.0 이상)
+   ```bash
+   # 설치 확인
+   mysql --version
+   ```
+   설치가 필요한 경우:
+   - Windows: [MySQL Installer](https://dev.mysql.com/downloads/installer/)
+   - macOS: `brew install mysql`
+   - Ubuntu: `sudo apt install mysql-server`
+
+3. **Redis** (v6.0 이상)
+   ```bash
+   # 설치 확인
+   redis-cli --version
+   ```
+   설치가 필요한 경우:
+   - Windows: [Redis for Windows](https://github.com/microsoftarchive/redis/releases)
+   - macOS: `brew install redis`
+   - Ubuntu: `sudo apt install redis-server`
+
+### 백엔드 설치 및 실행
+
+1. **프로젝트 클론**
+   ```bash
+   git clone [프로젝트-주소]
+   cd cards-price-comparison
+   ```
+
+2. **백엔드 디렉토리로 이동**
+   ```bash
+   cd be
+   ```
+
+3. **의존성 패키지 설치**
+   ```bash
+   npm install
+   ```
+
+4. **MySQL 데이터베이스 생성**
+   ```bash
+   # MySQL 접속
+   mysql -u root -p
+   ```
+   ```sql
+   -- 데이터베이스 생성
+   CREATE DATABASE cards;
+   
+   exit;
+   ```
+
+5. **Redis 서버 시작**
+   ```bash
+   # macOS/Linux
+   redis-server
+   
+   # Windows (Redis 설치 폴더에서)
+   redis-server.exe
+   ```
+
+6. **환경 변수 설정**
+   ```bash
+   # .env 파일 생성
+   touch .env
+   ```
+   
+   `.env` 파일에 다음 내용을 추가:
+   ```env
+   # 서버 설정
+   PORT=5000
+   
+   # 데이터베이스 설정
+   DB_HOST=localhost
+   DB_PORT=3306
+   DB_NAME=cards
+   DB_USER=root
+   DB_PASSWORD=your_mysql_password
+   
+   # Redis 설정
+   REDIS_HOST=localhost
+   REDIS_PORT=6379
+   
+   # API 키 (선택사항)
+   NAVER_CLIENT_ID=your_naver_client_id
+   NAVER_CLIENT_SECRET=your_naver_client_secret
+   
+   # Discord 봇 (선택사항)
+   DISCORD_BOT_TOKEN=your_discord_bot_token
+   DISCORD_CHANNEL_ID=your_discord_channel_id
+   ```
+
+7. **백엔드 서버 실행**
+   ```bash
+   # 개발 모드 (nodemon 사용)
+   npm run dev
+   
+   # 또는 일반 실행
+   npm start
+   ```
+
+   서버가 정상적으로 시작되면 다음과 같은 메시지가 표시됩니다:
+   ```
+   DB 연결 성공
+   데이터베이스 테이블 동기화 완료
+   TCG스캐너 서버가 포트 5000에서 실행 중입니다.
+   ```
+
+## ⚙️ 환경 변수 설정
+
+### 필수 환경 변수
+
+| 변수명 | 설명 | 예시 |
+|--------|------|------|
+| `PORT` | 백엔드 서버 포트 | `5000` |
+| `DB_HOST` | MySQL 호스트 | `localhost` |
+| `DB_PORT` | MySQL 포트 | `3306` |
+| `DB_NAME` | 데이터베이스 이름 | `cards` |
+| `DB_USER` | MySQL 사용자명 | `root` |
+| `DB_PASSWORD` | MySQL 비밀번호 | `your_password` |
+| `REDIS_HOST` | Redis 호스트 | `localhost` |
+| `REDIS_PORT` | Redis 포트 | `6379` |
+
+### 선택적 환경 변수
+
+| 변수명 | 설명 | 용도 |
+|--------|------|------|
+| `NAVER_CLIENT_ID` | 네이버 API 클라이언트 ID | 네이버 쇼핑 검색 API |
+| `NAVER_CLIENT_SECRET` | 네이버 API 클라이언트 시크릿 | 네이버 쇼핑 검색 API |
+| `DISCORD_BOT_TOKEN` | Discord 봇 토큰 | Discord 알림 봇 |
+| `DISCORD_CHANNEL_ID` | Discord 채널 ID | Discord 알림 전송 |
+
+## 🤖 Discord 봇 (선택사항)
+
+Discord 봇을 사용하여 에러 알림을 받을 수 있습니다.
+
+### Discord 봇 설정
+
+1. **Discord Developer Portal에서 봇 생성**
+   - [Discord Developer Portal](https://discord.com/developers/applications) 접속
+   - 새 애플리케이션 생성
+   - Bot 섹션에서 토큰 생성
+
+2. **봇을 서버에 초대**
+   - OAuth2 섹션에서 권한 설정
+   - 생성된 초대 링크로 봇을 서버에 추가
+
+3. **환경 변수에 토큰 추가**
+   ```env
+   DISCORD_BOT_TOKEN=your_discord_bot_token
+   DISCORD_CHANNEL_ID=your_discord_channel_id
+   ```
+
+4. **Discord 봇 실행**
+   ```bash
+   npm run discord-bot
+   ```
+
+## 🔧 문제 해결
+
+### 일반적인 문제들
+
+#### 1. 데이터베이스 연결 실패
+```
+DB 연결 실패: Access denied for user
+```
+**해결방법:**
+- MySQL 사용자명/비밀번호 확인
+- MySQL 서버가 실행 중인지 확인
+- 데이터베이스가 생성되었는지 확인
+
+#### 2. Redis 연결 실패
+```
+Redis connection failed
+```
+**해결방법:**
+- Redis 서버가 실행 중인지 확인: `redis-cli ping`
+- Redis 설정 확인 (호스트, 포트)
+
+#### 3. 포트 충돌
+```
+Error: listen EADDRINUSE :::5000
+```
+**해결방법:**
+- 다른 포트 사용: `.env`에서 `PORT=5001` 설정
+- 기존 프로세스 종료: `kill -9 $(lsof -t -i:5000)`
+
+#### 4. npm 패키지 설치 실패
+```
+npm ERR! network timeout
+```
+**해결방법:**
+- npm 캐시 클리어: `npm cache clean --force`
+- npm registry 확인: `npm config get registry`
+- 네트워크 연결 확인
+
+### 로그 확인
+
+```bash
+# 백엔드 로그 (개발 모드)
+npm run dev
+
+# 프론트엔드 로그
+npm run dev
+
+# Discord 봇 로그
+npm run discord-bot
+```
+
+### 개발 도구
+
+```bash
+# 코드 포맷팅
+npm run format
+
+# 코드 포맷팅 체크
+npm run format:check
+```
+
+## 📚 API 사용법
+
+서버가 정상적으로 실행되면 다음 엔드포인트들을 사용할 수 있습니다:
+
+- `GET /api/cards/rarity-prices?cardName={카드이름}` - 카드 가격 정보 조회
+- `POST /api/cards/optimal-purchase` - 최적 구매 조합 계산
+- `GET /api/cards/prices-cache/{cacheId}` - 캐시된 가격 정보 조회
+
+### 기본 사용 예시
+
+```javascript
+// 카드 가격 조회
+const response = await fetch('http://localhost:5000/api/cards/rarity-prices?cardName=블랙 매지션');
+const data = await response.json();
+
+// 최적 구매 조합 계산
+const optimizeResponse = await fetch('http://localhost:5000/api/cards/optimal-purchase', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    cards: [
+      {
+        name: '블랙 매지션',
+        rarity: '울트라 레어',
+        language: '한글판',
+        quantity: 3,
+        cacheId: 'cache-id-from-previous-call'
+      }
+    ]
+  })
+});
+```
+
+## 📞 지원
+
+문제가 발생하거나 질문이 있으시면:
+
+1. 먼저 [문제 해결](#문제-해결) 섹션을 확인해보세요
+2. 로그를 확인하여 오류 메시지를 파악해보세요
+3. 환경 변수 설정이 올바른지 확인해보세요
+
+---
+
+이 프로젝트가 도움이 되셨다면 ⭐ 스타를 눌러주세요!
+
+## **API 상세 문서**
 
 ### **1. 레어도별 가격 정보 조회**
 
 - **엔드포인트**: GET /api/cards/rarity-prices?cardName=카드이름
-- **설명**: 카드 이름으로 검색하여 카드 정보와 레어도별 가격 데이터를 반환합니다. 네이버 API, TCGShop, CardDC에서 실시간 검색을 시도합니다.
+- **설명**: 카드 이름으로 검색하여 카드 정보와 레어도별 가격 데이터를 반환합니다. 네이버 API, TCGShop, CardDC, OnlyYugioh에서 실시간 검색을 시도합니다.
 
 - **파라미터**: cardName: 검색할 카드 이름
 - **쿼리 파라미터**: includeUsed: 중고 상품 포함 여부 (기본값: true)
@@ -38,63 +344,108 @@ GET /api/cards/rarity-prices?cardName=블랙 매지션&includeUsed=false
   "data": {
     "cardId": 125,
     "cardName": "블랙 매지션",
-    "image": "https://example.com/images/black-magician.jpg(기본 이미지 url)",
+    "image": "https://example.com/images/black-magician.jpg",
     "totalProducts": 123
   },
   "rarityPrices": {
-    "한글판": {
-      "울트라 레어": {
-        "image": "https://example.com/images/ultra-rare.jpg(울트라 레어 이미지 url)",
-        "prices": [
-          {
-            "id": 587,
-            "price": 12000,
-            "site": "TCGShop",
-            "url": "https://tcgshop.com/product/123",
-            "condition": "신품",
-            "rarity": "울트라 레어",
-            "language": "한글판",
-            "cardCode": "LDK2-KRS01",
-            "available": true,
-            "lastUpdated": "2023-04-05T07:30:00.000Z"
-          }
-        ]
+    "default": {
+      "한글판": {
+        "울트라 레어": {
+          "image": "https://example.com/images/ultra-rare-default.jpg",
+          "prices": [
+            {
+              "id": 587,
+              "price": 12000,
+              "site": "TCGShop",
+              "url": "https://tcgshop.com/product/123",
+              "condition": "신품",
+              "rarity": "울트라 레어",
+              "language": "한글판",
+              "cardCode": "LDK2-KR001",
+              "available": true,
+              "lastUpdated": "2023-04-05T07:30:00.000Z",
+              "illustration": "default"
+            }
+          ]
+        },
+        "시크릿 레어": {
+          "image": "https://example.com/images/secret-rare-default.jpg",
+          "prices": [
+            {
+              "id": 588,
+              "price": 15000,
+              "site": "CardDC",
+              "url": "https://carddc.com/product/456",
+              "condition": "신품",
+              "rarity": "시크릿 레어",
+              "language": "한글판",
+              "cardCode": "DLCS-KR001",
+              "available": true,
+              "lastUpdated": "2023-04-05T07:30:00.000Z",
+              "illustration": "default"
+            }
+          ]
+        }
       },
-      "시크릿 레어": {
-        "image": "https://example.com/images/secret-rare.jpg(시크릿 레어 이미지 url)",
-        "prices": [
-          {
-            "id": 588,
-            "price": 15000,
-            "site": "CardDC",
-            "url": "https://carddc.com/product/456",
-            "condition": "신품",
-            "rarity": "시크릿 레어",
-            "language": "한글판",
-            "cardCode": "DLCS-KR001",
-            "available": true,
-            "lastUpdated": "2023-04-05T07:30:00.000Z"
-          }
-        ]
+      "일본판": {
+        "레어": {
+          "image": "https://example.com/images/rare-jp-default.jpg",
+          "prices": [
+            {
+              "id": 589,
+              "price": 8000,
+              "site": "TCGShop",
+              "url": "https://tcgshop.com/product/789",
+              "condition": "신품",
+              "rarity": "레어",
+              "language": "일본판",
+              "cardCode": "LDK2-JP001",
+              "available": true,
+              "lastUpdated": "2023-04-05T07:30:00.000Z",
+              "illustration": "default"
+            }
+          ]
+        }
       }
     },
-    "일본판": {
-      "레어": {
-        "image": "https://example.com/images/rare-jp.jpg(레어 일본판 이미지 url)",
-        "prices": [
-          {
-            "id": 589,
-            "price": 8000,
-            "site": "TCGShop",
-            "url": "https://tcgshop.com/product/789",
-            "condition": "신품",
-            "rarity": "레어",
-            "language": "일본판",
-            "cardCode": "LDK2-JPS01",
-            "available": true,
-            "lastUpdated": "2023-04-05T07:30:00.000Z"
-          }
-        ]
+    "another": {
+      "한글판": {
+        "울트라 레어": {
+          "image": "https://example.com/images/ultra-rare-another.jpg",
+          "prices": [
+            {
+              "id": 590,
+              "price": 18000,
+              "site": "TCGShop",
+              "url": "https://tcgshop.com/product/124",
+              "condition": "신품",
+              "rarity": "울트라 레어",
+              "language": "한글판",
+              "cardCode": "LDK2-KRS01",
+              "available": true,
+              "lastUpdated": "2023-04-05T07:30:00.000Z",
+              "illustration": "another"
+            }
+          ]
+        },
+        "시크릿 레어": {
+          "image": "https://example.com/images/secret-rare-another.jpg",
+          "prices": [
+            {
+              "id": 591,
+              "price": 22000,
+              "site": "CardDC",
+              "url": "https://carddc.com/product/457",
+              "condition": "신품",
+              "rarity": "시크릿 레어",
+              "language": "한글판",
+              "cardCode": "DLCS-KR001",
+              "available": true,
+              "lastUpdated": "2023-04-05T07:30:00.000Z",
+              "illustration": "another"
+            }
+          ]
+        }
       }
     }
   },
@@ -128,20 +479,23 @@ POST /api/cards/optimal-purchase
       "name": "블랙 매지션",
       "rarity": "울트라 레어",
       "language": "한글판",
+      "illustrationType": "default",
       "quantity": 3,
       "cacheId": "550e8400-e29b-41d4-a716-446655440000"
     },
     {
-      "name": "블루아이즈 화이트 드래곤",
+      "name": "푸른 눈의 백룡",
       "rarity": "시크릿 레어",
       "language": "일본판",
+      "illustrationType": "another",
       "quantity": 1,
       "cacheId": "71e0d400-c75b-41d4-a986-446655440123"
     },
     {
-      "name": "레드아이즈 블랙 드래곤",
+      "name": "붉은 눈의 흑룡",
       "rarity": "울트라 레어",
       "language": "영문판",
+      "illustrationType": "default",
       "quantity": 2,
       "cacheId": "82f1e500-d76c-41d4-b096-446655440456"
     }
@@ -155,7 +509,21 @@ POST /api/cards/optimal-purchase
   "naverHyundaiCardPoints": false
   
   "excludedProductIds": ["34121", "1463", "123"],
-  "excludedStores": ["TCGShop", "Naver_카드킹덤"]
+  "excludedStores": ["TCGShop", "Naver_카드킹덤"],
+  
+  "takeout": [
+	  "cardKingdom", // 장한평 카드킹덤
+	  "cardNyang",  // 역삼 카드냥
+		"cardSquare",  // 신당 카드스퀘어
+		"minCGCardMarket",  // 대전 민씨지샵
+		"diMarket",  // 전주 디마켓
+		"skyscraper",  // 역곡 마천루 카드장터
+		"areaZeroStore",  // 석계 에리어제로 스토어
+		"blackStone",  // 흑석 블랙스톤
+		"dualWinner",  // 대화 듀얼위너
+		"tcgKingdom",  // 울산 TCG킹덤
+		"tcgPlayer",  // 광주 티씨지 플레이어
+  ]
 }
 ```
 
@@ -193,7 +561,7 @@ cards: 구매할 카드 목록 (필수)
       "missingFields": ["cacheId"]
     },
     {
-      "name": "블루아이즈 화이트 드래곤",
+      "name": "푸른 눈의 백룡",
       "missingFields": ["rarity"]
     }
   ]
@@ -229,7 +597,7 @@ cards: 구매할 카드 목록 (필수)
 
 - **응답 예시**:json
 
-```json
+```
 {
   "success": true,
   "totalCost": 42500,             
@@ -260,25 +628,27 @@ cards: 구매할 카드 목록 (필수)
             "language": "한글판",
             "site": "TCGShop",
             "url": "https://tcgshop.com/product/123",
-            "cardCode": "LDK2-KRS01"
+            "cardCode": "LDK2-KR001",
+            "illustration": "default"
           },
-          "image": "https://example.com/images/black-magician-ultra-ko.jpg"
+          "image": "https://example.com/images/black-magician-ultra-ko-default.jpg"
         },
         {
-          "cardName": "블루아이즈 화이트 드래곤",
+          "cardName": "푸른 눈의 백룡",
           "price": 12500,
           "quantity": 1,
           "totalPrice": 12500,
           "product": {
-            "id": 321
+            "id": 321,
             "price": 12500,
             "rarity": "시크릿 레어",
             "language": "일본판",
             "site": "TCGShop",
             "url": "https://tcgshop.com/product/456",
-            "cardCode": "SDK-JP01"
+            "cardCode": "SDK-JP001",
+            "illustration": "another"
           },
-          "image": "https://example.com/images/blue-eyes-secret-jp.jpg"
+          "image": "https://example.com/images/blue-eyes-secret-jp-another.jpg"
         }
       ],
       "finalPrice": 54250,
@@ -288,7 +658,23 @@ cards: 구매할 카드 목록 (필수)
     },
     "CardDC": {
       "cards": [
-        // CardDC에서 구매할 카드 목록
+        {
+          "cardName": "붉은 눈의 흑룡",
+          "price": 9000,
+          "quantity": 1,
+          "totalPrice": 9000,
+          "product": {
+            "id": 789,
+            "price": 9000,
+            "rarity": "레어",
+            "language": "한글판",
+            "site": "CardDC",
+            "url": "https://carddc.com/product/789",
+            "cardCode": "SDK-KR002",
+            "illustration": "default"
+          },
+          "image": "https://example.com/images/red-eyes-rare-ko-default.jpg"
+        }
       ],
       "finalPrice": 10100,
       "productCost": 9000,
@@ -297,10 +683,18 @@ cards: 구매할 카드 목록 (필수)
     }
   },
   "cardImages": {
-    "블랙 매지션": "https://example.com/images/black-magician.jpg",
-    "블루아이즈 화이트 드래곤": "https://example.com/images/blue-eyes.jpg",
-    "레드아이즈 블랙 드래곤": "https://example.com/images/red-eyes.jpg"
-  }
+    "블랙 매지션": {
+      "default": "https://example.com/images/black-magician-default.jpg",
+      "another": "https://example.com/images/black-magician-another.jpg"
+    },
+    "푸른 눈의 백룡": {
+      "default": "https://example.com/images/blue-eyes-default.jpg",
+      "another": "https://example.com/images/blue-eyes-another.jpg"
+    },
+    "붉은 눈의 흑룡": {
+      "default": "https://example.com/images/red-eyes-default.jpg"
+    }
+  },
   "excludedFilters": {
     "excludedProductIds": [], 
     "excludedStores": []
@@ -342,31 +736,110 @@ GET /api/cards/prices-cache/123e4567-e89b-12d3-a456-426614174000
 {
   "success": true,
   "data": {
-    "cardName": "블루아이즈 화이트 드래곤",
-    "rarityPrices": {
-      // 언어별, 레어도별 가격 정보
+    "cardName": "푸른 눈의 백룡",
+    "image": "https://example.com/images/blue-eyes-default.jpg",
+    "totalProducts": 89
+  },
+  "rarityPrices": {
+    "default": {
       "한국어": {
         "울트라 레어": {
-          "image": "이미지URL",
+          "image": "https://example.com/images/blue-eyes-ultra-ko-default.jpg",
           "prices": [
             {
-              "id": "가격ID",
+              "id": "price-001",
               "price": 10000,
-              "site": "사이트명",
-              "url": "상품URL",
-              "condition": "상품상태",
+              "site": "TCGShop",
+              "url": "https://tcgshop.com/product/123",
+              "condition": "신품",
               "rarity": "울트라 레어",
               "language": "한국어",
-              "cardCode": "카드코드",
+              "cardCode": "SDK-KR01",
               "available": true,
-              "lastUpdated": "2023-01-01T00:00:00Z"
+              "lastUpdated": "2023-01-01T00:00:00Z",
+              "illustration": "default"
             }
-            // ...
+          ]
+        },
+        "시크릿 레어": {
+          "image": "https://example.com/images/blue-eyes-secret-ko-default.jpg",
+          "prices": [
+            {
+              "id": "price-002",
+              "price": 15000,
+              "site": "CardDC",
+              "url": "https://carddc.com/product/456",
+              "condition": "신품",
+              "rarity": "시크릿 레어",
+              "language": "한국어",
+              "cardCode": "SDK-KR01",
+              "available": true,
+              "lastUpdated": "2023-01-01T00:00:00Z",
+              "illustration": "default"
+            }
           ]
         }
-        // 다른 레어도들...
       },
-      // 다른 언어들...
+      "일본어": {
+        "울트라 레어": {
+          "image": "https://example.com/images/blue-eyes-ultra-jp-default.jpg",
+          "prices": [
+            {
+              "id": "price-003",
+              "price": 8000,
+              "site": "TCGShop",
+              "url": "https://tcgshop.com/product/789",
+              "condition": "신품",
+              "rarity": "울트라 레어",
+              "language": "일본어",
+              "cardCode": "SDK-JP01",
+              "available": true,
+              "lastUpdated": "2023-01-01T00:00:00Z",
+              "illustration": "default"
+            }
+          ]
+        }
+      }
+    },
+    "another": {
+      "한국어": {
+        "울트라 레어": {
+          "image": "https://example.com/images/blue-eyes-ultra-ko-another.jpg",
+          "prices": [
+            {
+              "id": "price-004",
+              "price": 18000,
+              "site": "TCGShop",
+              "url": "https://tcgshop.com/product/124",
+              "condition": "신품",
+              "rarity": "울트라 레어",
+              "language": "한국어",
+              "cardCode": "SDK-KR01",
+              "available": true,
+              "lastUpdated": "2023-01-01T00:00:00Z",
+              "illustration": "another"
+            }
+          ]
+        },
+        "시크릿 레어": {
+          "image": "https://example.com/images/blue-eyes-secret-ko-another.jpg",
+          "prices": [
+            {
+              "id": "price-005",
+              "price": 25000,
+              "site": "CardDC",
+              "url": "https://carddc.com/product/457",
+              "condition": "신품",
+              "rarity": "시크릿 레어",
+              "language": "한국어",
+              "cardCode": "SDK-KR01",
+              "available": true,
+              "lastUpdated": "2023-01-01T00:00:00Z",
+              "illustration": "another"
+            }
+          ]
+        }
+      }
     }
   },
   "cacheId": "123e4567-e89b-12d3-a456-426614174000",
@@ -491,8 +964,7 @@ async function calculateOptimalPurchase(cards) {
 
 const cards = [
   { name: '블랙 매지션', rarity: 'Ultra Rare' },
-  { name: '블루아이즈 화이트 드래곤', rarity: 'Secret Rare' },
-  { name: '레드아이즈 블랙 드래곤' }
+  { name: '푸른 눈의 백룡', rarity: 'Secret Rare' },
 ];
 
 calculateOptimalPurchase(cards);

@@ -1,11 +1,6 @@
 const { parseRarity } = require('./rarityUtil');
 const iconv = require('iconv-lite');
 
-/**
- * 상품명에서 다른 일러스트 여부를 판단합니다.
- * @param {string} title - 상품 제목
- * @returns {string} - 'default' (기본 일러스트) 또는 'another' (어나더 일러스트)
- */
 function detectIllustration(title) {
   if (!title) {
     return 'default';
@@ -23,9 +18,6 @@ function detectIllustration(title) {
     /어나더\s*일러/i,
     /신\s*일러/i,
     /새\s*일러/i,
-    /다른\s*일러스트/i,
-    /신규\s*일러스트/i,
-    /어나더\s*일러스트/i,
   ];
 
   for (const pattern of anotherIllustrationPatterns) {
@@ -37,11 +29,6 @@ function detectIllustration(title) {
   return 'default';
 }
 
-/**
- * 카드 언어를 파싱합니다. (한글판, 일본판, 영문판)
- * @param {string} title - 상품 제목
- * @returns {string} - 파싱된 언어 정보
- */
 function parseLanguage(title) {
   if (/(한글판|한판)/i.test(title)) {
     return '한글판';
@@ -76,11 +63,6 @@ function parseLanguage(title) {
   return '알 수 없음';
 }
 
-/**
- * 카드 코드에서 정보를 추출합니다.
- * @param {string} title - 상품 제목
- * @returns {string|null} - 추출된 카드 코드 또는 null
- */
 function extractCardCode(title) {
   // 일반적인 카드 코드 패턴 (예: ROTA-KR024, ROTA-KR024A)
   const standardPattern = /\b([A-Z0-9]{2,5})-([A-Z]{2})(\d{3,4}[A-Z]?)\b/i;
@@ -88,7 +70,7 @@ function extractCardCode(title) {
   // 특수한 카드 코드 패턴 (예: SUB1-JPS07, SUB1-JPS07A)
   const specialPattern = /\b([A-Z0-9]{2,5})-([A-Z]{2,3})([0-9A-Z]{2,4})\b/i;
 
-  // 추가 패턴 (예: 코드가 괄호 안에 있는 경우: (ROTA-KR024), (ROTA-KR024A))
+  // 카드 코드가 괄호 안에 있는 패턴 (예: (ROTA-KR024), (ROTA-KR024A))
   const parenthesesPattern = /\(([A-Z0-9]{2,5})-([A-Z]{2,3})([0-9A-Z]{2,4})\)/i;
 
   let match = title.match(standardPattern);
@@ -108,11 +90,6 @@ function extractCardCode(title) {
   return null;
 }
 
-/**
- * 상품 상태(신품/중고)를 파싱합니다.
- * @param {string} title - 상품 제목
- * @returns {string} - 파싱된 상품 상태
- */
 function parseCondition(title) {
   if (/S-급|S-등급/i.test(title)) {
     return '중고';
@@ -133,37 +110,9 @@ function parseCondition(title) {
   return '신품';
 }
 
-/**
- * 레어도 파싱 테스트 함수 - 특정 상품명에서 레어도를 파싱하여 결과 반환
- * @param {string} title - 테스트할 상품명
- * @returns {Object} - 파싱 결과
- */
-function testRarityParsing(title) {
-  const rarityResult = parseRarity(title);
-
-  const language = parseLanguage(title);
-
-  const condition = parseCondition(title);
-
-  const cardCode = extractCardCode(title);
-
-  return {
-    rarity: rarityResult.rarity,
-    rarityCode: rarityResult.rarityCode,
-    language: language,
-    condition: condition,
-    cardCode: cardCode,
-  };
-}
-
-/**
- * 카드 이름을 EUC-KR로 인코딩합니다 (한국 사이트들이 EUC-KR 인코딩 사용)
- * @param {string} cardName - 검색할 카드 이름
- * @returns {string} - EUC-KR로 인코딩된 문자열(hex 형태)
- */
 function encodeEUCKR(cardName) {
   try {
-    // 띄어쓰기를 +로 대체
+    // 띄어쓰기를 +로 대체 - CardDC에서의 검색을 위함
     const nameWithPlus = cardName.replace(/\s+/g, '+');
 
     // EUC-KR로 인코딩된 바이트 배열을 생성
@@ -178,13 +127,11 @@ function encodeEUCKR(cardName) {
     return encodedString.replace(/%2B/g, '+');
   } catch (error) {
     console.error('[ERROR] EUC-KR 인코딩 오류:', error);
-    // 인코딩 실패 시 원본 문자열을 그대로 반환하되 띄어쓰기를 +로 변환
     return encodeURIComponent(cardName).replace(/%20/g, '+');
   }
 }
 
 module.exports = {
-  testRarityParsing,
   parseLanguage,
   parseCondition,
   extractCardCode,
