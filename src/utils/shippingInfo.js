@@ -516,13 +516,6 @@ const naverSellerShippingInfo = {
     freeShippingThreshold: 50000,
   },
 
-  온리유희왕: {
-    shippingFee: 4000,
-    jejuShippingFee: 4000,
-    islandShippingFee: 4000,
-    freeShippingThreshold: 50000,
-  },
-
   흑석블랙스톤: {
     shippingFee: 3000,
     jejuShippingFee: 3000,
