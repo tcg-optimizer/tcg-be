@@ -1,12 +1,13 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../utils/db');
+const { v7: uuidv7 } = require('uuid');
 
 const CardPriceCache = sequelize.define(
   'CardPriceCache',
   {
     id: {
       type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
+      defaultValue: () => uuidv7(),
       primaryKey: true,
     },
     cardName: {
