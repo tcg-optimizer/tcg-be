@@ -217,21 +217,16 @@ const searchAndSaveCardDCPrices = async (cardName, cardId = null) => {
           validate: true,
           returning: true,
         });
-        console.log(`[SUCCESS] CardDC Bulk insert: ${savedPrices.length}개 저장`);
 
       } catch (bulkError) {
-        console.warn(`[WARN] CardDC Bulk insert 실패, 개별 insert로 fallback: ${bulkError.message}`);
 
         for (const priceData of priceDataArray) {
           try {
             const savedPrice = await CardPrice.create(priceData);
             savedPrices.push(savedPrice);
           } catch (individualError) {
-            console.warn(`[WARN] CardDC 개별 레코드 저장 실패 (productId: ${priceData.productId}): ${individualError.message}`);
           }
         }
-        
-        console.log(`[INFO] CardDC Fallback 완료: ${savedPrices.length}/${priceDataArray.length}개 저장`);
       }
 
       savedPrices.forEach((savedPrice) => {
