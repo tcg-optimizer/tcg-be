@@ -620,6 +620,13 @@ const naverSellerShippingInfo = {
     islandShippingFee: 6000,
     freeShippingThreshold: 50000,
   },
+
+  대구듀얼스파크: {
+    shippingFee: 3500,
+    jejuShippingFee: 3500,
+    islandShippingFee: 3500,
+    freeShippingThreshold: 39000,
+  }
 };
 
 const REGION_TYPES = {

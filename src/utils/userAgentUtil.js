@@ -130,9 +130,6 @@ function getSiteSpecificHeaders(site, additionalHeaders = {}, includeCookies = t
       siteHeaders['Host'] = 'www.tcgshop.co.kr';
       break;
     case 'carddc':
-      siteHeaders['Referer'] = 'https://www.carddc.co.kr/';
-      siteHeaders['Origin'] = 'https://www.carddc.co.kr';
-      siteHeaders['Host'] = 'www.carddc.co.kr';
       break;
   }
 
@@ -158,9 +155,8 @@ function createCrawlerConfig(site, options = {}) {
 
   const headers = getSiteSpecificHeaders(site, additionalHeaders, useCookies);
 
-  // gzip 압축 지원 추가
-  if (useGzip && !headers['Accept-Encoding']) {
-    headers['Accept-Encoding'] = 'gzip, deflate';
+  if (useGzip) {
+    headers['Accept-Encoding'] = 'gzip, deflate, br';
   }
 
   const config = {

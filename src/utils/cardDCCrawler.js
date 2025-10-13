@@ -16,8 +16,8 @@ const crawlCardDC = async (cardName, cardId) => {
 
     const config = createCrawlerConfig('carddc', {
       timeoutMs: 10000,
+      useCookies: false,
       additionalHeaders: {
-        'Upgrade-Insecure-Requests': '1',
       },
     });
 
