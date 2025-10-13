@@ -7,10 +7,7 @@ const { CardPrice } = require('../models/Card');
 const { withRateLimit } = require('./rateLimiter');
 const { createCrawlerConfig } = require('./userAgentUtil');
 
-const crawlCardDC = async (cardName, cardId, retryCount = 0) => {
-  const MAX_RETRIES = 3;
-  const RETRY_DELAY_BASE = 2000;
-  
+const crawlCardDC = async (cardName, cardId) => {
   try {
     // EUC-KR로 인코딩된 검색어 생성, 인코딩 안 할 경우 검색 안됨 유의
     const encodedQuery = encodeEUCKR(cardName);
@@ -19,17 +16,10 @@ const crawlCardDC = async (cardName, cardId, retryCount = 0) => {
 
     const config = createCrawlerConfig('carddc', {
       timeoutMs: 10000,
-      useCookies: false,
       additionalHeaders: {
+        'Upgrade-Insecure-Requests': '1',
       },
     });
-
-    // 요청 간 딜레이 추가 (첫 요청이 아닌 경우)
-    if (retryCount > 0) {
-      const delay = RETRY_DELAY_BASE * Math.pow(2, retryCount - 1);
-      console.log(`[INFO] CardDC 재시도 ${retryCount}/${MAX_RETRIES}, ${delay}ms 대기 중...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
 
     const response = await axios.get(searchUrl, config);
 
@@ -173,12 +163,7 @@ const crawlCardDC = async (cardName, cardId, retryCount = 0) => {
 
     return items;
   } catch (error) {
-    if (error.response && error.response.status === 403 && retryCount < MAX_RETRIES) {
-      console.log(`[WARN] CardDC 403 에러 발생, 재시도 ${retryCount + 1}/${MAX_RETRIES}...`);
-      return crawlCardDC(cardName, cardId, retryCount + 1);
-    }
-    
-    console.error('[ERROR] CardDC 크롤링 오류:', error.message);
+    console.error('[ERROR] CardDC 크롤링 오류:', error);
     return [];
   }
 };
