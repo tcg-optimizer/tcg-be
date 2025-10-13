@@ -1,11 +1,22 @@
 const desktopUserAgents = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  // Chrome
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.55 Safari/537.36',
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36',
 
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0',
+  // Firefox
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:94.0) Gecko/20100101 Firefox/94.0',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:94.0) Gecko/20100101 Firefox/94.0',
+  'Mozilla/5.0 (X11; Linux i686; rv:94.0) Gecko/20100101 Firefox/94.0',
+
+  // Safari
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Safari/605.1.15',
+
+  // Edge
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.55 Safari/537.36 Edg/96.0.1054.43',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.55 Safari/537.36 Edg/96.0.1054.34',
 ];
 
 const mobileUserAgents = [
@@ -19,6 +30,19 @@ const mobileUserAgents = [
   'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
 ];
 
+const acceptHeaders = [
+  'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+  'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+  'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+];
+
+const acceptLanguageHeaders = [
+  'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+  'ko-KR,ko;q=0.9,en-US,en;q=0.8',
+];
+
+const cacheControlHeaders = ['max-age=0', 'no-cache', 'max-age=0, private, must-revalidate'];
+
 function getRandomUserAgent(includeMobile = false) {
   const userAgents = includeMobile
     ? [...desktopUserAgents, ...mobileUserAgents]
@@ -31,9 +55,24 @@ function getRandomUserAgent(includeMobile = false) {
 function getRandomizedHeaders(includeMobile = false, additionalHeaders = {}) {
   const headers = {
     'User-Agent': getRandomUserAgent(includeMobile),
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-    'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+    Accept: acceptHeaders[Math.floor(Math.random() * acceptHeaders.length)],
+    'Accept-Language':
+      acceptLanguageHeaders[Math.floor(Math.random() * acceptLanguageHeaders.length)],
+    'Cache-Control': cacheControlHeaders[Math.floor(Math.random() * cacheControlHeaders.length)],
+    Connection: Math.random() > 0.5 ? 'keep-alive' : 'close',
+    Pragma: Math.random() > 0.7 ? 'no-cache' : '',
   };
+
+  // 확률적으로 Referer 추가
+  if (Math.random() > 0.3) {
+    const referers = [
+      'https://www.google.com/',
+      'https://www.google.co.kr/',
+      'https://search.naver.com/',
+      'https://search.daum.net/',
+    ];
+    headers['Referer'] = referers[Math.floor(Math.random() * referers.length)];
+  }
 
   return { ...headers, ...additionalHeaders };
 }
@@ -91,6 +130,9 @@ function getSiteSpecificHeaders(site, additionalHeaders = {}, includeCookies = t
       siteHeaders['Host'] = 'www.tcgshop.co.kr';
       break;
     case 'carddc':
+      siteHeaders['Referer'] = 'https://www.carddc.co.kr/';
+      siteHeaders['Origin'] = 'https://www.carddc.co.kr';
+      siteHeaders['Host'] = 'www.carddc.co.kr';
       break;
   }
 
@@ -116,8 +158,8 @@ function createCrawlerConfig(site, options = {}) {
 
   const headers = getSiteSpecificHeaders(site, additionalHeaders, useCookies);
 
-  if (useGzip) {
-    headers['Accept-Encoding'] = 'gzip, deflate, br';
+  if (useGzip && !headers['Accept-Encoding']) {
+    headers['Accept-Encoding'] = 'gzip, deflate';
   }
 
   const config = {
