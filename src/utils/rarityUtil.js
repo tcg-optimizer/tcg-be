@@ -1,4 +1,4 @@
-function parseRarity(title) {
+function parseYugiohRarity(title) {
   const rarityPatterns = [
     {
       pattern: /(오버\s*러시\s*레어|오버\s*러쉬\s*레어|오버러시레어|오버러시|over\s*rush\s*rare)/i,
@@ -102,6 +102,68 @@ function parseRarity(title) {
   return '알 수 없음';
 }
 
+function parseVanguardRarity(title) {
+  const rarityPatterns = [
+    { pattern: /(PR)/i, rarity: 'PR' },
+    { pattern: /(SER)/i, rarity: 'SER' },
+    { pattern: /(GCR)/i, rarity: 'GCR' },
+    { pattern: /(CR)/i, rarity: 'CR' },
+    { pattern: /(SSP)/i, rarity: 'SSP' },
+    { pattern: /(RGR)/i, rarity: 'RGR' },
+    { pattern: /(SKR)/i, rarity: 'SKR' },
+    { pattern: /(MSR)/i, rarity: 'MSR' },
+    { pattern: /(TRR)/i, rarity: 'TRR' },
+    { pattern: /(EXRRR)/i, rarity: 'EXRRR' },
+    { pattern: /(EXC)/i, rarity: 'EXC' },
+    { pattern: /(EXS)/i, rarity: 'EXS' },
+    { pattern: /(EXP)/i, rarity: 'EXP' },
+    { pattern: /(EX)/i, rarity: 'EX' },
+    { pattern: /(Re\+)/i, rarity: 'Re+' },
+    { pattern: /(Re)/i, rarity: 'Re' },
+    { pattern: /(LSP)/i, rarity: 'LSP' },
+    { pattern: /(LSR)/i, rarity: 'LSR' },
+    { pattern: /(SIR)/i, rarity: 'SIR' },
+    { pattern: /(SNR)/i, rarity: 'SNR' },
+    { pattern: /(SECP)/i, rarity: 'SECP' },
+    { pattern: /(SECV)/i, rarity: 'SECV' },
+    { pattern: /(SEC)/i, rarity: 'SEC' },
+    { pattern: /(SSR)/i, rarity: 'SSR' },
+    { pattern: /(WO)/i, rarity: 'WO' },
+    { pattern: /(DSR)/i, rarity: 'DSR' },
+    { pattern: /(SR)/i, rarity: 'SR' },
+    { pattern: /(SP)/i, rarity: 'SP' },
+    { pattern: /(FFR)/i, rarity: 'FFR' },
+    { pattern: /(ORRR)/i, rarity: 'ORRR' },
+    { pattern: /(RRR)/i, rarity: 'RRR' },
+    { pattern: /(ORR)/i, rarity: 'ORR' },
+    { pattern: /(RR)/i, rarity: 'RR' },
+    { pattern: /(FR)/i, rarity: 'FR' },
+    { pattern: /(SH)/i, rarity: 'SH' },
+    { pattern: /\b(H)\b/i, rarity: 'H' },
+    { pattern: /\b(R)\b/i, rarity: 'R' },
+    { pattern: /\b(TD)\b/i, rarity: 'TD' },
+    { pattern: /\b(C)\b/i, rarity: 'C' },
+  ];
+
+  for (const { pattern, rarity } of rarityPatterns) {
+    if (pattern.test(title)) {
+      return rarity;
+    }
+  }
+
+  return '알 수 없음';
+}
+
+// 게임 타입에 따라 레어도 파싱
+function parseRarity(title, gameType = 'yugioh') {
+  if (gameType === 'vanguard') {
+    return parseVanguardRarity(title);
+  }
+  return parseYugiohRarity(title);
+}
+
 module.exports = {
   parseRarity,
+  parseYugiohRarity,
+  parseVanguardRarity,
 };

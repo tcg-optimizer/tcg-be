@@ -18,6 +18,12 @@ const Card = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    gameType: {
+      // 게임 타입 (yugioh: 유희왕, vanguard: 뱅가드)
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: 'yugioh',
+    },
     expiresAt: {
       type: DataTypes.DATE,
       allowNull: false,

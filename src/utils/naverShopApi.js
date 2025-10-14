@@ -10,7 +10,7 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages, startPage = 1) => {
+const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages, startPage = 1, gameType = 'yugioh') => {
   const query = encodeURIComponent(searchQuery);
   const display = 100; // 한 페이지에 표시할 검색 결과 개수
   const sort = 'sim'; // 정확도순으로 내림차순 정렬
@@ -47,10 +47,10 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
       const items = response.data.items.map(item => {
         const title = item.title.replace(/<b>|<\/b>/g, ''); // HTML 태그 제거용
 
-        const rarity = parseRarity(title);
+        const rarity = parseRarity(title, gameType);
         const condition = parseCondition(title);
-        const cardCode = extractCardCode(title);
-        const language = parseLanguage(title);
+        const cardCode = extractCardCode(title, gameType);
+        const language = parseLanguage(title, gameType);
         const illustration = detectIllustration(title);
 
         return {
@@ -119,7 +119,7 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
 };
 
 
-const searchNaverShop = async cardName => {
+const searchNaverShop = async (cardName, gameType = 'yugioh') => {
   try {
     const clientId = process.env.NAVER_CLIENT_ID;
     const clientSecret = process.env.NAVER_CLIENT_SECRET;
@@ -130,22 +130,23 @@ const searchNaverShop = async cardName => {
 
     // 첫 번째 검색 시도 (3페이지까지)
     let searchQuery = cardName;
-    let allItems = await performNaverSearch(searchQuery, clientId, clientSecret, 3);
+    let allItems = await performNaverSearch(searchQuery, clientId, clientSecret, 3, 1, gameType);
 
-    // 3페이지까지 검색 후 유효한 유희왕 카드가 4개 미만이면 카드 이름 앞에 "유희왕" 추가해 재검색
-    if (allItems.length < 4) {
+    // 유희왕 카드일 때만: 3페이지까지 검색 후 유효한 카드가 4개 미만이면 카드 이름 앞에 "유희왕" 추가해 재검색
+    if (gameType === 'yugioh' && allItems.length < 4) {
       console.log(
         `[INFO] "${cardName}" 검색에서 유효한 유희왕 카드가 ${allItems.length}개로 부족합니다. 유희왕 "${cardName}"으로 재검색합니다.`
       );
       searchQuery = `유희왕 "${cardName}"`;
-      const additionalItems = await performNaverSearch(searchQuery, clientId, clientSecret, 10);
+      const additionalItems = await performNaverSearch(searchQuery, clientId, clientSecret, 10, 1, gameType);
       allItems = [...allItems, ...additionalItems];
     } else if (allItems.length >= 4) {
       // 유효한 카드가 4개 이상이면 나머지 7페이지 추가 검색
+      const gameTypeName = gameType === 'yugioh' ? '유희왕' : '뱅가드';
       console.log(
-        `[INFO] "${cardName}" 검색에서 유효한 유희왕 카드가 ${allItems.length}개 발견. 나머지 7페이지를 추가 검색합니다.`
+        `[INFO] "${cardName}" 검색에서 유효한 ${gameTypeName} 카드가 ${allItems.length}개 발견. 나머지 7페이지를 추가 검색합니다.`
       );
-      const additionalItems = await performNaverSearch(searchQuery, clientId, clientSecret, 10, 4);
+      const additionalItems = await performNaverSearch(searchQuery, clientId, clientSecret, 10, 4, gameType);
       allItems = [...allItems, ...additionalItems];
     }
 
@@ -161,12 +162,14 @@ const searchNaverShopWithRateLimit = withRateLimit(searchNaverShop, 'naver');
 
 const searchAndSaveCardPricesApi = async (cardName, options = {}) => {
   try {
-    const results = await searchNaverShopWithRateLimit(cardName, options);
+    const gameType = options.gameType || 'yugioh';
+    const results = await searchNaverShopWithRateLimit(cardName, gameType);
 
     let [card] = await Card.findOrCreate({
       where: { name: cardName },
       defaults: { 
         name: cardName,
+        gameType: gameType,
         expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000)
       },
     });

@@ -319,21 +319,41 @@ const optimizeResponse = await fetch('http://localhost:5000/api/cards/optimal-pu
 
 ### **1. 레어도별 가격 정보 조회**
 
-- **엔드포인트**: GET /api/cards/rarity-prices?cardName=카드이름
-- **설명**: 카드 이름으로 검색하여 카드 정보와 레어도별 가격 데이터를 반환합니다. 네이버 API, TCGShop, CardDC, OnlyYugioh에서 실시간 검색을 시도합니다.
+#### **1-1. 유희왕 카드 가격 정보 조회**
 
-- **파라미터**: cardName: 검색할 카드 이름
-- **쿼리 파라미터**: includeUsed: 중고 상품 포함 여부 (기본값: true)
+- **엔드포인트**: GET /api/cards/yugioh-rarity-prices?cardName=카드이름
+- **설명**: 유희왕 카드 이름으로 검색하여 카드 정보와 레어도별 가격 데이터를 반환합니다. 네이버 API, TCGShop, CardDC에서 실시간 검색을 시도합니다.
+
+- **파라미터**: cardName: 검색할 카드 이름
+- **쿼리 파라미터**: includeUsed: 중고 상품 포함 여부 (기본값: true)
 
 **요청 형식 예시**
 
 **기본 요청:**
 
-GET /api/cards/rarity-prices?cardName=블랙 매지션
+GET /api/cards/yugioh-rarity-prices?cardName=블랙 매지션
 
-**중고 상품 제외 옵션:**
+**중고 상품 제외 옵션:**
 
-GET /api/cards/rarity-prices?cardName=블랙 매지션&includeUsed=false
+GET /api/cards/yugioh-rarity-prices?cardName=블랙 매지션&includeUsed=false
+
+#### **1-2. 뱅가드 카드 가격 정보 조회**
+
+- **엔드포인트**: GET /api/cards/vanguard-rarity-prices?cardName=카드이름
+- **설명**: 카드파이트 뱅가드 카드 이름으로 검색하여 카드 정보와 레어도별 가격 데이터를 반환합니다. 네이버 API, TCGShop, CardDC에서 실시간 검색을 시도합니다.
+
+- **파라미터**: cardName: 검색할 카드 이름
+- **쿼리 파라미터**: includeUsed: 중고 상품 포함 여부 (기본값: true)
+
+**요청 형식 예시**
+
+**기본 요청:**
+
+GET /api/cards/vanguard-rarity-prices?cardName=블래스터 블레이드
+
+**중고 상품 제외 옵션:**
+
+GET /api/cards/vanguard-rarity-prices?cardName=블래스터 블레이드&includeUsed=false
 
 - **응답 예시**:json
 
@@ -341,6 +361,7 @@ GET /api/cards/rarity-prices?cardName=블랙 매지션&includeUsed=false
 {
   "success": true,
   "source": "naver_api",
+  "gameType": "yugioh",
   "data": {
     "cardId": 125,
     "cardName": "블랙 매지션",
