@@ -5,7 +5,7 @@ const TEST_CARDS_YUGIOH = [
 ];
 
 const TEST_CARDS_VANGUARD = [
-  '일격파쇄의시공거병',
+  '주명의기사스피나빌리스',
 ];
 
 // 네이버 API 키 설정 (환경변수에서 가져오거나 직접 설정)
@@ -26,7 +26,7 @@ async function testNaverApiSearch() {
     console.log('파일 상단의 API 키를 직접 입력해주세요.\n');
     return;
   }
-
+/*
   // 유희왕 카드 테스트
   console.log('📋 유희왕 카드 검색 테스트:');
   for (const cardName of TEST_CARDS_YUGIOH) {
@@ -64,7 +64,7 @@ async function testNaverApiSearch() {
     // 다음 요청 전 잠시 대기 (Rate Limiting)
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
-
+*/
   // 뱅가드 카드 테스트
   console.log('\n\n📋 뱅가드 카드 검색 테스트:');
   for (const cardName of TEST_CARDS_VANGUARD) {
@@ -77,8 +77,8 @@ async function testNaverApiSearch() {
       } else {
         console.log(`✅ ${results.length}개의 결과를 찾았습니다:`);
         
-        // 상위 30개 결과만 표시
-        results.slice(0, 30).forEach((item, index) => {
+        // 상위 50개 결과만 표시
+        results.slice(0, 50).forEach((item, index) => {
           console.log(`\n  [${index + 1}] ${item.title}`);
           console.log(`      사이트: ${item.site}`);
           console.log(`      카드 코드: ${item.cardCode || '없음'}`);
@@ -91,8 +91,8 @@ async function testNaverApiSearch() {
           console.log(`      상품 ID: ${item.productId}`);
         });
         
-        if (results.length > 30) {
-          console.log(`\n  ... 외 ${results.length - 30}개 더`);
+        if (results.length > 50) {
+          console.log(`\n  ... 외 ${results.length - 50}개 더`);
         }
       }
     } catch (error) {

@@ -67,7 +67,7 @@ function parseYugiohLanguage(title) {
 // 뱅가드 언어 파싱
 function parseVanguardLanguage(title) {
   // 상품명에 언어가 명시된 경우
-  if (/(한글판|한판|한\))/i.test(title)) {
+  if (/(한글판|한판)/i.test(title)) {
     return '한글판';
   }
   if (/(일본판|일판)/i.test(title)) {
@@ -107,8 +107,6 @@ function parseVanguardLanguage(title) {
           return '한글판';
         case 'JP':
           return '일본판';
-        case 'EN':
-          return '영문판';
         default:
           return '알 수 없음';
       }
@@ -203,7 +201,22 @@ function extractVanguardCardCode(title) {
       regex: /\(([A-Z]{1,2})-([A-Z]{2,4})(\d{2})[\/](\d{2,4})(KR|JP|EN)\)/i,
       handler: (m) => `${m[1]}-${m[2]}${m[3]}/${m[4]} ${m[5]}`
     },
-    // 패턴 7: (D-PR/262) - 괄호 안, 슬래시, 언어코드 없음
+    // 패턴 6-2: DZ-BT08/038KR - 괄호 없이, 슬래시, 숫자+언어코드 (3자리 숫자)
+    {
+      regex: /\b([A-Z]{1,2})-([A-Z]{2,4})(\d{2})[\/](\d{3})(KR|JP|EN)\b/i,
+      handler: (m) => `${m[1]}-${m[2]}${m[3]}/${m[4]} ${m[5]}`
+    },
+    // 패턴 6-3: DZ-BT09/035 KR - 괄호 없이, 슬래시, 공백, 언어코드
+    {
+      regex: /\b([A-Z]{1,2})-([A-Z]{2,4})(\d{2})[\/](\d{3})\s+(KR|JP|EN)\b/i,
+      handler: (m) => `${m[1]}-${m[2]}${m[3]}/${m[4]} ${m[5]}`
+    },
+    // 패턴 7: (DZ-BT09/035) - 괄호 안, 슬래시, 3자리 숫자, 언어코드 없음
+    {
+      regex: /\(([A-Z]{1,2})-([A-Z]{2,4})(\d{2})[\/](\d{3})\)/i,
+      handler: (m) => `${m[1]}-${m[2]}${m[3]}/${m[4]}`
+    },
+    // 패턴 7-1: (D-PR/262) - 괄호 안, 슬래시, 언어코드 없음 (기존)
     {
       regex: /\(([A-Z]{1,2})-([A-Z]{2,4})[\/]([A-Z]*\d{1,4}[A-Z]*)\)/i,
       handler: (m) => `${m[1]}-${m[2]}/${m[3]}`
@@ -218,7 +231,12 @@ function extractVanguardCardCode(title) {
       regex: /\b([A-Z]{1,2})-([A-Z]{2,4})(\d{2})[\/]([A-Z]+\d{1,4})\s+(KR|JP|EN)\b/i,
       handler: (m) => `${m[1]}-${m[2]}${m[3]}/${m[4]} ${m[5]}`
     },
-    // 패턴 10: DZ-SS07/FFR03 - 슬래시, 언어코드 없음 (일본판 기본)
+    // 패턴 10: DZ-BT09/035 - 슬래시, 3자리 숫자, 언어코드 없음
+    {
+      regex: /\b([A-Z]{1,2})-([A-Z]{2,4})(\d{2})[\/](\d{3})\b/i,
+      handler: (m) => `${m[1]}-${m[2]}${m[3]}/${m[4]}`
+    },
+    // 패턴 10-1: DZ-SS07/FFR03 - 슬래시, 언어코드 없음 (일본판 기본)
     {
       regex: /\b([A-Z]{1,2})-([A-Z]{2,4})(\d{2})[\/]([A-Z]+\d{1,4})\b/i,
       handler: (m) => `${m[1]}-${m[2]}${m[3]}/${m[4]}`
@@ -233,7 +251,12 @@ function extractVanguardCardCode(title) {
       regex: /\b([A-Z]{1,2})([A-Z]{2,4})(\d{2})-([A-Z]+\d{1,4})\b/i,
       handler: (m) => `${m[1]}-${m[2]}${m[3]}/${m[4]}`
     },
-    // 패턴 13: (DZ-BT09-KREX01) - 기존 패턴 (숫자로 시작)
+    // 패턴 13: (DZ-BT09-035KR) - 괄호 안, 하이픈, 숫자+언어코드
+    {
+      regex: /\(([A-Z]{1,2})-([A-Z]{2,4})(\d{2})-(\d{3})(KR|JP|EN)\)/i,
+      handler: (m) => `${m[1]}-${m[2]}${m[3]}/${m[4]} ${m[5]}`
+    },
+    // 패턴 13-1: (DZ-BT09-KREX01) - 기존 패턴 (숫자로 시작)
     {
       regex: /\(([A-Z]{1,2})-?([A-Z]{2,4})(\d{2})-?(KR|JP|EN)?([A-Z]{0,2}\d{2,4}[A-Z]?)\)/i,
       handler: (m) => `${m[1]}-${m[2]}${m[3]}/${m[5]}${m[4] ? ` ${m[4]}` : ''}`

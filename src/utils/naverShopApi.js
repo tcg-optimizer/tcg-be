@@ -75,7 +75,9 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
           item.site !== '번개장터' &&
           !item.site.includes('번개장터') &&
           item.language !== '알 수 없음' &&
-          item.rarity !== '알 수 없음'
+          item.rarity !== '알 수 없음' &&
+          (gameType !== 'vanguard' || !item.title.includes('유희왕')) &&
+          (gameType !== 'yugioh' || !item.title.includes('뱅가드'))
       );
 
       if (filteredItems.length > 0) {
@@ -112,8 +114,9 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
     }
   }
 
+  const gameTypeName = gameType === 'yugioh' ? '유희왕' : '뱅가드';
   console.log(
-    `[INFO] "${searchQuery}" 검색 완료: 총 ${allItems.length}개의 유효한 유희왕 카드 발견 (${maxPages}페이지, 최대 ${maxItems}개)`
+    `[INFO] "${searchQuery}" 검색 완료: 총 ${allItems.length}개의 유효한 ${gameTypeName} 카드 발견 (${maxPages}페이지, 최대 ${maxItems}개)`
   );
   return allItems;
 };

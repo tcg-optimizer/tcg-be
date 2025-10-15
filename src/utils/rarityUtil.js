@@ -144,7 +144,7 @@ function parseVanguardRarity(title) {
     { pattern: /\b(TD)\b/i, rarity: 'TD' },
     { pattern: /\b(C)\b/i, rarity: 'C' },
   ];
-
+  
   for (const { pattern, rarity } of rarityPatterns) {
     if (pattern.test(title)) {
       return rarity;
