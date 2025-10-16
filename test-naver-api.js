@@ -5,7 +5,7 @@ const TEST_CARDS_YUGIOH = [
 ];
 
 const TEST_CARDS_VANGUARD = [
-  '주명의기사스피나빌리스',
+  '쌍성각희아스트로아바이코스텔라',
 ];
 
 // 네이버 API 키 설정 (환경변수에서 가져오거나 직접 설정)

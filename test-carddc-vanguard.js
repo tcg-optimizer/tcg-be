@@ -1,7 +1,7 @@
 const { crawlCardDCVanguard, searchAndSaveCardDCPrices } = require('./src/utils/cardDCCrawler');
 
 const TEST_CARDS = [
-  '황금양광의열매',
+  '쌍성각희아스트로아바이코스텔라',
 ];
 
 const TEST_CARD_CODES = [
@@ -42,7 +42,7 @@ async function testVanguardCrawling() {
     // 다음 요청 전 잠시 대기 (Rate Limiting)
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
-
+/*
   // 카드 코드로 테스트
   console.log('\n\n📋 카드 코드로 검색 테스트:');
   for (const cardCode of TEST_CARD_CODES) {
@@ -74,7 +74,7 @@ async function testVanguardCrawling() {
     // 다음 요청 전 잠시 대기 (Rate Limiting)
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
-
+*/
   console.log('\n=== 테스트 완료 ===');
 }
 
