@@ -18,20 +18,7 @@ const crawlCardDC = async (cardName, cardId) => {
       timeoutMs: 10000,
     });
 
-    // 요청 헤더 로그 출력
-    console.log('=== CardDC 요청 정보 ===');
-    console.log('URL:', searchUrl);
-    console.log('Headers:', JSON.stringify(config.headers, null, 2));
-    console.log('========================');
-
     const response = await axios.get(searchUrl, config);
-
-    // 응답 정보 로그 출력
-    console.log('=== CardDC 응답 정보 ===');
-    console.log('Status:', response.status);
-    console.log('Status Text:', response.statusText);
-    console.log('Response Headers:', JSON.stringify(response.headers, null, 2));
-    console.log('========================');
 
     // 응답 디코딩
     const html = iconv.decode(response.data, 'euc-kr');
