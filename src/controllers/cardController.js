@@ -775,7 +775,7 @@ exports.getYugiohPricesByRarity = [
       }
     } catch (error) {
       console.error('[ERROR] 유희왕 레어도별 가격 검색 오류:', error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: error.message,
       });
