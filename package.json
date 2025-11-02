@@ -35,7 +35,11 @@
     "ioredis": "^5.3.2",
     "morgan": "^1.10.0",
     "mysql2": "^3.14.0",
+    "puppeteer": "^24.27.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "sequelize": "^6.37.7",
+    "socks-proxy-agent": "^8.0.5",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

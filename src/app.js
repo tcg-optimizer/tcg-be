@@ -6,6 +6,7 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const redisManager = require('./lib/redis-manager');
 const { notFoundHandler, globalErrorHandler } = require('./lib/error-handler');
+const { closeBrowser } = require('./utils/cardDCCrawlerPuppeteer');
 
 dotenv.config();
 
@@ -64,6 +65,19 @@ process.on('unhandledRejection', (reason, promise) => {
     },
     severity: 'critical',
   });
+});
+
+// 서버 종료 시 Puppeteer 브라우저 정리
+process.on('SIGINT', async () => {
+  console.log('서버 종료 중... Puppeteer 브라우저 정리');
+  await closeBrowser();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('서버 종료 중... Puppeteer 브라우저 정리');
+  await closeBrowser();
+  process.exit(0);
 });
 
 const apiLimiter = rateLimit({

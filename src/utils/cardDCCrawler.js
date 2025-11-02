@@ -16,6 +16,7 @@ const crawlCardDC = async (cardName, cardId) => {
 
     const config = createCrawlerConfig('carddc', {
       timeoutMs: 10000,
+      useProxy: true, // CardDC만 WARP 프록시 사용
     });
 
     const response = await axios.get(searchUrl, config);

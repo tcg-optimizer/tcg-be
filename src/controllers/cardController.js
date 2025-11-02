@@ -2,7 +2,8 @@ const { Card } = require('../models/Card');
 const { Op } = require('sequelize');
 const { searchAndSaveCardPricesApi } = require('../utils/naverShopApi');
 const { searchAndSaveTCGShopPrices } = require('../utils/tcgshopCrawler');
-const { searchAndSaveCardDCPrices } = require('../utils/cardDCCrawler');
+// CardDC는 Puppeteer 버전 사용 (axios는 403 차단됨)
+const { searchAndSaveCardDCPrices } = require('../utils/cardDCCrawlerPuppeteer');
 const { findOptimalPurchaseCombination } = require('../utils/optimizedPurchase/index');
 const { shouldSkipMarketplace } = require('../utils/shippingInfo');
 const CardPriceCache = require('../models/CardPriceCache');

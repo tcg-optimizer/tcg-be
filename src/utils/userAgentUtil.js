@@ -161,6 +161,7 @@ function createCrawlerConfig(site, options = {}) {
     useCookies = true,
     additionalHeaders = {},
     responseType = 'arraybuffer',
+    useProxy = false, // 개별 크롤러에서 선택적으로 프록시 사용 가능
   } = options;
 
   const headers = getSiteSpecificHeaders(site, additionalHeaders, useCookies);
@@ -174,10 +175,29 @@ function createCrawlerConfig(site, options = {}) {
     timeout: timeoutMs,
     responseType,
     maxRedirects: 5,
-    // HTTP/2 지원 활성화 (Node.js 15.10.0+)
-    httpAgent: false,
-    httpsAgent: false,
   };
+
+  // useProxy가 true인 경우에만 WARP 프록시 사용
+  if (useProxy && process.env.USE_WARP_PROXY === 'true') {
+    try {
+      const { SocksProxyAgent } = require('socks-proxy-agent');
+      const proxyUrl = process.env.WARP_PROXY_URL || 'socks5://127.0.0.1:40000';
+      
+      const agent = new SocksProxyAgent(proxyUrl);
+      config.httpAgent = agent;
+      config.httpsAgent = agent;
+      
+      console.log(`[PROXY] ${site} - WARP 프록시 사용: ${proxyUrl}`);
+    } catch (error) {
+      console.warn(`[PROXY] ${site} - 프록시 설정 실패, 일반 연결 사용:`, error.message);
+      config.httpAgent = false;
+      config.httpsAgent = false;
+    }
+  } else {
+    // HTTP/2 지원 활성화 (Node.js 15.10.0+)
+    config.httpAgent = false;
+    config.httpsAgent = false;
+  }
 
   return config;
 }
