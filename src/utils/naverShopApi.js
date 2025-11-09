@@ -114,11 +114,21 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
     }
   }
 
+  // productId 기준으로 중복 제거
+  const uniqueItems = [];
+  const seenProductIds = new Set();
+  for (const item of allItems) {
+    if (!seenProductIds.has(item.productId)) {
+      seenProductIds.add(item.productId);
+      uniqueItems.push(item);
+    }
+  }
+
   const gameTypeName = gameType === 'yugioh' ? '유희왕' : '뱅가드';
   console.log(
-    `[INFO] "${searchQuery}" 검색 완료: 총 ${allItems.length}개의 유효한 ${gameTypeName} 카드 발견 (${maxPages}페이지, 최대 ${maxItems}개)`
+    `[INFO] "${searchQuery}" 검색 완료: 총 ${uniqueItems.length}개의 유효한 ${gameTypeName} 카드 발견 (중복 제거 전: ${allItems.length}개, ${maxPages}페이지, 최대 ${maxItems}개)`
   );
-  return allItems;
+  return uniqueItems;
 };
 
 
@@ -153,7 +163,18 @@ const searchNaverShop = async (cardName, gameType = 'yugioh') => {
       allItems = [...allItems, ...additionalItems];
     }
 
-    return allItems;
+    // 최종 중복 제거 (여러 검색 결과를 합칠 때 중복이 발생할 수 있음)
+    const uniqueItems = [];
+    const seenProductIds = new Set();
+    for (const item of allItems) {
+      if (!seenProductIds.has(item.productId)) {
+        seenProductIds.add(item.productId);
+        uniqueItems.push(item);
+      }
+    }
+
+    console.log(`[INFO] 최종 중복 제거: ${allItems.length}개 -> ${uniqueItems.length}개`);
+    return uniqueItems;
   } catch (error) {
     console.error('[ERROR] 네이버 쇼핑 API 검색 오류:', error);
     return [];
