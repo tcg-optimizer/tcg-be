@@ -23,7 +23,7 @@ function parseRarity(title) {
     },
     {
       pattern:
-        /(QC\s*시크릿\s*레어|25th\s*시크릿\s*레어|쿼터\s*센추리\s*시크|쿼터\s*센츄리\s*시크|QC\s*쿼터\s*시크릿\s*레어|QC시크릿레어|쿼터\s*시크릿|Qc\s*레어|쿼터\s*센츄리\s*시크릿\s*레어|quarter\s*century\s*secret\s*rare|QC\s*secret\s*rare)/i,
+        /(QC\s*시크릿\s*레어|25th\s*시크릿\s*레어|쿼터\s*센추리\s*시크|쿼터\s*센츄리\s*시크|쿼터\s*센츄리얼\s*시크릿\s*레어|QC\s*쿼터\s*시크릿\s*레어|QC시크릿레어|쿼터\s*시크릿|Qc\s*레어|쿼터\s*센츄리\s*시크릿\s*레어|quarter\s*century\s*secret\s*rare|QC\s*secret\s*rare)/i,
       rarity: '쿼터 센츄리 시크릿 레어',
     },
     {

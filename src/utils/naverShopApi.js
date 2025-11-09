@@ -75,7 +75,8 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
           item.site !== '번개장터' &&
           !item.site.includes('번개장터') &&
           item.language !== '알 수 없음' &&
-          item.rarity !== '알 수 없음'
+          item.rarity !== '알 수 없음' &&
+          !(item.title.includes('랜덤') && item.title.includes('레어도'))
       );
 
       if (filteredItems.length > 0) {
