@@ -150,7 +150,22 @@ const searchNaverShop = async cardName => {
       allItems = [...allItems, ...additionalItems];
     }
 
-    return allItems;
+    // productId 기준으로 중복 제거
+    const uniqueItems = [];
+    const seenProductIds = new Set();
+    
+    for (const item of allItems) {
+      if (!seenProductIds.has(item.productId)) {
+        seenProductIds.add(item.productId);
+        uniqueItems.push(item);
+      }
+    }
+
+    console.log(
+      `[INFO] 중복 제거: 총 ${allItems.length}개 중 ${allItems.length - uniqueItems.length}개 중복 제거, ${uniqueItems.length}개 반환`
+    );
+
+    return uniqueItems;
   } catch (error) {
     console.error('[ERROR] 네이버 쇼핑 API 검색 오류:', error);
     return [];
