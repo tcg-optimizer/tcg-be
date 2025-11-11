@@ -23,7 +23,7 @@ function parseRarity(title) {
     },
     {
       pattern:
-        /(QC\s*시크릿\s*레어|25th\s*시크릿\s*레어|쿼터\s*센추리\s*시크|쿼터\s*센츄리\s*시크|QC\s*쿼터\s*시크릿\s*레어|QC시크릿레어|쿼터\s*시크릿|Qc\s*레어|쿼터\s*센츄리\s*시크릿\s*레어|quarter\s*century\s*secret\s*rare|QC\s*secret\s*rare)/i,
+        /(QC\s*시크릿\s*레어|25th\s*시크릿\s*레어|쿼터\s*센추리\s*시크|쿼터\s*센츄리\s*시크|쿼터\s*센츄리얼\s*시크릿\s*레어|QC\s*쿼터\s*시크릿\s*레어|QC시크릿레어|쿼터\s*시크릿|Qc\s*레어|쿼터\s*센츄리\s*시크릿\s*레어|quarter\s*century\s*secret\s*rare|QC\s*secret\s*rare)/i,
       rarity: '쿼터 센츄리 시크릿 레어',
     },
     {
@@ -33,7 +33,7 @@ function parseRarity(title) {
     },
     {
       pattern:
-        /(프리즈마틱\s*시크릿\s*레어|프리즈매틱\s*시크릿\s*레어|프리즈머틱시크릿레어|프리즈마틱시크릿레어|프리즈매틱시크릿레어|prismatic\s*secret\s*rare|프리즈마틱\s*시크릿|프리즈매틱\s*시크릿|prismatic|Prismatic)/i,
+        /(프리즈마틱\s*시크릿\s*레어|프리즈매틱\s*시크릿\s*레어|프리즈머틱시크릿레어|프리즈마틱씨크릿레어|프리즈마틱시크릿레어|프리즈매틱시크릿레어|prismatic\s*secret\s*rare|프리즈마틱\s*시크릿|프리즈매틱\s*시크릿|prismatic|Prismatic)/i,
       rarity: '프리즈마틱 시크릿 레어',
     },
     {
@@ -69,7 +69,7 @@ function parseRarity(title) {
     },
     {
       pattern:
-        /(컬렉터즈\s*레어|컬렉터스\s*레어|컬렉터즈레어|컬렉터스레어|컬렉터|collector'?s?\s*rare|collector'?s?)/i,
+        /(컬렉터즈\s*레어|컬렉터스\s*레어|컬렉터즈레어|컬렉터스레어|컬렉터|collector'?s?\s*rare|collecters|collector'?s?)/i,
       rarity: '컬렉터즈 레어',
     },
     {
