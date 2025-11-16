@@ -18,6 +18,7 @@ function detectIllustration(title) {
     /어나더\s*일러/i,
     /신\s*일러/i,
     /새\s*일러/i,
+    /\(신\)/i,
   ];
 
   for (const pattern of anotherIllustrationPatterns) {

@@ -180,9 +180,6 @@ const crawlCardDC = async (cardName, cardId, gameType = 'yugioh') => {
 
     const config = createCrawlerConfig('carddc', {
       timeoutMs: 10000,
-      additionalHeaders: {
-        'Upgrade-Insecure-Requests': '1',
-      },
     });
 
     const response = await axios.get(searchUrl, config);
