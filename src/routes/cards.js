@@ -13,9 +13,15 @@ router.get('/search/tcgshop', createRequestLogger('searchTCGShop'), cardControll
 router.get('/search/carddc', createRequestLogger('searchCardDC'), cardController.searchCardDC);
 
 router.get(
-  '/rarity-prices',
-  createRequestLogger('getPricesByRarity'),
-  cardController.getPricesByRarity
+  '/yugioh-rarity-prices',
+  createRequestLogger('getYugiohPricesByRarity'),
+  cardController.getYugiohPricesByRarity
+);
+
+router.get(
+  '/vanguard-rarity-prices',
+  createRequestLogger('getVanguardPricesByRarity'),
+  cardController.getVanguardPricesByRarity
 );
 
 router.post(
