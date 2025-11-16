@@ -626,7 +626,28 @@ const naverSellerShippingInfo = {
     jejuShippingFee: 3500,
     islandShippingFee: 3500,
     freeShippingThreshold: 39000,
-  }
+  },
+
+  카드베이스: {
+    shippingFee: 3500,
+    jejuShippingFee: 8500,
+    islandShippingFee: 8500,
+    freeShippingThreshold: 40000,
+  },
+
+  지구정복tcg: {
+    shippingFee: 2000,
+    jejuShippingFee: 2000,
+    islandShippingFee: 2000,
+    freeShippingThreshold: 50000,
+  },
+
+  카드팰리스: {
+    shippingFee: 3000,
+    jejuShippingFee: 8000,
+    islandShippingFee: 13000,
+    freeShippingThreshold: 50000,
+  },
 };
 
 const REGION_TYPES = {

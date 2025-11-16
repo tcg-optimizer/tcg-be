@@ -14,6 +14,7 @@ async function searchCardPricesFromAllSources(cardName, gameType = 'yugioh') {
   let existingCard = await Card.findOne({
     where: {
       name: { [Op.like]: `%${cardName}%` },
+      gameType: gameType,
       expiresAt: { [Op.gt]: new Date() }
     }
   });
@@ -77,7 +78,10 @@ async function getOrCreateCardPriceData(cardName, cacheId = null, gameType = 'yu
 
   if (cacheId) {
     cachedResult = await CardPriceCache.findByPk(cacheId);
-    if (cachedResult && new Date() > new Date(cachedResult.expiresAt)) {
+    if (cachedResult && cachedResult.gameType !== gameType) {
+      console.log(`[WARN] "${cardName}" 카드의 캐시 데이터(${cacheId})의 게임 타입(${cachedResult.gameType})이 요청된 게임 타입(${gameType})과 일치하지 않습니다.`);
+      cachedResult = null;
+    } else if (cachedResult && new Date() > new Date(cachedResult.expiresAt)) {
       console.log(`[WARN] "${cardName}" 카드의 캐시 데이터(${cacheId})가 만료되었습니다.`);
       cachedResult = null;
     }
@@ -410,7 +414,7 @@ async function enhanceCardsWithCacheData(cards) {
 
             const cardName = card.cardName || card.name || priceCache.cardName;
             try {
-              const freshResult = await getOrCreateCardPriceData(cardName);
+              const freshResult = await getOrCreateCardPriceData(cardName, null, priceCache.gameType);
 
               if (!freshResult) {
                 console.log(`[WARN] "${cardName}" 카드 검색 결과가 없습니다.`);
@@ -1108,15 +1112,6 @@ exports.getOptimalPurchaseCombination = [
       const enhancedCards = await enhanceCardsWithCacheData(filteredCards);
 
       const processedCards = processCardDataStructure(enhancedCards);
-
-      processedCards.forEach(card => {
-        if (card.products.length > 0) {
-          const firstProduct = card.products[0];
-          console.log(
-            `  첫 번째 상품: 레어도=${firstProduct.rarity}, 가격=${firstProduct.price}, 사이트=${firstProduct.site}`
-          );
-        }
-      });
 
       if (processedCards.length === 0) {
         return res.status(400).json({

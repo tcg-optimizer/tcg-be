@@ -77,7 +77,8 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
           item.language !== '알 수 없음' &&
           item.rarity !== '알 수 없음' &&
           (gameType !== 'vanguard' || !item.title.includes('유희왕')) &&
-          (gameType !== 'yugioh' || !item.title.includes('뱅가드'))
+          (gameType !== 'yugioh' || !item.title.includes('뱅가드')) &&
+          !(item.title.includes('랜덤') && item.title.includes('레어도'))
       );
 
       if (filteredItems.length > 0) {
