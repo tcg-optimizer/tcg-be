@@ -27,7 +27,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
+          port: ${{ secrets.SSH_PORT }}
           script: |
             cd /home/ubuntu/be
             git pull origin master
@@ -38,4 +38,3 @@ jobs:
 
             cd ~
             pm2 restart ecosystem.config.js --update-env
-
