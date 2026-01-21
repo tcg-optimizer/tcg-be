@@ -662,6 +662,13 @@ const naverSellerShippingInfo = {
     islandShippingFee: 6000,
     freeShippingThreshold: 50000,
   },
+
+  카드트리거: {
+    shippingFee: 2000,
+    jejuShippingFee: 5000,
+    islandShippingFee: 7000,
+    freeShippingThreshold: 40000,
+  },
 };
 
 const REGION_TYPES = {

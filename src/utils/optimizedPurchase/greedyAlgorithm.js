@@ -264,6 +264,9 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
 
     efficientCombinations.sort((a, b) => b.savings - a.savings);
 
+    // 이미 무료 배송을 달성한 판매자 추적
+    const sellersWithFreeShipping = new Set();
+
     // efficientCombinations 적용 - 무료배송 조합이 이득인 경우 적용
     for (const efficient of efficientCombinations) {
       const { seller, combo, savings } = efficient;
@@ -273,6 +276,9 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
         assignedCards.has(item.card.uniqueCardKey || item.card.cardName)
       );
       if (hasAssignedCard) continue;
+      
+      // 이미 이 판매자가 무료 배송을 달성했으면 스킵
+      if (sellersWithFreeShipping.has(seller)) continue;
       
       // savings가 양수이면 이 조합을 적용
       if (savings > 0) {
@@ -336,6 +342,11 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
           purchaseDetails[seller].subtotal +
           purchaseDetails[seller].shippingFee -
           purchaseDetails[seller].points;
+        
+        // 무료 배송을 달성했으면 추적
+        if (purchaseDetails[seller].shippingFee === 0) {
+          sellersWithFreeShipping.add(seller);
+        }
       }
     }
 

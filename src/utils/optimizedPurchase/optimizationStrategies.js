@@ -207,12 +207,7 @@ function tryMultipleCardsMove(
   const maxCardsToMove = allCandidateCards.length;
   let bestCombination = [];
   let bestTotalCost = Infinity;
-  
-  // 현재 상태의 총 비용 계산 (비교 기준)
-  let currentStateTotalCost = purchaseDetails[targetSeller].total || 0;
-  otherSellers.forEach(seller => {
-    currentStateTotalCost += purchaseDetails[seller].total || 0;
-  });
+  let bestCurrentStateCost = Infinity; // 최선의 조합에 대한 현재 상태 비용
 
   for (let numCards = 2; numCards <= maxCardsToMove; numCards++) {
     const topCards = allCandidateCards;
@@ -340,15 +335,24 @@ function tryMultipleCardsMove(
 
       const newTotalCost = newTargetTotal + newSourceTotals;
 
-      if (newTotalCost < bestTotalCost) {
+      // 이 조합에 포함된 판매자들의 현재 상태 총 비용 계산
+      let currentStateTotalCost = purchaseDetails[targetSeller].total || 0;
+      const involvedSellers = new Set(combination.map(card => card.seller));
+      involvedSellers.forEach(seller => {
+        currentStateTotalCost += purchaseDetails[seller].total || 0;
+      });
+
+      // 실제로 비용이 감소하는 경우만 고려
+      if (newTotalCost < currentStateTotalCost && newTotalCost < bestTotalCost) {
         bestCombination = combination;
         bestTotalCost = newTotalCost;
+        bestCurrentStateCost = currentStateTotalCost;
       }
     }
   }
 
-  // 현재 상태보다 나아야만 적용
-  if (bestCombination.length > 0 && bestTotalCost < Infinity && bestTotalCost < currentStateTotalCost) {
+  // 현재 상태보다 나아야만 적용 (각 조합에서 이미 비용 감소를 확인함)
+  if (bestCombination.length > 0 && bestTotalCost < Infinity && bestTotalCost < bestCurrentStateCost) {
     const sourceUpdates = {};
     
     const originalTargetSubtotal = purchaseDetails[targetSeller].subtotal;
