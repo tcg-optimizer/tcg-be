@@ -45,7 +45,7 @@ async function crawlTCGShopVanguard(cardName, cardId, gameType = 'vanguard') {
       const title = productLink.text().trim();
 
       // 입력된 카드명이 카드 코드 패턴인지 확인 (뱅가드: D-PR-KR262, DZ-SS07-KRFFR03 등)
-      const isCardCodePattern = /^[A-Z0-9]{1,2}-[A-Z0-9]{2,3}-[A-Z]{2}[A-Z0-9]{2,4}$/i.test(cardName.trim());
+      const isCardCodePattern = /^[A-Z0-9]{1,3}-[A-Z0-9]{2,6}-[A-Z]{2}[A-Z0-9]+$/i.test(cardName.trim());
 
       // 카드 코드 추출 (span.glist_02에서 괄호 안의 내용)
       const codeElement = productTable.find('span.glist_02');

@@ -125,11 +125,6 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
       }),
   ];
 
-  const considerPointsStr = Object.entries(pointsOptions)
-    .filter(([, enabled]) => enabled)
-    .map(([store]) => store)
-    .join(', ');
-
   const maxSellersPerCard = 30;
 
   const excludedStores = options.excludedStores || [];
@@ -268,6 +263,92 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
     }
 
     efficientCombinations.sort((a, b) => b.savings - a.savings);
+
+    // 이미 무료 배송을 달성한 판매자 추적
+    const sellersWithFreeShipping = new Set();
+
+    // efficientCombinations 적용 - 무료배송 조합이 이득인 경우 적용
+    for (const efficient of efficientCombinations) {
+      const { seller, combo, savings } = efficient;
+      
+      // 이미 할당된 카드가 있으면 스킵
+      const hasAssignedCard = combo.some(item => 
+        assignedCards.has(item.card.uniqueCardKey || item.card.cardName)
+      );
+      if (hasAssignedCard) continue;
+      
+      // 이미 이 판매자가 무료 배송을 달성했으면 스킵
+      if (sellersWithFreeShipping.has(seller)) continue;
+      
+      // savings가 양수이면 이 조합을 적용
+      if (savings > 0) {
+        for (const item of combo) {
+          const { card, product, price, quantity } = item;
+          const cardKey = card.uniqueCardKey || card.cardName;
+          const productId = cardKey;
+          
+          const earnablePoints = calculatePointsAmount(
+            seller,
+            price,
+            quantity,
+            productId,
+            reviewedProducts,
+            pointsOptions
+          );
+          
+          purchaseDetails[seller].cards.push({
+            cardName: card.cardName,
+            uniqueCardKey: cardKey,
+            price,
+            product,
+            quantity,
+            points: earnablePoints,
+          });
+          
+          purchaseDetails[seller].subtotal += price * quantity;
+          purchaseDetails[seller].points += earnablePoints;
+          
+          cardsOptimalPurchase.push({
+            cardName: card.cardName,
+            uniqueCardKey: cardKey,
+            seller,
+            price,
+            totalPrice: price * quantity,
+            quantity,
+            points: earnablePoints,
+            product,
+            cardId: product.cardId,
+            rarity: product.rarity,
+            language: product.language,
+            illustration: product.illustration || 'default',
+            url: product.url,
+            site: product.site,
+            available: product.available,
+            cardCode: product.cardCode,
+            condition: product.condition,
+          });
+          
+          assignedCards.add(cardKey);
+        }
+        
+        // 배송비 업데이트
+        purchaseDetails[seller].shippingFee = calculateShippingFee(
+          seller,
+          regionType,
+          purchaseDetails[seller].subtotal,
+          takeoutOptions
+        );
+        purchaseDetails[seller].total =
+          purchaseDetails[seller].subtotal +
+          purchaseDetails[seller].shippingFee -
+          purchaseDetails[seller].points;
+        
+        // 무료 배송을 달성했으면 추적
+        if (purchaseDetails[seller].shippingFee === 0) {
+          sellersWithFreeShipping.add(seller);
+        }
+      }
+    }
 
     // 아직 할당되지 않은 카드는 일반 그리디 방식으로 할당
     const remainingCards = sortedCards.filter(
@@ -460,18 +541,144 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
 
               if (potentialMoves.length > 0) {
                 const bestMove = potentialMoves[0];
+
+                // 비용 검증: 이동 후 비용이 실제로 줄어드는지 확인
+                let currentTotalCostBeforeMove = 0;
+                const affectedSellers = new Set([sourceSellerName]);
+                
+                for (const item of bestMove.neededCards) {
+                  const cardKey = item.card.uniqueCardKey || item.card.cardName;
+                  const existingCard = cardsOptimalPurchase.find(
+                    c => (c.uniqueCardKey || c.cardName) === cardKey
+                  );
+                  if (existingCard && existingCard.seller) {
+                    affectedSellers.add(existingCard.seller);
+                  }
+                }
+                
+                // 영향받는 판매자들의 현재 총 비용 계산
+                for (const seller of affectedSellers) {
+                  const details = purchaseDetails[seller];
+                  if (details && details.subtotal > 0) {
+                    currentTotalCostBeforeMove += details.subtotal + details.shippingFee - (details.points || 0);
+                  }
+                }
+                
+                // 이동 후 예상 비용 계산 (시뮬레이션)
+                let estimatedCostAfterMove = 0;
+                
+                // sourceSellerName에 카드들을 추가했을 때의 비용
+                let newSourceSubtotal = sourceSeller.subtotal;
+                let newSourcePoints = sourceSeller.points || 0;
+                const tempReviewedProducts = new Set(reviewedProducts);
+                
+                for (const item of bestMove.neededCards) {
+                  newSourceSubtotal += item.price * item.quantity;
+                  const cardPoints = calculatePointsAmount(
+                    sourceSellerName,
+                    item.price,
+                    item.quantity,
+                    item.card.cardName,
+                    tempReviewedProducts,
+                    pointsOptions
+                  );
+                  newSourcePoints += cardPoints;
+                }
+                
+                const newSourceShippingFee = calculateShippingFee(
+                  sourceSellerName,
+                  regionType,
+                  newSourceSubtotal,
+                  takeoutOptions
+                );
+                estimatedCostAfterMove += newSourceSubtotal + newSourceShippingFee - newSourcePoints;
+                
+                // 다른 영향받는 판매자들의 비용 (카드가 제거된 후)
+                for (const seller of affectedSellers) {
+                  if (seller === sourceSellerName) continue;
+                  
+                  const details = purchaseDetails[seller];
+                  if (!details) continue;
+                  
+                  // 해당 판매자에서 제거될 카드들의 가격과 포인트 계산
+                  let removedPrice = 0;
+                  let removedPoints = 0;
+                  for (const item of bestMove.neededCards) {
+                    const cardKey = item.card.uniqueCardKey || item.card.cardName;
+                    const existingCard = cardsOptimalPurchase.find(
+                      c => (c.uniqueCardKey || c.cardName) === cardKey && c.seller === seller
+                    );
+                    if (existingCard) {
+                      removedPrice += existingCard.price * (existingCard.quantity || 1);
+                      removedPoints += existingCard.points || 0;
+                    }
+                  }
+                  
+                  const newSellerSubtotal = details.subtotal - removedPrice;
+                  const newSellerPoints = (details.points || 0) - removedPoints;
+                  
+                  if (newSellerSubtotal > 0) {
+                    const newSellerShippingFee = calculateShippingFee(
+                      seller,
+                      regionType,
+                      newSellerSubtotal,
+                      takeoutOptions
+                    );
+                    estimatedCostAfterMove += newSellerSubtotal + newSellerShippingFee - newSellerPoints;
+                  }
+                }
+                
+                // 비용이 줄어들지 않으면 이동하지 않음
+                if (estimatedCostAfterMove >= currentTotalCostBeforeMove) {
+                  continue;
+                }
+                
                 improved = true;
+
+                // 먼저 각 카드의 원래 판매자를 기록
+                const originalSellers = new Set();
+                for (const item of bestMove.neededCards) {
+                  const cardKey = item.card.uniqueCardKey || item.card.cardName;
+                  const existingCard = cardsOptimalPurchase.find(
+                    c => (c.uniqueCardKey || c.cardName) === cardKey
+                  );
+                  if (existingCard && existingCard.seller) {
+                    originalSellers.add(existingCard.seller);
+                  }
+                }
 
                 for (const item of bestMove.neededCards) {
                   const { card, product, price, quantity } = item;
                   const cardName = card.cardName;
+                  const cardKey = card.uniqueCardKey || cardName;
 
-                  const cardIndex = sourceSeller.cards.findIndex(c => {
-                    const cUniqueKey = c.uniqueCardKey || c.cardName;
-                    return cUniqueKey === (card.uniqueCardKey || card.cardName);
-                  });
-                  if (cardIndex !== -1) {
-                    sourceSeller.cards.splice(cardIndex, 1);
+                  // 원래 판매자 찾기
+                  const existingCardIndex = cardsOptimalPurchase.findIndex(
+                    c => (c.uniqueCardKey || c.cardName) === cardKey
+                  );
+                  
+                  if (existingCardIndex !== -1) {
+                    const existingCard = cardsOptimalPurchase[existingCardIndex];
+                    const originalSellerName = existingCard.seller;
+                    
+                    // 원래 판매자에서 카드 제거
+                    if (originalSellerName && purchaseDetails[originalSellerName]) {
+                      const originalSeller = purchaseDetails[originalSellerName];
+                      const cardIndexInOriginal = originalSeller.cards.findIndex(c => {
+                        const cKey = c.uniqueCardKey || c.cardName;
+                        return cKey === cardKey;
+                      });
+                      
+                      if (cardIndexInOriginal !== -1) {
+                        const removedCard = originalSeller.cards[cardIndexInOriginal];
+                        const removedPrice = (removedCard.price || 0) * (removedCard.quantity || 1);
+                        const removedPoints = removedCard.points || 0;
+                        
+                        originalSeller.cards.splice(cardIndexInOriginal, 1);
+                        originalSeller.subtotal -= removedPrice;
+                        originalSeller.points -= removedPoints;
+                      }
+                    }
                   }
 
                   const productId = cardName;
@@ -486,7 +693,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
 
                   purchaseDetails[sourceSellerName].cards.push({
                     cardName,
-                    uniqueCardKey: card.uniqueCardKey || cardName,
+                    uniqueCardKey: cardKey,
                     price,
                     product,
                     quantity,
@@ -496,13 +703,10 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
                   purchaseDetails[sourceSellerName].subtotal += price * quantity;
                   purchaseDetails[sourceSellerName].points += earnablePoints;
 
-                  const cardPurchaseIndex = cardsOptimalPurchase.findIndex(
-                    c => (c.uniqueCardKey || c.cardName) === (card.uniqueCardKey || cardName)
-                  );
-                  if (cardPurchaseIndex !== -1) {
-                    cardsOptimalPurchase[cardPurchaseIndex] = {
+                  if (existingCardIndex !== -1) {
+                    cardsOptimalPurchase[existingCardIndex] = {
                       cardName,
-                      uniqueCardKey: card.uniqueCardKey || cardName,
+                      uniqueCardKey: cardKey,
                       seller: sourceSellerName,
                       price,
                       totalPrice: price * quantity,
@@ -522,26 +726,19 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
                   }
                 }
 
-
-                for (const seller of [
-                  sourceSellerName,
-                  ...new Set(
-                    bestMove.neededCards.map(
-                      item =>
-                        cardsOptimalPurchase.find(c => c.cardName === item.card.cardName).seller
-                    )
-                  ),
-                ]) {
+                // 배송비 재계산 - sourceSellerName과 원래 판매자들 모두
+                const sellersToUpdate = new Set([sourceSellerName, ...originalSellers]);
+                for (const seller of sellersToUpdate) {
                   const details = purchaseDetails[seller];
-
-                  details.shippingFee = calculateShippingFee(
-                    seller,
-                    regionType,
-                    details.subtotal,
-                    takeoutOptions
-                  );
-
-                  details.total = details.subtotal + details.shippingFee - details.points;
+                  if (details) {
+                    details.shippingFee = calculateShippingFee(
+                      seller,
+                      regionType,
+                      details.subtotal,
+                      takeoutOptions
+                    );
+                    details.total = details.subtotal + details.shippingFee - details.points;
+                  }
                 }
 
                 continue;
@@ -648,23 +845,27 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
               takeoutOptions
             );
 
-            const newSourceTotal = newSourceSubtotal + newSourceShippingFee;
-            const newTargetTotal = newTargetSubtotal + newTargetShippingFee;
+            // 포인트를 고려한 비용 비교
+            const oldSourcePoints = card.points || 0;
+            const newSourcePoints = (sourceSeller.points || 0) - oldSourcePoints;
+            
+            // 새 판매자에서의 포인트를 미리 계산
+            const newTargetCardPoints = calculatePointsAmount(
+              targetSellerName,
+              alt.price,
+              alt.quantity,
+              productId,
+              new Set(reviewedProducts), // 복사본 사용
+              pointsOptions
+            );
+            const newTargetPoints = (targetSeller.points || 0) + newTargetCardPoints;
+
+            const newSourceTotal = newSourceSubtotal + newSourceShippingFee - newSourcePoints;
+            const newTargetTotal = newTargetSubtotal + newTargetShippingFee - newTargetPoints;
             const newTotalCost = newSourceTotal + newTargetTotal;
 
-            if (
-              newTotalCost < originalCost - (sourceSeller.points + targetSeller.points) &&
-              (newTotalCost < originalCost || newSourceSubtotal === 0)
-            ) {
-              const oldSourcePoints = card.points || 0;
-              const newTargetPoints = calculatePointsAmount(
-                targetSellerName,
-                alt.price,
-                alt.quantity,
-                productId,
-                reviewedProducts,
-                pointsOptions
-              );
+            // 단순화된 비교: 새 비용이 더 저렴하거나, source가 비워지면 이동
+            if (newTotalCost < originalCost || (newTotalCost === originalCost && newSourceSubtotal === 0)) {
 
               const cardIndex = sourceSeller.cards.findIndex(c => {
                 const cUniqueKey = c.uniqueCardKey || c.cardName;
@@ -674,9 +875,19 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
                 sourceSeller.cards.splice(cardIndex, 1);
               }
               sourceSeller.subtotal = newSourceSubtotal;
-              sourceSeller.points -= oldSourcePoints;
+              sourceSeller.points = newSourcePoints;
               sourceSeller.shippingFee = newSourceShippingFee;
-              sourceSeller.total = newSourceTotal - sourceSeller.points;
+              sourceSeller.total = newSourceSubtotal + newSourceShippingFee - newSourcePoints;
+
+              // 실제로 reviewedProducts에 추가하면서 포인트 계산
+              const actualTargetCardPoints = calculatePointsAmount(
+                targetSellerName,
+                alt.price,
+                alt.quantity,
+                productId,
+                reviewedProducts,
+                pointsOptions
+              );
 
               targetSeller.cards.push({
                 cardName: card.cardName,
@@ -684,13 +895,13 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
                 price: alt.price,
                 product: alt.product,
                 quantity: alt.quantity,
-                points: newTargetPoints,
+                points: actualTargetCardPoints,
               });
 
               targetSeller.subtotal = newTargetSubtotal;
               targetSeller.shippingFee = newTargetShippingFee;
-              targetSeller.total = newTargetTotal - targetSeller.points;
-              targetSeller.points += newTargetPoints;
+              targetSeller.points = (targetSeller.points || 0) + actualTargetCardPoints;
+              targetSeller.total = newTargetSubtotal + newTargetShippingFee - targetSeller.points;
 
               const cardPurchaseIndex = cardsOptimalPurchase.findIndex(
                 c => (c.uniqueCardKey || c.cardName) === (card.uniqueCardKey || card.cardName)
@@ -703,7 +914,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
                   price: alt.price,
                   totalPrice: alt.price * alt.quantity,
                   quantity: alt.quantity,
-                  points: newTargetPoints,
+                  points: actualTargetCardPoints,
                   product: alt.product,
                   cardId: alt.product.cardId,
                   rarity: alt.product.rarity,
@@ -799,6 +1010,9 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
         // 백업 생성
         const backupPurchaseDetails = JSON.parse(JSON.stringify(purchaseDetails));
         const backupCardsOptimalPurchase = JSON.parse(JSON.stringify(cardsOptimalPurchase));
+        
+        // 시뮬레이션용 reviewedProducts 복사본 생성
+        const simulationReviewedProducts = new Set(reviewedProducts);
 
         // 제거할 상점의 카드들을 모두 제거
         purchaseDetails[sellerToRemove].cards = [];
@@ -809,6 +1023,9 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
 
         // 각 카드를 다른 상점에 재배치
         let allCardsReassigned = true;
+        
+        // 재배치 계획 저장 (실제 적용은 검증 후)
+        const reassignmentPlan = [];
 
         for (const card of cardsToReassign) {
           const cardUniqueKey = card.uniqueCardKey || card.cardName;
@@ -855,12 +1072,13 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
               takeoutOptions
             );
 
+            // 시뮬레이션에서는 복사본 사용
             const earnablePoints = calculatePointsAmount(
               altSeller,
               altProduct.price,
               card.quantity,
               cardUniqueKey,
-              reviewedProducts,
+              simulationReviewedProducts,
               pointsOptions
             );
 
@@ -885,28 +1103,28 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
             break;
           }
 
-          // 선택된 상점에 카드 추가
-          const earnablePoints = calculatePointsAmount(
-            bestAlternativeSeller,
-            bestAlternativeProduct.price,
-            card.quantity,
+          // 재배치 계획에 추가
+          reassignmentPlan.push({
+            card,
             cardUniqueKey,
-            reviewedProducts,
-            pointsOptions
-          );
+            bestAlternativeSeller,
+            bestAlternativeProduct,
+            bestAlternativePoints,
+          });
 
+          // 시뮬레이션: purchaseDetails 업데이트
           purchaseDetails[bestAlternativeSeller].cards.push({
             cardName: card.cardName,
             uniqueCardKey: cardUniqueKey,
             price: bestAlternativeProduct.price,
             product: bestAlternativeProduct,
             quantity: card.quantity,
-            points: earnablePoints,
+            points: bestAlternativePoints,
           });
 
           purchaseDetails[bestAlternativeSeller].subtotal +=
             bestAlternativeProduct.price * card.quantity;
-          purchaseDetails[bestAlternativeSeller].points += earnablePoints;
+          purchaseDetails[bestAlternativeSeller].points += bestAlternativePoints;
 
           // cardsOptimalPurchase 업데이트
           const cardPurchaseIndex = cardsOptimalPurchase.findIndex(
@@ -921,7 +1139,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
               price: bestAlternativeProduct.price,
               totalPrice: bestAlternativeProduct.price * card.quantity,
               quantity: card.quantity,
-              points: earnablePoints,
+              points: bestAlternativePoints,
               product: bestAlternativeProduct,
               cardId: bestAlternativeProduct.cardId,
               rarity: bestAlternativeProduct.rarity,
@@ -978,6 +1196,18 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
         });
 
         if (newTotalCost < currentTotalCost) {
+          // 개선되면 실제 reviewedProducts에도 적용
+          for (const plan of reassignmentPlan) {
+            // reviewedProducts에 추가 (리뷰 포인트 중복 방지)
+            calculatePointsAmount(
+              plan.bestAlternativeSeller,
+              plan.bestAlternativeProduct.price,
+              plan.card.quantity,
+              plan.cardUniqueKey,
+              reviewedProducts,
+              pointsOptions
+            );
+          }
           improved = true;
           break; // 개선되면 중단하고 다시 시도
         } else {

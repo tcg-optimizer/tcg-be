@@ -78,7 +78,17 @@ function tryMoveCardsToReachThreshold(
       const movingCardPoints = movingCard ? (movingCard.points || 0) : 0;
       
       const newSourcePoints = (sourceSeller.points || 0) - movingCardPoints;
-      const newTargetPoints = (purchaseDetails[targetSeller].points || 0) + movingCardPoints;
+      
+      // 새 판매자에서의 포인트를 재계산 (판매자가 다르면 적립률이 다를 수 있음)
+      const newTargetCardPoints = calculatePointsAmount(
+        targetSeller,
+        candidate.targetPrice,
+        candidate.quantity,
+        candidate.cardName,
+        new Set(reviewedProducts), // 복사본 사용하여 실제 적용 전까지 변경 방지
+        pointsOptions
+      );
+      const newTargetPoints = (purchaseDetails[targetSeller].points || 0) + newTargetCardPoints;
 
       const newSourceTotal = newSourceSubtotal + newSourceShippingFee - newSourcePoints;
       const newTargetTotal = newTargetSubtotal + newTargetShippingFee - newTargetPoints;
@@ -105,6 +115,9 @@ function tryMoveCardsToReachThreshold(
           pointsOptions
         );
         
+        // 실제 적용된 포인트를 사용하여 업데이트
+        const actualNewTargetPoints = (purchaseDetails[targetSeller].points || 0) + targetCardPoints;
+        
         purchaseDetails[targetSeller].cards.push({
           cardName: candidate.cardName,
           price: candidate.targetPrice,
@@ -114,8 +127,8 @@ function tryMoveCardsToReachThreshold(
         });
         purchaseDetails[targetSeller].subtotal = newTargetSubtotal;
         purchaseDetails[targetSeller].shippingFee = newTargetShippingFee;
-        purchaseDetails[targetSeller].points = newTargetPoints;
-        purchaseDetails[targetSeller].total = newTargetSubtotal + newTargetShippingFee - newTargetPoints;
+        purchaseDetails[targetSeller].points = actualNewTargetPoints;
+        purchaseDetails[targetSeller].total = newTargetSubtotal + newTargetShippingFee - actualNewTargetPoints;
 
         const cardPurchaseIndex = cardsOptimalPurchase.findIndex(
           c => getCardKey(c) === getCardKey(candidate)
@@ -129,6 +142,7 @@ function tryMoveCardsToReachThreshold(
             price: candidate.targetPrice,
             totalPrice: candidate.targetPrice * candidate.quantity,
             quantity: candidate.quantity,
+            points: targetCardPoints,
             product: candidate.targetProduct,
             rarity: prev.rarity || candidate.targetProduct?.rarity,
             language: prev.language || candidate.targetProduct?.language,
@@ -193,7 +207,7 @@ function tryMultipleCardsMove(
   const maxCardsToMove = allCandidateCards.length;
   let bestCombination = [];
   let bestTotalCost = Infinity;
-
+  let bestCurrentStateCost = Infinity; // 최선의 조합에 대한 현재 상태 비용
 
   for (let numCards = 2; numCards <= maxCardsToMove; numCards++) {
     const topCards = allCandidateCards;
@@ -230,6 +244,7 @@ function tryMultipleCardsMove(
             subtotal: purchaseDetails[seller].subtotal,
             shippingFee: purchaseDetails[seller].shippingFee,
             total: purchaseDetails[seller].total,
+            points: purchaseDetails[seller].points || 0,
           };
         }
 
@@ -240,6 +255,7 @@ function tryMultipleCardsMove(
         subtotal: purchaseDetails[targetSeller].subtotal,
         shippingFee: purchaseDetails[targetSeller].shippingFee,
         total: purchaseDetails[targetSeller].total,
+        points: purchaseDetails[targetSeller].points || 0,
       };
 
       const newTargetSubtotal = originalTargetDetails.subtotal + combinationTargetPrice;
@@ -262,13 +278,21 @@ function tryMultipleCardsMove(
         delete originalDetails[seller].processed;
       });
 
-      let combinationMovingPoints = 0;
+      // 새 판매자에서의 포인트를 재계산 (판매자가 다르면 적립률이 다를 수 있음)
+      let calculatedNewTargetPoints = originalTargetDetails.points || 0;
+      const tempReviewedProducts = new Set(reviewedProducts);
       combination.forEach(card => {
-        const sourceSellerData = purchaseDetails[card.seller];
-        const movingCard = sourceSellerData.cards.find(c => getCardKey(c) === getCardKey(card));
-        combinationMovingPoints += movingCard ? (movingCard.points || 0) : 0;
+        const cardPoints = calculatePointsAmount(
+          targetSeller,
+          card.targetPrice,
+          card.quantity,
+          card.cardName,
+          tempReviewedProducts,
+          pointsOptions
+        );
+        calculatedNewTargetPoints += cardPoints;
       });
-      const newTargetPoints = (originalTargetDetails.points || 0) + combinationMovingPoints;
+      const newTargetPoints = calculatedNewTargetPoints;
       const newTargetTotal = newTargetSubtotal + newTargetShippingFee - newTargetPoints;
 
       let newSourceTotals = 0;
@@ -311,18 +335,31 @@ function tryMultipleCardsMove(
 
       const newTotalCost = newTargetTotal + newSourceTotals;
 
-      if (newTotalCost < bestTotalCost) {
+      // 이 조합에 포함된 판매자들의 현재 상태 총 비용 계산
+      let currentStateTotalCost = purchaseDetails[targetSeller].total || 0;
+      const involvedSellers = new Set(combination.map(card => card.seller));
+      involvedSellers.forEach(seller => {
+        currentStateTotalCost += purchaseDetails[seller].total || 0;
+      });
+
+      // 실제로 비용이 감소하는 경우만 고려
+      if (newTotalCost < currentStateTotalCost && newTotalCost < bestTotalCost) {
         bestCombination = combination;
         bestTotalCost = newTotalCost;
+        bestCurrentStateCost = currentStateTotalCost;
       }
     }
   }
 
-  if (bestCombination.length > 0 && bestTotalCost < Infinity) {
+  // 현재 상태보다 나아야만 적용 (각 조합에서 이미 비용 감소를 확인함)
+  if (bestCombination.length > 0 && bestTotalCost < Infinity && bestTotalCost < bestCurrentStateCost) {
     const sourceUpdates = {};
     
     const originalTargetSubtotal = purchaseDetails[targetSeller].subtotal;
     const originalTargetPoints = purchaseDetails[targetSeller].points || 0;
+    
+    // 누적 포인트 추적
+    let accumulatedTargetPoints = originalTargetPoints;
 
     for (const card of bestCombination) {
       const sourceSellerName = card.seller;
@@ -362,6 +399,9 @@ function tryMultipleCardsMove(
         pointsOptions
       );
       
+      // 포인트 누적
+      accumulatedTargetPoints += targetCardPoints;
+      
       targetSellerData.cards.push({
         cardName: card.cardName,
         price: card.targetPrice,
@@ -384,6 +424,7 @@ function tryMultipleCardsMove(
           price: card.targetPrice,
           totalPrice: card.targetPrice * card.quantity,
           quantity: card.quantity,
+          points: targetCardPoints,
           product: card.targetProduct,
           rarity: prev.rarity || card.targetProduct?.rarity,
           language: prev.language || card.targetProduct?.language,
@@ -423,15 +464,11 @@ function tryMultipleCardsMove(
       takeoutOptions
     );
 
-    let totalMovedPoints = 0;
-    Object.values(sourceUpdates).forEach(update => {
-      totalMovedPoints += update.removedPoints;
-    });
-    const newTargetPoints = originalTargetPoints + totalMovedPoints;
-    purchaseDetails[targetSeller].points = newTargetPoints;
+    // 누적된 포인트 사용 (중복 계산 방지)
+    purchaseDetails[targetSeller].points = accumulatedTargetPoints;
 
     purchaseDetails[targetSeller].total =
-      purchaseDetails[targetSeller].subtotal + purchaseDetails[targetSeller].shippingFee - newTargetPoints;
+      purchaseDetails[targetSeller].subtotal + purchaseDetails[targetSeller].shippingFee - accumulatedTargetPoints;
 
     return true;
   }
@@ -548,13 +585,30 @@ function trySellersConsolidation(
           takeoutOptions
         );
 
-        const newTargetPoints = (targetSeller.points || 0) + (sourceSeller.points || 0);
+        // 새 판매자에서의 포인트를 재계산 (판매자가 다르면 적립률이 다를 수 있음)
+        let calculatedNewTargetPoints = targetSeller.points || 0;
+        const tempReviewedProducts = new Set(reviewedProducts);
+        for (const move of moves) {
+          const movePoints = calculatePointsAmount(
+            bestTargetSeller,
+            move.targetPrice,
+            move.sourceQuantity,
+            move.cardName,
+            tempReviewedProducts,
+            pointsOptions
+          );
+          calculatedNewTargetPoints += movePoints;
+        }
+        const newTargetPoints = calculatedNewTargetPoints;
         const newTargetTotal = newTargetSubtotal + newTargetShippingFee - newTargetPoints;
 
         const newTotalCost = newTargetTotal;
 
 
       if (newTotalCost < originalCost) {
+        // 실제 적용된 포인트 추적
+        let actualTargetPoints = targetSeller.points || 0;
+        
         for (const move of moves) {
           const cardIndex = sourceSeller.cards.findIndex(c => getCardKey(c) === getCardKey(move));
           if (cardIndex !== -1) {
@@ -569,6 +623,9 @@ function trySellersConsolidation(
             reviewedProducts,
             pointsOptions
           );
+          
+          // 실제 포인트 누적
+          actualTargetPoints += targetCardPoints;
           
           targetSeller.cards.push({
             cardName: move.cardName,
@@ -590,6 +647,7 @@ function trySellersConsolidation(
               price: move.targetPrice,
               totalPrice: move.targetPrice * move.sourceQuantity,
               quantity: move.sourceQuantity,
+              points: targetCardPoints,
               product: move.targetProduct,
               rarity: prev.rarity || move.targetProduct?.rarity,
               language: prev.language || move.targetProduct?.language,
@@ -605,8 +663,8 @@ function trySellersConsolidation(
 
         targetSeller.subtotal = newTargetSubtotal;
         targetSeller.shippingFee = newTargetShippingFee;
-        targetSeller.points = newTargetPoints;
-        targetSeller.total = newTargetSubtotal + newTargetShippingFee - newTargetPoints;
+        targetSeller.points = actualTargetPoints;
+        targetSeller.total = newTargetSubtotal + newTargetShippingFee - actualTargetPoints;
 
         improved = true;
         break;
