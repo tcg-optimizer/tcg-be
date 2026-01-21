@@ -648,6 +648,20 @@ const naverSellerShippingInfo = {
     islandShippingFee: 13000,
     freeShippingThreshold: 50000,
   },
+
+  안성하얀숲카드하우스: {
+    shippingFee: 4000,
+    jejuShippingFee: 7000,
+    islandShippingFee: 7000,
+    freeShippingThreshold: 40000,
+  },
+
+  랭크타운tcgshop: {
+    shippingFee: 3000,
+    jejuShippingFee: 6000,
+    islandShippingFee: 6000,
+    freeShippingThreshold: 50000,
+  },
 };
 
 const REGION_TYPES = {

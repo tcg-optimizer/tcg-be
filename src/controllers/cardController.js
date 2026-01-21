@@ -841,7 +841,7 @@ exports.getVanguardPricesByRarity = [
       }
     } catch (error) {
       console.error('[ERROR] 뱅가드 레어도별 가격 검색 오류:', error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: error.message,
       });
@@ -883,7 +883,7 @@ exports.searchNaverShopApi = [
       });
     } catch (error) {
       console.error('[ERROR] 네이버 쇼핑 API 컨트롤러 오류:', error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: error.message,
       });
@@ -934,7 +934,7 @@ exports.searchTCGShop = [
       });
     } catch (error) {
       console.error('[ERROR] TCGShop 검색 컨트롤러 오류:', error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: error.message,
       });
@@ -985,7 +985,7 @@ exports.searchCardDC = [
       });
     } catch (error) {
       console.error('[ERROR] CardDC 검색 컨트롤러 오류:', error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: error.message,
       });
