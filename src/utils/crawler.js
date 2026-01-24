@@ -35,7 +35,7 @@ function parseYugiohLanguage(title) {
   if (/(한글판|한판)/i.test(title)) {
     return '한글판';
   }
-  if (/(일본판|일어판|일판)/i.test(title)) {
+  if (/(일본판|일어판|일판|\(일\))/i.test(title)) {
     return '일본판';
   }
   if (/(영문판|영어판|영판)/i.test(title)) {
@@ -71,7 +71,7 @@ function parseVanguardLanguage(title) {
   if (/(한글판|한판)/i.test(title)) {
     return '한글판';
   }
-  if (/(일본판|일판)/i.test(title)) {
+  if (/(일본판|일판|\(일\))/i.test(title)) {
     return '일본판';
   }
 
