@@ -669,6 +669,13 @@ const naverSellerShippingInfo = {
     islandShippingFee: 7000,
     freeShippingThreshold: 40000,
   },
+
+  원앤헌트tcg: {
+    shippingFee: 3500,
+    jejuShippingFee: 7000,
+    islandShippingFee: 7000,
+    freeShippingThreshold: 50000,
+  },
 };
 
 const REGION_TYPES = {
