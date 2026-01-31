@@ -676,6 +676,13 @@ const naverSellerShippingInfo = {
     islandShippingFee: 7000,
     freeShippingThreshold: 50000,
   },
+
+  'armosh-tcg': {
+    shippingFee: 4000,
+    jejuShippingFee: 6000,
+    islandShippingFee: 6000,
+    freeShippingThreshold: 50000,
+  }
 };
 
 const REGION_TYPES = {
