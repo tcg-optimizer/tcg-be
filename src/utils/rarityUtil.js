@@ -1,6 +1,15 @@
 function parseYugiohRarity(title) {
   const rarityPatterns = [
     {
+      pattern: /(오버\s*프레임\s*레어|오버프레임레어|over\s*frame\s*rare|over\s*frame)/i,
+      rarity: '오버 프레임 레어',
+    },
+    {
+      pattern:
+        /(그랜드\s*마스터\s*레어|그랜드마스터레어|grand\s*master\s*rare|grand\s*master|grandmaster\s*rare)/i,
+      rarity: '그랜드 마스터 레어',
+    },
+    {
       pattern: /(오버\s*러시\s*레어|오버\s*러쉬\s*레어|오버러시레어|오버러시|over\s*rush\s*rare)/i,
       rarity: '오버 러시 레어',
     },
@@ -88,7 +97,6 @@ function parseYugiohRarity(title) {
       rarity: '프리미엄 골드 레어',
     },
     { pattern: /(골드\s*레어|골드레어|gold\s*rare)/i, rarity: '골드 레어' },
-
     { pattern: /(노멀|노멀레어|normal|노말)/i, rarity: '노멀' },
     { pattern: /(레어|rare)/i, rarity: '레어' },
   ];
