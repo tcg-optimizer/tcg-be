@@ -1,8 +1,14 @@
 function parseYugiohRarity(title) {
   const rarityPatterns = [
     {
-      pattern: /(오버\s*프레임\s*레어|오버프레임레어|over\s*frame\s*rare|over\s*frame)/i,
-      rarity: '오버 프레임 레어',
+      pattern:
+        /(?=.*(?:오버\s*프레임|오버프레임|over\s*frame))(?=.*(?:프리즈마틱\s*시크릿\s*레어|프리즈마틱\s*시크릿|프리즈매틱\s*시크릿\s*레어|프리즈매틱\s*시크릿|프리즈마틱시크릿레어|프리즈매틱시크릿레어|prismatic\s*secret\s*rare|prismatic\s*secret|prismatic)).*/i,
+      rarity: '오버 프레임 프리즈마틱 시크릿 레어',
+    },
+    {
+      pattern:
+        /(?=.*(?:오버\s*프레임|오버프레임|over\s*frame))(?=.*(?:울트라\s*레어|울트라레어|울트라|ultra\s*rare|ultra)).*/i,
+      rarity: '오버 프레임 울트라 레어',
     },
     {
       pattern:
