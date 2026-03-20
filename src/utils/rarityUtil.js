@@ -168,10 +168,48 @@ function parseVanguardRarity(title) {
   return '알 수 없음';
 }
 
+function parsePokemonRarity(title) {
+  const rarityPatterns = [
+    {
+      pattern:
+        /(마스터\s*볼\s*미러|몬스터\s*볼\s*미러|미러\s*볼|미러볼|(?:^|[\s\[\(])미러(?:$|[\s\]\)]))/i,
+      rarity: '미러볼',
+    },
+    { pattern: /(?:^|[^A-Z0-9])(BWR)(?:[^A-Z0-9]|$)/i, rarity: 'BWR' },
+    { pattern: /(?:^|[^A-Z0-9])(MUR)(?:[^A-Z0-9]|$)/i, rarity: 'MUR' },
+    { pattern: /(?:^|[^A-Z0-9])(MA)(?:[^A-Z0-9]|$)/i, rarity: 'MA' },
+    { pattern: /(?:^|[^A-Z0-9])(SAR)(?:[^A-Z0-9]|$)/i, rarity: 'SAR' },
+    { pattern: /(?:^|[^A-Z0-9])(SSR)(?:[^A-Z0-9]|$)/i, rarity: 'SSR' },
+    { pattern: /(?:^|[^A-Z0-9])(SR)(?:[^A-Z0-9]|$)/i, rarity: 'SR' },
+    { pattern: /(?:^|[^A-Z0-9])(UR)(?:[^A-Z0-9]|$)/i, rarity: 'UR' },
+    { pattern: /(?:^|[^A-Z0-9])(AR)(?:[^A-Z0-9]|$)/i, rarity: 'AR' },
+    { pattern: /(?:^|[^A-Z0-9])(RR)(?:[^A-Z0-9]|$)/i, rarity: 'RR' },
+    {
+      pattern: /(?:에이스\s*스펙|ACE\s*SPEC|(?:^|[^A-Z0-9])(ACE)(?:[^A-Z0-9]|$))/i,
+      rarity: 'ACE',
+    },
+    { pattern: /(?:^|[^A-Z0-9])(S)(?:[^A-Z0-9]|$)/i, rarity: 'S' },
+    { pattern: /(?:^|[^A-Z0-9])(R)(?:[^A-Z0-9]|$)/i, rarity: 'R' },
+    { pattern: /(?:^|[^A-Z0-9])(U)(?:[^A-Z0-9]|$)/i, rarity: 'U' },
+    { pattern: /(?:^|[^A-Z0-9])(C)(?:[^A-Z0-9]|$)/i, rarity: 'C' },
+  ];
+
+  for (const { pattern, rarity } of rarityPatterns) {
+    if (pattern.test(title)) {
+      return rarity;
+    }
+  }
+
+  return '알 수 없음';
+}
+
 // 게임 타입에 따라 레어도 파싱
 function parseRarity(title, gameType = 'yugioh') {
   if (gameType === 'vanguard') {
     return parseVanguardRarity(title);
+  }
+  if (gameType === 'pokemon') {
+    return parsePokemonRarity(title);
   }
   return parseYugiohRarity(title);
 }
@@ -180,4 +218,5 @@ module.exports = {
   parseRarity,
   parseYugiohRarity,
   parseVanguardRarity,
+  parsePokemonRarity,
 };

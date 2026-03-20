@@ -10,6 +10,16 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function isPokemonSingleCardProduct(title = '') {
+  return !/(스타터\s*세트|스타터세트|스타터\s*덱|스타터덱|starter\s*set|starter\s*deck)/i.test(
+    title
+  );
+}
+
+function isExcludedMall(site = '') {
+  return /번개장터|쿠팡|네이버/i.test(site);
+}
+
 const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages, startPage = 1, gameType = 'yugioh') => {
   const query = encodeURIComponent(searchQuery);
   const display = 100; // 한 페이지에 표시할 검색 결과 개수
@@ -50,7 +60,7 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
         const rarity = parseRarity(title, gameType);
         const condition = parseCondition(title);
         const cardCode = extractCardCode(title, gameType);
-        const language = parseLanguage(title, gameType);
+        const language = gameType === 'pokemon' ? '한글판' : parseLanguage(title, gameType);
         const illustration = detectIllustration(title);
 
         return {
@@ -69,15 +79,15 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
         };
       });
 
-      // 번개장터 상품과 언어/레어도가 '알 수 없음'인 상품들을 필터링
+      // 마켓플레이스/메타 스토어(번개장터/쿠팡/네이버) 상품과 언어/레어도가 '알 수 없음'인 상품들을 필터링
       const filteredItems = items.filter(
         item =>
-          item.site !== '번개장터' &&
-          !item.site.includes('번개장터') &&
-          item.language !== '알 수 없음' &&
+          !isExcludedMall(item.site) &&
+          (gameType === 'pokemon' || item.language !== '알 수 없음') &&
           item.rarity !== '알 수 없음' &&
           (gameType !== 'vanguard' || !item.title.includes('유희왕')) &&
           (gameType !== 'yugioh' || !item.title.includes('뱅가드')) &&
+          (gameType !== 'pokemon' || isPokemonSingleCardProduct(item.title)) &&
           !(item.title.includes('랜덤') && item.title.includes('레어도'))
       );
 

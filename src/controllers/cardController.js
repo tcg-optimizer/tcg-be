@@ -10,6 +10,11 @@ const rateLimit = require('express-rate-limit');
 const { cardRequestLimiter } = require('../utils/rateLimiter');
 const { parseCondition } = require('../utils/crawler');
 
+function isExcludedMarketplaceSite(site = '') {
+  const normalizedSite = String(site || '').replace(/^Naver_/, '');
+  return /번개장터|쿠팡|네이버/i.test(normalizedSite);
+}
+
 async function searchCardPricesFromAllSources(cardName, gameType = 'yugioh') {
   let existingCard = await Card.findOne({
     where: {
@@ -117,7 +122,7 @@ async function getOrCreateCardPriceData(cardName, cacheId = null, gameType = 'yu
             ) {
               rarityPrices[illustration][language][rarity].prices =
                 rarityPrices[illustration][language][rarity].prices.filter(
-                      price => price.available !== false
+                      price => price.available !== false && !isExcludedMarketplaceSite(price.site)
                     );
               totalProducts += rarityPrices[illustration][language][rarity].prices.length;
                 }
@@ -192,11 +197,9 @@ async function getOrCreateCardPriceData(cardName, cacheId = null, gameType = 'yu
   const filteredPrices = combinedPrices.filter(price => {
     if (price.title && parseCondition(price.title) === '중고') return false;
     
-    if (price.site && (price.site === 'Naver_번개장터' || price.site.includes('번개장터'))) return false;
+    if (isExcludedMarketplaceSite(price.site)) return false;
     
     if (price.condition && price.condition !== '신품') return false;
-    
-    if (price.site === 'Naver_네이버') return false;
     
     if (price.available === false) return false;
     
@@ -725,128 +728,119 @@ const cardSearchRateLimiter = rateLimit({
   },
 });
 
-exports.getYugiohPricesByRarity = [
-  cardPriceRateLimiter,
-  cardRequestLimiter,
-  async (req, res) => {
+const SUPPORTED_GAME_TYPES = ['yugioh', 'vanguard', 'pokemon'];
+
+function isSupportedGameType(gameType) {
+  return SUPPORTED_GAME_TYPES.includes(gameType);
+}
+
+function isKnownRarityPriceError(errorMessage = '') {
+  return (
+    errorMessage.includes('센터 카드') ||
+    errorMessage.includes('구매 가능한 가격 정보가 없습니다') ||
+    errorMessage.includes('카드를 찾을 수 없습니다')
+  );
+}
+
+async function handleRarityPriceRequest(req, res, gameType) {
+  const { cardName } = req.query;
+
+  if (!cardName) {
+    return res.status(400).json({
+      success: false,
+      error: '카드 이름은 필수 파라미터입니다. ?cardName=카드이름 형식으로 요청해주세요.',
+    });
+  }
+
+  try {
+    const result = await getOrCreateCardPriceData(cardName, null, gameType);
+
+    return res.status(200).json({
+      success: true,
+      source: result.source,
+      gameType,
+      data: {
+        cardId: result.card.id,
+        cardName: result.card.name,
+        image: result.card.image || null,
+        totalProducts: result.totalProducts,
+      },
+      rarityPrices: result.rarityPrices,
+      cacheId: result.cacheId,
+      cacheExpiresAt: result.cacheExpiresAt,
+    });
+  } catch (error) {
+    if (isKnownRarityPriceError(error.message)) {
+      return res.status(404).json({
+        success: false,
+        error: error.message,
+      });
+    }
+    throw error;
+  }
+}
+
+function createRarityPriceController({ fixedGameType = null, errorLogLabel }) {
+  return async (req, res) => {
     try {
-      const { cardName } = req.query;
+      let gameType = fixedGameType;
 
-      if (!cardName) {
-        return res.status(400).json({
-          success: false,
-          error: '카드 이름은 필수 파라미터입니다. ?cardName=카드이름 형식으로 요청해주세요.',
-        });
-      }
+      if (!gameType) {
+        const requestedGameType =
+          typeof req.query.gameType === 'string' ? req.query.gameType.trim().toLowerCase() : '';
 
-      try {
-        const result = await getOrCreateCardPriceData(cardName, null, 'yugioh');
-
-        return res.status(200).json({
-          success: true,
-          source: result.source,
-          gameType: 'yugioh',
-          data: {
-            cardId: result.card.id,
-            cardName: result.card.name,
-            image: result.card.image || null,
-            totalProducts: result.totalProducts,
-          },
-          rarityPrices: result.rarityPrices,
-          cacheId: result.cacheId,
-          cacheExpiresAt: result.cacheExpiresAt,
-        });
-      } catch (error) {
-        if (error.message.includes('센터 카드')) {
-          return res.status(404).json({
-          success: false,
-          error: error.message,
-        });
-        }
-        if (error.message.includes('구매 가능한 가격 정보가 없습니다')) {
-          return res.status(404).json({
+        if (!requestedGameType) {
+          return res.status(400).json({
             success: false,
-            error: error.message,
+            error: 'gameType은 필수 파라미터입니다. ?gameType=yugioh|vanguard|pokemon 형식으로 요청해주세요.',
           });
         }
-        if (error.message.includes('카드를 찾을 수 없습니다')) {
-          return res.status(404).json({
+
+        if (!isSupportedGameType(requestedGameType)) {
+          return res.status(400).json({
             success: false,
-            error: error.message,
+            error: `지원하지 않는 gameType입니다. 지원값: ${SUPPORTED_GAME_TYPES.join(', ')}`,
           });
         }
-        throw error;
+
+        gameType = requestedGameType;
       }
+
+      return handleRarityPriceRequest(req, res, gameType);
     } catch (error) {
-      console.error('[ERROR] 유희왕 레어도별 가격 검색 오류:', error);
+      console.error(`[ERROR] ${errorLogLabel} 오류:`, error);
       return res.status(500).json({
         success: false,
         error: error.message,
       });
     }
-  },
+  };
+}
+
+exports.getPricesByRarity = [
+  cardPriceRateLimiter,
+  cardRequestLimiter,
+  createRarityPriceController({
+    errorLogLabel: '공통 레어도별 가격 검색',
+  }),
+];
+
+exports.getYugiohPricesByRarity = [
+  cardPriceRateLimiter,
+  cardRequestLimiter,
+  createRarityPriceController({
+    fixedGameType: 'yugioh',
+    errorLogLabel: '유희왕 레어도별 가격 검색',
+  }),
 ];
 
 exports.getVanguardPricesByRarity = [
   cardPriceRateLimiter,
   cardRequestLimiter,
-  async (req, res) => {
-    try {
-      const { cardName } = req.query;
-
-      if (!cardName) {
-        return res.status(400).json({
-          success: false,
-          error: '카드 이름은 필수 파라미터입니다. ?cardName=카드이름 형식으로 요청해주세요.',
-        });
-      }
-
-      try {
-        const result = await getOrCreateCardPriceData(cardName, null, 'vanguard');
-
-        return res.status(200).json({
-          success: true,
-          source: result.source,
-          gameType: 'vanguard',
-          data: {
-            cardId: result.card.id,
-            cardName: result.card.name,
-            image: result.card.image || null,
-            totalProducts: result.totalProducts,
-          },
-          rarityPrices: result.rarityPrices,
-          cacheId: result.cacheId,
-          cacheExpiresAt: result.cacheExpiresAt,
-        });
-      } catch (error) {
-        if (error.message.includes('센터 카드')) {
-          return res.status(404).json({
-          success: false,
-          error: error.message,
-        });
-        }
-        if (error.message.includes('구매 가능한 가격 정보가 없습니다')) {
-          return res.status(404).json({
-            success: false,
-            error: error.message,
-          });
-        }
-        if (error.message.includes('카드를 찾을 수 없습니다')) {
-          return res.status(404).json({
-            success: false,
-            error: error.message,
-          });
-        }
-        throw error;
-      }
-    } catch (error) {
-      console.error('[ERROR] 뱅가드 레어도별 가격 검색 오류:', error);
-      return res.status(500).json({
-        success: false,
-        error: error.message,
-      });
-    }
-  },
+  createRarityPriceController({
+    fixedGameType: 'vanguard',
+    errorLogLabel: '뱅가드 레어도별 가격 검색',
+  }),
 ];
 
 exports.searchNaverShopApi = [
@@ -1307,6 +1301,7 @@ exports.getOptimalPurchaseCombination = [
 ];
 
 module.exports = {
+  getPricesByRarity: exports.getPricesByRarity,
   getYugiohPricesByRarity: exports.getYugiohPricesByRarity,
   getVanguardPricesByRarity: exports.getVanguardPricesByRarity,
   searchNaverShopApi: exports.searchNaverShopApi,

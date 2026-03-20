@@ -122,6 +122,9 @@ function parseLanguage(title, gameType = 'yugioh') {
   if (gameType === 'vanguard') {
     return parseVanguardLanguage(title);
   }
+  if (gameType === 'pokemon') {
+    return '한글판';
+  }
   return parseYugiohLanguage(title);
 }
 
@@ -333,10 +336,71 @@ function extractVanguardCardCode(title) {
   return null;
 }
 
+function normalizePokemonLangCode(langCode = '') {
+  const upper = langCode.toUpperCase();
+  if (upper === 'KOR') return 'KR';
+  if (upper === 'JPN') return 'JP';
+  if (upper === 'ENG') return 'EN';
+  return upper;
+}
+
+// 포켓몬 카드 코드 추출
+function extractPokemonCardCode(title) {
+  const patterns = [
+    // SV9 KR 123/100
+    {
+      regex: /\b([A-Z]{1,4}\d{1,2}[A-Z]?)\s*(KR|KOR|JP|JPN|EN|ENG)\s*(\d{1,3})\s*\/\s*(\d{1,3})\b/i,
+      handler: m => `${m[1].toUpperCase()} ${m[3]}/${m[4]} ${normalizePokemonLangCode(m[2])}`,
+    },
+    // SV9 123/100 KR
+    {
+      regex: /\b([A-Z]{1,4}\d{1,2}[A-Z]?)\s*[-/]?\s*(\d{1,3})\s*\/\s*(\d{1,3})\s*(KR|KOR|JP|JPN|EN|ENG)\b/i,
+      handler: m => `${m[1].toUpperCase()} ${m[2]}/${m[3]} ${normalizePokemonLangCode(m[4])}`,
+    },
+    // SV9-123/100, SV9 123/100
+    {
+      regex: /\b([A-Z]{1,4}\d{1,2}[A-Z]?)\s*[-/]?\s*(\d{1,3})\s*\/\s*(\d{1,3})\b/i,
+      handler: m => `${m[1].toUpperCase()} ${m[2]}/${m[3]}`,
+    },
+    // SV-P 123, S-P 123, SM-P 123
+    {
+      regex: /\b([A-Z]{1,3}-P)\s*(\d{1,4})\b/i,
+      handler: m => `${m[1].toUpperCase()} ${m[2]}`,
+    },
+    // 123/SV-P, 123/SM-P
+    {
+      regex: /\b(\d{1,4})\s*\/\s*([A-Z]{1,3}-P)\b/i,
+      handler: m => `${m[2].toUpperCase()} ${m[1]}`,
+    },
+    // PROMO 123
+    {
+      regex: /\b(PROMO)\s*(\d{1,4})\b/i,
+      handler: m => `${m[1].toUpperCase()} ${m[2]}`,
+    },
+    // 세트코드가 없고 번호만 있는 경우 (예: 123/100)
+    {
+      regex: /\b(\d{2,3})\s*\/\s*(\d{2,3})\b/i,
+      handler: m => `${m[1]}/${m[2]}`,
+    },
+  ];
+
+  for (const { regex, handler } of patterns) {
+    const match = title.match(regex);
+    if (match) {
+      return handler(match).trim();
+    }
+  }
+
+  return null;
+}
+
 // 게임 타입에 따라 카드 코드 추출
 function extractCardCode(title, gameType = 'yugioh') {
   if (gameType === 'vanguard') {
     return extractVanguardCardCode(title);
+  }
+  if (gameType === 'pokemon') {
+    return extractPokemonCardCode(title);
   }
   return extractYugiohCardCode(title);
 }

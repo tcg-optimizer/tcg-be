@@ -6,6 +6,7 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "discord-bot": "node src/discord-bot.js",
+    "parse:pokemon": "node scripts/pokemon-parse-check.js",
     "test": "echo \"Warning: no test specified\"",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
