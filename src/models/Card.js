@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../utils/db');
+const { GAME_TYPES } = require('../constants/gameTypes');
 
 const Card = sequelize.define(
   'Card',
@@ -19,10 +20,10 @@ const Card = sequelize.define(
       allowNull: true,
     },
     gameType: {
-      // 게임 타입 (yugioh: 유희왕, vanguard: 뱅가드)
+      // 게임 타입 (yugioh: 유희왕, vanguard: 뱅가드, onepiece: 원피스 카드게임)
       type: DataTypes.STRING,
       allowNull: false,
-      defaultValue: 'yugioh',
+      defaultValue: GAME_TYPES.YUGIOH,
     },
     expiresAt: {
       type: DataTypes.DATE,
@@ -33,6 +34,14 @@ const Card = sequelize.define(
     timestamps: true,
     createdAt: 'createdAt',
     updatedAt: 'updatedAt',
+    indexes: [
+      {
+        fields: ['name', 'gameType'],
+      },
+      {
+        fields: ['expiresAt'],
+      },
+    ],
     //사실 timestamps가 true면 자동으로 createdAt, updatedAt 생성되서 아래 두 줄은 필요없긴함
     //그렇지만 프론트와의 원활한 협업을 위해 남겨둠
   }

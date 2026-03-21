@@ -168,16 +168,93 @@ function parseVanguardRarity(title) {
   return '알 수 없음';
 }
 
+function parseOnepieceRarity(title) {
+  const text = String(title || '').trim();
+
+  // 코드 뒤에 레어도를 붙여 표기하는 케이스 (예: OP10-071SR, OP02-KR056UC)
+  const codeAttachedRarityMatch = text.match(
+    /\b[A-Z]{1,4}-?\d{1,2}-(?:(?:KR|JP|EN)-?)?\d{3}(PP|SEC|SR|SP|TR|UC|L|R|C|P)\b/i
+  );
+  if (codeAttachedRarityMatch && codeAttachedRarityMatch[1]) {
+    return codeAttachedRarityMatch[1].toUpperCase();
+  }
+
+  const rarityPatterns = [
+    {
+      pattern: /(\bTR\b|\[TR\]|\(TR\)|트레저\s*레어|treasure\s*rare)/i,
+      rarity: 'TR',
+    },
+    {
+      pattern: /(\bSEC\+?\b|\[SEC\+?\]|\(SEC\+?\)|시크릿\s*레어|시크레|secret\s*rare)/i,
+      rarity: 'SEC',
+    },
+    {
+      pattern: /(\bSP\b|\[SP\]|\(SP\)|스페셜\s*카드|special\s*card)/i,
+      rarity: 'SP',
+    },
+    {
+      pattern: /(\bL\b|\[L\]|\(L\)|리더|leader)/i,
+      rarity: 'L',
+    },
+    {
+      pattern: /(\bSR\b|\[SR\]|\(SR\)|슈퍼\s*레어|수퍼\s*레어|슈레|super\s*rare)/i,
+      rarity: 'SR',
+    },
+    {
+      pattern: /(\bUC\b|\[UC\]|\(UC\)|언커먼|uncommon)/i,
+      rarity: 'UC',
+    },
+    {
+      pattern: /(\bC\b|\[C\]|\(C\)|커먼|common)/i,
+      rarity: 'C',
+    },
+    {
+      pattern: /(\bR\b|\[R\]|\(R\)|레어|rare)/i,
+      rarity: 'R',
+    },
+    {
+      pattern: /(\bP-\d{3}[A-Z]?\b|\bP\b|\[P\]|\(P\)|프로모|promo|패러렐|파라렐|parallel)/i,
+      rarity: 'P',
+    },
+  ];
+
+  for (const { pattern, rarity } of rarityPatterns) {
+    if (pattern.test(text)) {
+      return rarity;
+    }
+  }
+
+  return '알 수 없음';
+}
+
+function normalizeRarity(rarity, options = {}) {
+  const { gameType = 'yugioh', cardCode = null } = options;
+  const normalizedRarity = rarity || '알 수 없음';
+
+  // 원피스는 레어도만 누락되고 카드 코드는 파싱된 경우 커먼(C)으로 간주
+  if (gameType === 'onepiece' && normalizedRarity === '알 수 없음' && cardCode) {
+    return 'C';
+  }
+
+  return normalizedRarity;
+}
+
 // 게임 타입에 따라 레어도 파싱
 function parseRarity(title, gameType = 'yugioh') {
-  if (gameType === 'vanguard') {
-    return parseVanguardRarity(title);
+  switch (gameType) {
+    case 'vanguard':
+      return parseVanguardRarity(title);
+    case 'onepiece':
+      return parseOnepieceRarity(title);
+    default:
+      return parseYugiohRarity(title);
   }
-  return parseYugiohRarity(title);
 }
 
 module.exports = {
   parseRarity,
+  normalizeRarity,
   parseYugiohRarity,
   parseVanguardRarity,
+  parseOnepieceRarity,
 };

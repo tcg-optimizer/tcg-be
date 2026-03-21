@@ -9,8 +9,13 @@ const CardPriceCache = require('../models/CardPriceCache');
 const rateLimit = require('express-rate-limit');
 const { cardRequestLimiter } = require('../utils/rateLimiter');
 const { parseCondition } = require('../utils/crawler');
+const { normalizeRarity } = require('../utils/rarityUtil');
+const { GAME_TYPES } = require('../constants/gameTypes');
+const { normalizeGameType } = require('../utils/gameType');
 
-async function searchCardPricesFromAllSources(cardName, gameType = 'yugioh') {
+async function searchCardPricesFromAllSources(cardName, gameType = GAME_TYPES.YUGIOH) {
+  gameType = normalizeGameType(gameType, GAME_TYPES.YUGIOH);
+
   let existingCard = await Card.findOne({
     where: {
       name: { [Op.like]: `%${cardName}%` },
@@ -67,10 +72,19 @@ async function searchCardPricesFromAllSources(cardName, gameType = 'yugioh') {
   };
 }
 
-async function getOrCreateCardPriceData(cardName, cacheId = null, gameType = 'yugioh') {
+async function getOrCreateCardPriceData(
+  cardName,
+  cacheId = null,
+  gameType = GAME_TYPES.YUGIOH
+) {
+  gameType = normalizeGameType(gameType, GAME_TYPES.YUGIOH);
+
       // 센터 카드인지 확인 (ST19-KRFC1~4)
       // 추후 센터 카드 추가 발매 시 예외 처리 해줘야함
-      if (/^ST19-KRFC[1-4]$/i.test(cardName)) {
+      if (
+        gameType === GAME_TYPES.YUGIOH &&
+        /^ST19-KRFC[1-4]$/i.test(String(cardName || ''))
+      ) {
     throw new Error('센터 카드는 가격 정보를 제공하지 않습니다.');
   }
 
@@ -185,11 +199,25 @@ async function getOrCreateCardPriceData(cardName, cacheId = null, gameType = 'yu
 
         const { card: searchCard, prices: combinedPrices, naverResult } = searchResult;
 
-  if (searchCard.cardCode && /^ST19-KRFC[1-4]$/i.test(searchCard.cardCode)) {
+  if (
+    gameType === GAME_TYPES.YUGIOH &&
+    searchCard.cardCode &&
+    /^ST19-KRFC[1-4]$/i.test(String(searchCard.cardCode || ''))
+  ) {
     throw new Error('센터 카드는 가격 정보를 제공하지 않습니다.');
   }
 
-  const filteredPrices = combinedPrices.filter(price => {
+  const normalizedPrices = combinedPrices.map(price => ({
+    ...price,
+    rarity: normalizeRarity(price.rarity, { gameType, cardCode: price.cardCode }),
+    language:
+      gameType === GAME_TYPES.ONEPIECE &&
+      (!price.language || price.language === '알 수 없음')
+        ? '한글판'
+        : price.language,
+  }));
+
+  const filteredPrices = normalizedPrices.filter(price => {
     if (price.title && parseCondition(price.title) === '중고') return false;
     
     if (price.site && (price.site === 'Naver_번개장터' || price.site.includes('번개장터'))) return false;
@@ -202,7 +230,13 @@ async function getOrCreateCardPriceData(cardName, cacheId = null, gameType = 'yu
     
     if (!price.rarity || price.rarity === '알 수 없음' || !price.language || price.language === '알 수 없음') return false;
     
-    if (price.cardCode && /^ST19-KRFC[1-4]$/i.test(price.cardCode)) return false;
+    if (
+      gameType === GAME_TYPES.YUGIOH &&
+      price.cardCode &&
+      /^ST19-KRFC[1-4]$/i.test(String(price.cardCode || ''))
+    ) {
+      return false;
+    }
     
     return true;
   });
@@ -725,129 +759,79 @@ const cardSearchRateLimiter = rateLimit({
   },
 });
 
-exports.getYugiohPricesByRarity = [
-  cardPriceRateLimiter,
-  cardRequestLimiter,
-  async (req, res) => {
-    try {
-      const { cardName } = req.query;
-
-      if (!cardName) {
-        return res.status(400).json({
-          success: false,
-          error: '카드 이름은 필수 파라미터입니다. ?cardName=카드이름 형식으로 요청해주세요.',
-        });
-      }
-
+function createGetPricesByRarityHandler(gameType, gameTypeLabel) {
+  return [
+    cardPriceRateLimiter,
+    cardRequestLimiter,
+    async (req, res) => {
       try {
-        const result = await getOrCreateCardPriceData(cardName, null, 'yugioh');
+        const { cardName } = req.query;
 
-        return res.status(200).json({
-          success: true,
-          source: result.source,
-          gameType: 'yugioh',
-          data: {
-            cardId: result.card.id,
-            cardName: result.card.name,
-            image: result.card.image || null,
-            totalProducts: result.totalProducts,
-          },
-          rarityPrices: result.rarityPrices,
-          cacheId: result.cacheId,
-          cacheExpiresAt: result.cacheExpiresAt,
-        });
+        if (!cardName) {
+          return res.status(400).json({
+            success: false,
+            error: '카드 이름은 필수 파라미터입니다. ?cardName=카드이름 형식으로 요청해주세요.',
+          });
+        }
+
+        try {
+          const result = await getOrCreateCardPriceData(cardName, null, gameType);
+
+          return res.status(200).json({
+            success: true,
+            source: result.source,
+            gameType,
+            data: {
+              cardId: result.card.id,
+              cardName: result.card.name,
+              image: result.card.image || null,
+              totalProducts: result.totalProducts,
+            },
+            rarityPrices: result.rarityPrices,
+            cacheId: result.cacheId,
+            cacheExpiresAt: result.cacheExpiresAt,
+          });
+        } catch (error) {
+          if (error.message.includes('센터 카드')) {
+            return res.status(404).json({
+              success: false,
+              error: error.message,
+            });
+          }
+          if (error.message.includes('구매 가능한 가격 정보가 없습니다')) {
+            return res.status(404).json({
+              success: false,
+              error: error.message,
+            });
+          }
+          if (error.message.includes('카드를 찾을 수 없습니다')) {
+            return res.status(404).json({
+              success: false,
+              error: error.message,
+            });
+          }
+          throw error;
+        }
       } catch (error) {
-        if (error.message.includes('센터 카드')) {
-          return res.status(404).json({
+        console.error(`[ERROR] ${gameTypeLabel} 레어도별 가격 검색 오류:`, error);
+        return res.status(500).json({
           success: false,
           error: error.message,
         });
-        }
-        if (error.message.includes('구매 가능한 가격 정보가 없습니다')) {
-          return res.status(404).json({
-            success: false,
-            error: error.message,
-          });
-        }
-        if (error.message.includes('카드를 찾을 수 없습니다')) {
-          return res.status(404).json({
-            success: false,
-            error: error.message,
-          });
-        }
-        throw error;
       }
-    } catch (error) {
-      console.error('[ERROR] 유희왕 레어도별 가격 검색 오류:', error);
-      return res.status(500).json({
-        success: false,
-        error: error.message,
-      });
-    }
-  },
-];
+    },
+  ];
+}
 
-exports.getVanguardPricesByRarity = [
-  cardPriceRateLimiter,
-  cardRequestLimiter,
-  async (req, res) => {
-    try {
-      const { cardName } = req.query;
-
-      if (!cardName) {
-        return res.status(400).json({
-          success: false,
-          error: '카드 이름은 필수 파라미터입니다. ?cardName=카드이름 형식으로 요청해주세요.',
-        });
-      }
-
-      try {
-        const result = await getOrCreateCardPriceData(cardName, null, 'vanguard');
-
-        return res.status(200).json({
-          success: true,
-          source: result.source,
-          gameType: 'vanguard',
-          data: {
-            cardId: result.card.id,
-            cardName: result.card.name,
-            image: result.card.image || null,
-            totalProducts: result.totalProducts,
-          },
-          rarityPrices: result.rarityPrices,
-          cacheId: result.cacheId,
-          cacheExpiresAt: result.cacheExpiresAt,
-        });
-      } catch (error) {
-        if (error.message.includes('센터 카드')) {
-          return res.status(404).json({
-          success: false,
-          error: error.message,
-        });
-        }
-        if (error.message.includes('구매 가능한 가격 정보가 없습니다')) {
-          return res.status(404).json({
-            success: false,
-            error: error.message,
-          });
-        }
-        if (error.message.includes('카드를 찾을 수 없습니다')) {
-          return res.status(404).json({
-            success: false,
-            error: error.message,
-          });
-        }
-        throw error;
-      }
-    } catch (error) {
-      console.error('[ERROR] 뱅가드 레어도별 가격 검색 오류:', error);
-      return res.status(500).json({
-        success: false,
-        error: error.message,
-      });
-    }
-  },
-];
+exports.getYugiohPricesByRarity = createGetPricesByRarityHandler(GAME_TYPES.YUGIOH, '유희왕');
+exports.getVanguardPricesByRarity = createGetPricesByRarityHandler(
+  GAME_TYPES.VANGUARD,
+  '뱅가드'
+);
+exports.getOnepiecePricesByRarity = createGetPricesByRarityHandler(
+  GAME_TYPES.ONEPIECE,
+  '원피스 카드게임'
+);
 
 exports.searchNaverShopApi = [
   cardPriceRateLimiter,
@@ -855,6 +839,7 @@ exports.searchNaverShopApi = [
   async (req, res) => {
     try {
       const { cardName } = req.query;
+      const gameType = normalizeGameType(req.query.gameType, GAME_TYPES.YUGIOH);
 
       if (!cardName) {
         return res.status(400).json({
@@ -863,7 +848,7 @@ exports.searchNaverShopApi = [
         });
       }
 
-      const result = await searchAndSaveCardPricesApi(cardName);
+      const result = await searchAndSaveCardPricesApi(cardName, { gameType });
 
       if (result.count === 0) {
         return res.status(404).json({
@@ -875,6 +860,7 @@ exports.searchNaverShopApi = [
 
       res.status(200).json({
         success: true,
+        gameType,
         message: `${result.count}개의 가격 정보를 찾았습니다.`,
         data: {
           card: result.card,
@@ -897,6 +883,7 @@ exports.searchTCGShop = [
   async (req, res) => {
     try {
       const { cardName } = req.query;
+      const gameType = normalizeGameType(req.query.gameType, GAME_TYPES.YUGIOH);
 
       if (!cardName) {
         return res.status(400).json({
@@ -908,13 +895,14 @@ exports.searchTCGShop = [
       let card = await Card.findOne({
         where: {
           name: { [Op.like]: `%${cardName}%` },
+          gameType,
           expiresAt: { [Op.gt]: new Date() }
         },
       });
 
       const cardId = card ? card.id : null;
 
-      const result = await searchAndSaveTCGShopPrices(cardName, cardId);
+      const result = await searchAndSaveTCGShopPrices(cardName, cardId, gameType);
 
       if (result.count === 0) {
         return res.status(404).json({
@@ -926,6 +914,7 @@ exports.searchTCGShop = [
 
       res.status(200).json({
         success: true,
+        gameType,
         message: `TCGShop에서 ${result.count}개의 가격 정보를 찾았습니다.`,
         data: {
           card: card,
@@ -948,6 +937,7 @@ exports.searchCardDC = [
   async (req, res) => {
     try {
       const { cardName } = req.query;
+      const gameType = normalizeGameType(req.query.gameType, GAME_TYPES.YUGIOH);
 
       if (!cardName) {
         return res.status(400).json({
@@ -959,13 +949,14 @@ exports.searchCardDC = [
       let card = await Card.findOne({
         where: {
           name: { [Op.like]: `%${cardName}%` },
+          gameType,
           expiresAt: { [Op.gt]: new Date() }
         },
       });
 
       const cardId = card ? card.id : null;
 
-      const result = await searchAndSaveCardDCPrices(cardName, cardId);
+      const result = await searchAndSaveCardDCPrices(cardName, cardId, gameType);
 
       if (result.count === 0) {
         return res.status(404).json({
@@ -977,6 +968,7 @@ exports.searchCardDC = [
 
       res.status(200).json({
         success: true,
+        gameType,
         message: `CardDC에서 ${result.count}개의 가격 정보를 찾았습니다.`,
         data: {
           card: card,
@@ -1309,6 +1301,7 @@ exports.getOptimalPurchaseCombination = [
 module.exports = {
   getYugiohPricesByRarity: exports.getYugiohPricesByRarity,
   getVanguardPricesByRarity: exports.getVanguardPricesByRarity,
+  getOnepiecePricesByRarity: exports.getOnepiecePricesByRarity,
   searchNaverShopApi: exports.searchNaverShopApi,
   searchTCGShop: exports.searchTCGShop,
   searchCardDC: exports.searchCardDC,

@@ -117,12 +117,57 @@ function parseVanguardLanguage(title) {
   return '알 수 없음';
 }
 
+function parseOnepieceLanguage(title) {
+  if (/(한글판|한국판|한판|korean|kr\s*ver)/i.test(title)) {
+    return '한글판';
+  }
+  if (/(일본판|일판|일어판|japanese|jp\s*ver)/i.test(title)) {
+    return '일본판';
+  }
+  if (/(영문판|영어판|english|en\s*ver)/i.test(title)) {
+    return '영문판';
+  }
+
+  // 일부 판매처는 카드 코드에 언어를 포함해 표기함 (예: OP09-KR-001, OP02-KR056)
+  const codeLanguagePatterns = [
+    /\b[A-Z]{1,4}\d{1,2}-(KR|JP|EN)-?\d{3}[A-Z]?\b/i,
+    /\b[A-Z]{1,4}-\d{1,2}-(KR|JP|EN)-?\d{3}[A-Z]?\b/i,
+    /\b(KR|JP|EN)\d{3}[A-Z]?\b/i,
+    /\b(KR|JP|EN)\b/i,
+  ];
+
+  for (const pattern of codeLanguagePatterns) {
+    const languageCodeMatch = title.match(pattern);
+    if (languageCodeMatch && languageCodeMatch[1]) {
+      switch (languageCodeMatch[1].toUpperCase()) {
+        case 'KR':
+          return '한글판';
+        case 'JP':
+          return '일본판';
+        case 'EN':
+          return '영문판';
+        default:
+          return '알 수 없음';
+      }
+    }
+  }
+
+  return '알 수 없음';
+}
+
 // 게임 타입에 따라 언어 파싱
 function parseLanguage(title, gameType = 'yugioh') {
-  if (gameType === 'vanguard') {
-    return parseVanguardLanguage(title);
+  switch (gameType) {
+    case 'vanguard':
+      return parseVanguardLanguage(title);
+    case 'onepiece': {
+      const parsed = parseOnepieceLanguage(title);
+      // 원피스는 알 수 없음일 경우 한글판으로 취급
+      return parsed === '알 수 없음' ? '한글판' : parsed;
+    }
+    default:
+      return parseYugiohLanguage(title);
   }
-  return parseYugiohLanguage(title);
 }
 
 // 유희왕 카드 코드 추출
@@ -333,12 +378,88 @@ function extractVanguardCardCode(title) {
   return null;
 }
 
+function extractOnepieceCardCode(title) {
+  const normalizedTitle = String(title || '').trim();
+  const compactTitle = normalizedTitle
+    .replace(/\s*([\-\/])\s*/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const patterns = [
+    // OP02-KR056, OP02-KR-056, OP02-KR056SR
+    /\b([A-Z]{1,4}\d{1,2}-(?:KR|JP|EN)-?\d{3}(?:PP|SEC|SR|SP|TR|UC|L|R|C|P|[A-Z])?)\b/i,
+    // OP-02-KR056, OP-2-KR-056, OP-02-KR056SR
+    /\b([A-Z]{1,4}-\d{1,2}-(?:KR|JP|EN)-?\d{3}(?:PP|SEC|SR|SP|TR|UC|L|R|C|P|[A-Z])?)\b/i,
+    // OP01-001, OP10-071SR, OP4-031
+    /\b([A-Z]{1,4}\d{1,2}-\d{3}(?:PP|SEC|SR|SP|TR|UC|L|R|C|P|[A-Z])?)\b/i,
+    // OP-01-001, OP-4-031
+    /\b([A-Z]{1,4}-\d{1,2}-\d{3}(?:PP|SEC|SR|SP|TR|UC|L|R|C|P|[A-Z])?)\b/i,
+    // OP01/001, OP4/031
+    /\b([A-Z]{1,4}\d{1,2}\/\d{3}(?:PP|SEC|SR|SP|TR|UC|L|R|C|P|[A-Z])?)\b/i,
+    // P-001, P-001A 형태 (프로모)
+    /\b(P-\d{3}[A-Z]?)\b/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = compactTitle.match(pattern) || normalizedTitle.match(pattern);
+    if (match && match[1]) {
+      let code = match[1].replace('/', '-').toUpperCase();
+
+      // 코드 뒤에 레어도가 붙는 표기(OP10-071SR)는 레어도 접미사 제거
+      code = code.replace(
+        /((?:-\d{3}|-(?:KR|JP|EN)-?\d{3}))(PP|SEC|SR|SP|TR|UC|L|R|C|P)$/i,
+        '$1'
+      );
+
+      // OP-01-001 / OP-4-031 형태를 OP01-001 / OP04-031로 정규화
+      const normalizedCodeMatch = code.match(/^([A-Z]{1,4})-(\d{1,2})-(\d{3}[A-Z]?)$/i);
+      if (normalizedCodeMatch) {
+        const setNo = normalizedCodeMatch[2].padStart(2, '0');
+        code = `${normalizedCodeMatch[1]}${setNo}-${normalizedCodeMatch[3]}`;
+      }
+
+      // OP4-031 형태를 OP04-031로 정규화
+      const normalizedCompactCodeMatch = code.match(/^([A-Z]{1,4})(\d{1,2})-(\d{3}[A-Z]?)$/i);
+      if (normalizedCompactCodeMatch) {
+        const setNo = normalizedCompactCodeMatch[2].padStart(2, '0');
+        code = `${normalizedCompactCodeMatch[1]}${setNo}-${normalizedCompactCodeMatch[3]}`;
+      }
+
+      // OP-02-KR056 / OP-2-KR-056 형태를 OP02-KR056으로 정규화
+      const normalizedLocalizedCodeMatch = code.match(
+        /^([A-Z]{1,4})-(\d{1,2})-(KR|JP|EN)-?(\d{3}[A-Z]?)$/i
+      );
+      if (normalizedLocalizedCodeMatch) {
+        const setNo = normalizedLocalizedCodeMatch[2].padStart(2, '0');
+        code = `${normalizedLocalizedCodeMatch[1]}${setNo}-${normalizedLocalizedCodeMatch[3]}${normalizedLocalizedCodeMatch[4]}`;
+      }
+
+      // OP04-KR-019 / OP4-KR-019 형태를 OP04-KR019으로 정규화
+      const normalizedLocalizedCompactCodeMatch = code.match(
+        /^([A-Z]{1,4})(\d{1,2})-(KR|JP|EN)-?(\d{3}[A-Z]?)$/i
+      );
+      if (normalizedLocalizedCompactCodeMatch) {
+        const setNo = normalizedLocalizedCompactCodeMatch[2].padStart(2, '0');
+        code = `${normalizedLocalizedCompactCodeMatch[1]}${setNo}-${normalizedLocalizedCompactCodeMatch[3]}${normalizedLocalizedCompactCodeMatch[4]}`;
+      }
+
+      return code;
+    }
+  }
+
+  return null;
+}
+
 // 게임 타입에 따라 카드 코드 추출
 function extractCardCode(title, gameType = 'yugioh') {
-  if (gameType === 'vanguard') {
-    return extractVanguardCardCode(title);
+  switch (gameType) {
+    case 'vanguard':
+      return extractVanguardCardCode(title);
+    case 'onepiece':
+      return extractOnepieceCardCode(title);
+    default:
+      return extractYugiohCardCode(title);
   }
-  return extractYugiohCardCode(title);
 }
 
 function parseCondition(title) {

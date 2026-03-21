@@ -1,16 +1,56 @@
 const axios = require('axios');
 const { Card, CardPrice } = require('../models/Card');
 const { Op } = require('sequelize');
-const { parseRarity } = require('./rarityUtil');
+const { parseRarity, normalizeRarity } = require('./rarityUtil');
 const { parseLanguage, parseCondition, extractCardCode, detectIllustration } = require('./crawler');
 const { withRateLimit } = require('./rateLimiter');
 const { getRandomizedHeaders } = require('./userAgentUtil');
+const { GAME_TYPES, GAME_TYPE_LABELS } = require('../constants/gameTypes');
+const { normalizeGameType } = require('./gameType');
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages, startPage = 1, gameType = 'yugioh') => {
+function getGameSearchPrefix(gameType) {
+  switch (gameType) {
+    case GAME_TYPES.YUGIOH:
+      return '유희왕';
+    case GAME_TYPES.VANGUARD:
+      return '뱅가드';
+    case GAME_TYPES.ONEPIECE:
+      return '원피스 카드';
+    default:
+      return '';
+  }
+}
+
+function shouldExcludeByCrossGameTitle(title, gameType) {
+  if (!title) return false;
+
+  if (gameType === GAME_TYPES.YUGIOH) {
+    return title.includes('뱅가드') || title.includes('원피스 카드');
+  }
+  if (gameType === GAME_TYPES.VANGUARD) {
+    return title.includes('유희왕') || title.includes('원피스 카드');
+  }
+  if (gameType === GAME_TYPES.ONEPIECE) {
+    return title.includes('유희왕') || title.includes('뱅가드');
+  }
+
+  return false;
+}
+
+const performNaverSearch = async (
+  searchQuery,
+  clientId,
+  clientSecret,
+  maxPages,
+  startPage = 1,
+  gameType = GAME_TYPES.YUGIOH
+) => {
+  gameType = normalizeGameType(gameType, GAME_TYPES.YUGIOH);
+
   const query = encodeURIComponent(searchQuery);
   const display = 100; // 한 페이지에 표시할 검색 결과 개수
   const sort = 'sim'; // 정확도순으로 내림차순 정렬
@@ -47,9 +87,9 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
       const items = response.data.items.map(item => {
         const title = item.title.replace(/<b>|<\/b>/g, ''); // HTML 태그 제거용
 
-        const rarity = parseRarity(title, gameType);
-        const condition = parseCondition(title);
         const cardCode = extractCardCode(title, gameType);
+        const rarity = normalizeRarity(parseRarity(title, gameType), { gameType, cardCode });
+        const condition = parseCondition(title);
         const language = parseLanguage(title, gameType);
         const illustration = detectIllustration(title);
 
@@ -76,8 +116,7 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
           !item.site.includes('번개장터') &&
           item.language !== '알 수 없음' &&
           item.rarity !== '알 수 없음' &&
-          (gameType !== 'vanguard' || !item.title.includes('유희왕')) &&
-          (gameType !== 'yugioh' || !item.title.includes('뱅가드')) &&
+          !shouldExcludeByCrossGameTitle(item.title, gameType) &&
           !(item.title.includes('랜덤') && item.title.includes('레어도'))
       );
 
@@ -125,7 +164,7 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
     }
   }
 
-  const gameTypeName = gameType === 'yugioh' ? '유희왕' : '뱅가드';
+  const gameTypeName = GAME_TYPE_LABELS[gameType] || 'TCG';
   console.log(
     `[INFO] "${searchQuery}" 검색 완료: 총 ${uniqueItems.length}개의 유효한 ${gameTypeName} 카드 발견 (중복 제거 전: ${allItems.length}개, ${maxPages}페이지, 최대 ${maxItems}개)`
   );
@@ -133,8 +172,10 @@ const performNaverSearch = async (searchQuery, clientId, clientSecret, maxPages,
 };
 
 
-const searchNaverShop = async (cardName, gameType = 'yugioh') => {
+const searchNaverShop = async (cardName, gameType = GAME_TYPES.YUGIOH) => {
   try {
+    gameType = normalizeGameType(gameType, GAME_TYPES.YUGIOH);
+
     const clientId = process.env.NAVER_CLIENT_ID;
     const clientSecret = process.env.NAVER_CLIENT_SECRET;
 
@@ -146,17 +187,19 @@ const searchNaverShop = async (cardName, gameType = 'yugioh') => {
     let searchQuery = cardName;
     let allItems = await performNaverSearch(searchQuery, clientId, clientSecret, 3, 1, gameType);
 
-    // 유희왕 카드일 때만: 3페이지까지 검색 후 유효한 카드가 4개 미만이면 카드 이름 앞에 "유희왕" 추가해 재검색
-    if (gameType === 'yugioh' && allItems.length < 4) {
+    const gameSearchPrefix = getGameSearchPrefix(gameType);
+    const gameTypeName = GAME_TYPE_LABELS[gameType] || 'TCG';
+
+    // 유효한 결과가 적을 때 검색어에 게임 키워드를 붙여 재검색
+    if (gameSearchPrefix && allItems.length < 4) {
       console.log(
-        `[INFO] "${cardName}" 검색에서 유효한 유희왕 카드가 ${allItems.length}개로 부족합니다. 유희왕 "${cardName}"으로 재검색합니다.`
+        `[INFO] "${cardName}" 검색에서 유효한 ${gameTypeName} 카드가 ${allItems.length}개로 부족합니다. ${gameSearchPrefix} "${cardName}"으로 재검색합니다.`
       );
-      searchQuery = `유희왕 "${cardName}"`;
+      searchQuery = `${gameSearchPrefix} "${cardName}"`;
       const additionalItems = await performNaverSearch(searchQuery, clientId, clientSecret, 10, 1, gameType);
       allItems = [...allItems, ...additionalItems];
     } else if (allItems.length >= 4) {
       // 유효한 카드가 4개 이상이면 나머지 7페이지 추가 검색
-      const gameTypeName = gameType === 'yugioh' ? '유희왕' : '뱅가드';
       console.log(
         `[INFO] "${cardName}" 검색에서 유효한 ${gameTypeName} 카드가 ${allItems.length}개 발견. 나머지 7페이지를 추가 검색합니다.`
       );
@@ -187,14 +230,14 @@ const searchNaverShopWithRateLimit = withRateLimit(searchNaverShop, 'naver');
 
 const searchAndSaveCardPricesApi = async (cardName, options = {}) => {
   try {
-    const gameType = options.gameType || 'yugioh';
+    const gameType = normalizeGameType(options.gameType, GAME_TYPES.YUGIOH);
     const results = await searchNaverShopWithRateLimit(cardName, gameType);
 
     let [card] = await Card.findOrCreate({
-      where: { name: cardName },
+      where: { name: cardName, gameType },
       defaults: { 
         name: cardName,
-        gameType: gameType,
+        gameType,
         expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000)
       },
     });

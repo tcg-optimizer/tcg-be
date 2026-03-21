@@ -1,15 +1,38 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
-const iconv = require('iconv-lite'); // EUC-KR 인코딩 처리를 위해 필요
-const { parseRarity } = require('./rarityUtil');
+const iconv = require('iconv-lite');
+const { parseRarity, normalizeRarity } = require('./rarityUtil');
 const { parseLanguage, parseCondition, detectIllustration, encodeEUCKR } = require('./crawler');
 const { CardPrice } = require('../models/Card');
 const { withRateLimit } = require('./rateLimiter');
 const { createCrawlerConfig } = require('./userAgentUtil');
+const { GAME_TYPES } = require('../constants/gameTypes');
+const { normalizeGameType } = require('./gameType');
 
-// 뱅가드 전용 크롤링 함수
-const crawlCardDCVanguard = async (cardName, cardId, gameType = 'vanguard') => {
+function isCardCodePatternForGame(cardName, gameType = GAME_TYPES.YUGIOH) {
+  if (!cardName || typeof cardName !== 'string') {
+    return false;
+  }
+
+  const normalized = cardName.trim();
+
+  switch (gameType) {
+    case GAME_TYPES.VANGUARD:
+      return /^[A-Z0-9]{1,3}-[A-Z0-9]{2,6}-[A-Z]{2}[A-Z0-9]+$/i.test(normalized);
+    case GAME_TYPES.ONEPIECE:
+      return /^(?:[A-Z]{1,4}\d{2}-\d{3}[A-Z]?|[A-Z]{1,4}-\d{2}-\d{3}[A-Z]?|P-\d{3}[A-Z]?)$/i.test(
+        normalized
+      );
+    case GAME_TYPES.YUGIOH:
+    default:
+      return /^[A-Z0-9]{2,5}-[A-Z]{2}\d{3,4}$/i.test(normalized);
+  }
+}
+
+const crawlCardDCVanguard = async (cardName, cardId, gameType = GAME_TYPES.VANGUARD) => {
   try {
+    gameType = normalizeGameType(gameType, GAME_TYPES.VANGUARD);
+
     // EUC-KR로 인코딩된 검색어 생성, 인코딩 안 할 경우 검색 안됨 유의
     const encodedQuery = encodeEUCKR(cardName);
 
@@ -24,7 +47,6 @@ const crawlCardDCVanguard = async (cardName, cardId, gameType = 'vanguard') => {
 
     const response = await axios.get(searchUrl, config);
 
-    // 응답 디코딩
     const html = iconv.decode(response.data, 'euc-kr');
 
     const $ = cheerio.load(html);
@@ -47,7 +69,7 @@ const crawlCardDCVanguard = async (cardName, cardId, gameType = 'vanguard') => {
         const title = productLink.text().trim();
 
         // 뱅가드 카드 코드 패턴 확인 (D-PR-KR262, DZ-SS07-KRFFR03 등)
-        const isCardCodePattern = /^[A-Z0-9]{1,3}-[A-Z0-9]{2,6}-[A-Z]{2}[A-Z0-9]+$/i.test(cardName.trim());
+        const isCardCodePattern = isCardCodePatternForGame(cardName, gameType);
 
         // 카드 코드는 li.pro_info_t2 에 있음
         const extractedCardCode = productCell.find('li.pro_info_t2').text().trim();
@@ -126,6 +148,8 @@ const crawlCardDCVanguard = async (cardName, cardId, gameType = 'vanguard') => {
         } else {
           language = parseLanguage(title, gameType);
         }
+
+        rarity = normalizeRarity(rarity, { gameType, cardCode: extractedCardCode });
 
         const condition = parseCondition(title);
 
@@ -170,9 +194,10 @@ const crawlCardDCVanguard = async (cardName, cardId, gameType = 'vanguard') => {
   }
 };
 
-// 유희왕 전용 크롤링 함수 (기존 로직 유지)
-const crawlCardDC = async (cardName, cardId, gameType = 'yugioh') => {
+const crawlCardDC = async (cardName, cardId, gameType = GAME_TYPES.YUGIOH) => {
   try {
+    gameType = normalizeGameType(gameType, GAME_TYPES.YUGIOH);
+
     // EUC-KR로 인코딩된 검색어 생성, 인코딩 안 할 경우 검색 안됨 유의
     const encodedQuery = encodeEUCKR(cardName);
 
@@ -206,7 +231,7 @@ const crawlCardDC = async (cardName, cardId, gameType = 'yugioh') => {
 
         const title = productLink.text().trim();
 
-        const isCardCodePattern = /^[A-Z0-9]{2,5}-[A-Z]{2}\d{3,4}$/i.test(cardName.trim());
+        const isCardCodePattern = isCardCodePatternForGame(cardName, gameType);
 
         // 카드 코드는 li.pro_info_t2 에 있음
         const extractedCardCode = productCell.find('li.pro_info_t2').text().trim();
@@ -285,6 +310,8 @@ const crawlCardDC = async (cardName, cardId, gameType = 'yugioh') => {
         } else {
           language = parseLanguage(title, gameType);
         }
+
+        rarity = normalizeRarity(rarity, { gameType, cardCode: extractedCardCode });
 
         const condition = parseCondition(title);
 
@@ -332,11 +359,17 @@ const crawlCardDC = async (cardName, cardId, gameType = 'yugioh') => {
 const crawlCardDCWithRateLimit = withRateLimit(crawlCardDC, 'carddc');
 const crawlCardDCVanguardWithRateLimit = withRateLimit(crawlCardDCVanguard, 'carddc');
 
-const searchAndSaveCardDCPrices = async (cardName, cardId = null, gameType = 'yugioh') => {
+const searchAndSaveCardDCPrices = async (
+  cardName,
+  cardId = null,
+  gameType = GAME_TYPES.YUGIOH
+) => {
   try {
+    gameType = normalizeGameType(gameType, GAME_TYPES.YUGIOH);
+
     // gameType에 따라 적절한 크롤링 함수 선택
     let results;
-    if (gameType === 'vanguard') {
+    if (gameType === GAME_TYPES.VANGUARD || gameType === GAME_TYPES.ONEPIECE) {
       results = await crawlCardDCVanguardWithRateLimit(cardName, cardId, gameType);
     } else {
       results = await crawlCardDCWithRateLimit(cardName, cardId, gameType);

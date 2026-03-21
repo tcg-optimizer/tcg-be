@@ -24,6 +24,12 @@ router.get(
   cardController.getVanguardPricesByRarity
 );
 
+router.get(
+  '/onepiece-rarity-prices',
+  createRequestLogger('getOnepiecePricesByRarity'),
+  cardController.getOnepiecePricesByRarity
+);
+
 router.post(
   '/optimal-purchase',
   createRequestLogger('getOptimalPurchaseCombination'),
