@@ -13,6 +13,54 @@ const { normalizeRarity } = require('../utils/rarityUtil');
 const { GAME_TYPES } = require('../constants/gameTypes');
 const { normalizeGameType } = require('../utils/gameType');
 
+function normalizePriceRecord(rawPrice, gameType = GAME_TYPES.YUGIOH) {
+  const basePrice =
+    rawPrice && typeof rawPrice.get === 'function'
+      ? rawPrice.get({ plain: true })
+      : rawPrice && rawPrice.dataValues
+        ? { ...rawPrice.dataValues }
+        : { ...(rawPrice || {}) };
+
+  const product =
+    basePrice && basePrice.product && typeof basePrice.product === 'object'
+      ? basePrice.product
+      : null;
+
+  const mergedPrice = {
+    ...basePrice,
+    ...(product || {}),
+    id: basePrice.id ?? product?.id,
+    title: basePrice.title ?? product?.title,
+    price: basePrice.price ?? product?.price,
+    site: basePrice.site ?? product?.site,
+    url: basePrice.url ?? product?.url,
+    condition: basePrice.condition ?? product?.condition,
+    rarity: basePrice.rarity ?? product?.rarity,
+    language: basePrice.language ?? product?.language,
+    cardCode: basePrice.cardCode ?? product?.cardCode,
+    available: basePrice.available ?? product?.available,
+    lastUpdated: basePrice.lastUpdated ?? product?.lastUpdated,
+    illustration: basePrice.illustration ?? product?.illustration ?? 'default',
+  };
+
+  const normalizedPriceValue =
+    mergedPrice.price === null || mergedPrice.price === undefined
+      ? mergedPrice.price
+      : Number(mergedPrice.price);
+
+  return {
+    ...mergedPrice,
+    price: normalizedPriceValue,
+    rarity: normalizeRarity(mergedPrice.rarity, { gameType, cardCode: mergedPrice.cardCode }),
+    language:
+      gameType === GAME_TYPES.ONEPIECE &&
+      (!mergedPrice.language || mergedPrice.language === '알 수 없음')
+        ? '한글판'
+        : mergedPrice.language,
+    available: mergedPrice.available !== false,
+  };
+}
+
 async function searchCardPricesFromAllSources(cardName, gameType = GAME_TYPES.YUGIOH) {
   gameType = normalizeGameType(gameType, GAME_TYPES.YUGIOH);
 
@@ -120,8 +168,8 @@ async function getOrCreateCardPriceData(
             rarityPrices = cachedResult.rarityPrices;
           }
 
-          // 품절된 상품 필터링 (available 필드가 false인 아이템 제외)
           let totalProducts = 0;
+          let malformedPriceCount = 0;
       Object.keys(rarityPrices).forEach(illustration => {
         Object.keys(rarityPrices[illustration] || {}).forEach(language => {
           Object.keys(rarityPrices[illustration][language] || {}).forEach(rarity => {
@@ -129,11 +177,37 @@ async function getOrCreateCardPriceData(
               rarityPrices[illustration][language][rarity] &&
               rarityPrices[illustration][language][rarity].prices
             ) {
-              rarityPrices[illustration][language][rarity].prices =
-                rarityPrices[illustration][language][rarity].prices.filter(
-                      price => price.available !== false
-                    );
-              totalProducts += rarityPrices[illustration][language][rarity].prices.length;
+              const currentPrices = Array.isArray(rarityPrices[illustration][language][rarity].prices)
+                ? rarityPrices[illustration][language][rarity].prices
+                : [];
+
+              const sanitizedPrices = [];
+              currentPrices.forEach(rawPrice => {
+                const normalizedPrice = normalizePriceRecord(rawPrice, gameType);
+
+                if (normalizedPrice.available === false) {
+                  return;
+                }
+
+                const hasValidPrice = Number.isFinite(Number(normalizedPrice.price));
+                const hasSite =
+                  typeof normalizedPrice.site === 'string' && normalizedPrice.site.trim() !== '';
+                const hasUrl =
+                  typeof normalizedPrice.url === 'string' && normalizedPrice.url.trim() !== '';
+
+                if (!hasValidPrice || !hasSite || !hasUrl) {
+                  malformedPriceCount += 1;
+                  return;
+                }
+
+                sanitizedPrices.push({
+                  ...normalizedPrice,
+                  price: Number(normalizedPrice.price),
+                });
+              });
+
+              rarityPrices[illustration][language][rarity].prices = sanitizedPrices;
+              totalProducts += sanitizedPrices.length;
                 }
               });
             });
@@ -161,8 +235,13 @@ async function getOrCreateCardPriceData(
             }
           });
 
-            // 정규화 후 데이터가 없는 경우 캐시 무효화
-      if (Object.keys(rarityPrices).length === 0) {
+            // 정규화 후 데이터가 없거나 필드가 깨진 캐시는 무효화
+      if (Object.keys(rarityPrices).length === 0 || malformedPriceCount > 0) {
+            if (malformedPriceCount > 0) {
+              console.warn(
+                `[WARN] 캐시 데이터에 비정상 가격 항목 ${malformedPriceCount}건이 있어 재검색합니다.`
+              );
+            }
             await cachedResult.update({
               expiresAt: new Date(Date.now() - 1000), // 현재 시간보다 이전으로 설정하여 만료 처리
             });
@@ -207,26 +286,26 @@ async function getOrCreateCardPriceData(
     throw new Error('센터 카드는 가격 정보를 제공하지 않습니다.');
   }
 
-  const normalizedPrices = combinedPrices.map(price => ({
-    ...price,
-    rarity: normalizeRarity(price.rarity, { gameType, cardCode: price.cardCode }),
-    language:
-      gameType === GAME_TYPES.ONEPIECE &&
-      (!price.language || price.language === '알 수 없음')
-        ? '한글판'
-        : price.language,
-  }));
+  const normalizedPrices = combinedPrices.map(price => normalizePriceRecord(price, gameType));
 
   const filteredPrices = normalizedPrices.filter(price => {
+    const site = typeof price.site === 'string' ? price.site : '';
+    const url = typeof price.url === 'string' ? price.url : '';
+    const normalizedPriceValue = Number(price.price);
+
     if (price.title && parseCondition(price.title) === '중고') return false;
     
-    if (price.site && (price.site === 'Naver_번개장터' || price.site.includes('번개장터'))) return false;
+    if (site && (site === 'Naver_번개장터' || site.includes('번개장터'))) return false;
     
     if (price.condition && price.condition !== '신품') return false;
     
-    if (price.site === 'Naver_네이버') return false;
+    if (site === 'Naver_네이버') return false;
     
     if (price.available === false) return false;
+
+    if (!Number.isFinite(normalizedPriceValue)) return false;
+
+    if (!site.trim() || !url.trim()) return false;
     
     if (!price.rarity || price.rarity === '알 수 없음' || !price.language || price.language === '알 수 없음') return false;
     
@@ -269,14 +348,14 @@ async function getOrCreateCardPriceData(
 
           rarityPrices[illustration][language][rarity].prices.push({
             id: price.id,
-            price: price.price,
-            site: price.site,
-            url: price.url,
+            price: Number(price.price),
+            site: String(price.site || '').trim(),
+            url: String(price.url || '').trim(),
             condition: price.condition,
             rarity: price.rarity,
             language: price.language,
             cardCode: price.cardCode,
-            available: price.available,
+            available: price.available !== false,
             lastUpdated: price.lastUpdated,
             illustration: price.illustration || 'default',
           });
