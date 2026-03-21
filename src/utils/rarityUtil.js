@@ -173,7 +173,7 @@ function parseOnepieceRarity(title) {
 
   // 코드 뒤에 레어도를 붙여 표기하는 케이스 (예: OP10-071SR, OP02-KR056UC)
   const codeAttachedRarityMatch = text.match(
-    /\b[A-Z]{1,4}-?\d{1,2}-(?:(?:KR|JP|EN)-?)?\d{3}(PP|SEC|SR|SP|TR|UC|L|R|C|P)\b/i
+    /\b[A-Z]{1,4}-?\d{1,2}-(?:(?:KR|JP|EN)-?)?\d{3}(PP|SEC|SR|SP|TR|UC|L|R|C)\b/i
   );
   if (codeAttachedRarityMatch && codeAttachedRarityMatch[1]) {
     return codeAttachedRarityMatch[1].toUpperCase();
@@ -211,10 +211,6 @@ function parseOnepieceRarity(title) {
     {
       pattern: /(\bR\b|\[R\]|\(R\)|레어|rare)/i,
       rarity: 'R',
-    },
-    {
-      pattern: /(\bP-\d{3}[A-Z]?\b|\bP\b|\[P\]|\(P\)|프로모|promo|패러렐|파라렐|parallel)/i,
-      rarity: 'P',
     },
   ];
 
