@@ -91,9 +91,10 @@ app.use(notFoundHandler);
 app.use(globalErrorHandler);
 
 const PORT = process.env.PORT;
+const HOST = process.env.HOST || '0.0.0.0';
 
-app.listen(PORT, () => {
-  console.log(`TCG스캐너 서버가 포트 ${PORT}에서 실행 중입니다.`);
+app.listen(PORT, HOST, () => {
+  console.log(`TCG스캐너 서버가 ${HOST}:${PORT}에서 실행 중입니다.`);
 });
 
 module.exports = app;
