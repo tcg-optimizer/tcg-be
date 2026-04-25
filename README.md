@@ -121,7 +121,6 @@
    # 서버 설정
    HOST=0.0.0.0
    PORT=5000
-   TRUST_PROXY=1
    
    # 데이터베이스 설정
    DB_HOST=localhost
@@ -167,7 +166,6 @@
 |--------|------|------|
 | `HOST` | 백엔드 서버 바인딩 호스트 | `0.0.0.0` |
 | `PORT` | 백엔드 서버 포트 | `5000` |
-| `TRUST_PROXY` | 리버스 프록시/LB 홉 수 | `1` |
 | `DB_HOST` | MySQL 호스트 | `localhost` |
 | `DB_PORT` | MySQL 포트 | `3306` |
 | `DB_NAME` | 데이터베이스 이름 | `cards` |
