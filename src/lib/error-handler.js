@@ -44,32 +44,42 @@ const determineSeverity = error => {
   return 'info';
 };
 
-const globalErrorHandler = (err, req, res, next) => {
-  setImmediate(async () => {
-    try {
-      console.log('Publishing error to Redis...');
-      console.log('redisManager instance:', typeof redisManager, !!redisManager);
-      const errorData = createErrorData(err, req);
-      const success = await redisManager.publishError(errorData);
-      if (success) {
-        console.log('Error successfully published to Redis');
-      } else {
-        console.log('Failed to publish error to Redis');
-      }
-    } catch (publishError) {
-      console.error('Failed to publish error to Redis:', publishError);
-    }
-  });
+const shouldPublishError = error => {
+  const statusCode = error.statusCode || 500;
+  return statusCode >= 500;
+};
 
+const globalErrorHandler = (err, req, res, next) => {
   const statusCode = err.statusCode || 500;
   const message = err.isOperational ? err.message : 'Internal Server Error';
 
-  console.error('Error occurred:', {
-    message: err.message,
-    stack: err.stack,
-    url: req.url,
-    method: req.method,
-  });
+  if (shouldPublishError(err)) {
+    setImmediate(async () => {
+      try {
+        const errorData = createErrorData(err, req);
+        await redisManager.publishError(errorData);
+      } catch (publishError) {
+        console.error('Failed to publish error to Redis:', publishError);
+      }
+    });
+  }
+
+  if (statusCode >= 500) {
+    console.error('Error occurred:', {
+      message: err.message,
+      stack: err.stack,
+      url: req.url,
+      method: req.method,
+    });
+  } else {
+    console.warn('Request handled with warning:', {
+      message: err.message,
+      statusCode,
+      url: req.url,
+      method: req.method,
+      ip: req.ip || req.connection?.remoteAddress,
+    });
+  }
 
   res.status(statusCode).json({
     success: false,
@@ -80,9 +90,13 @@ const globalErrorHandler = (err, req, res, next) => {
   });
 };
 
-const notFoundHandler = (req, res, next) => {
-  const error = new AppError(`Route ${req.originalUrl} not found`, 404);
-  next(error);
+const notFoundHandler = (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: {
+      message: '요청한 경로를 찾을 수 없습니다.',
+    },
+  });
 };
 
 const asyncHandler = fn => {

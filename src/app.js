@@ -15,6 +15,27 @@ const { startPeriodicCleanup } = require('./utils/cleanup');
 
 const app = express();
 
+const parseTrustProxy = value => {
+  if (value === undefined || value === null || value === '') {
+    return process.env.NODE_ENV === 'production' ? 1 : false;
+  }
+
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+
+  const parsedNumber = Number(value);
+  if (Number.isInteger(parsedNumber) && parsedNumber >= 0) {
+    return parsedNumber;
+  }
+
+  return value;
+};
+
+const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
+
+app.disable('x-powered-by');
+app.set('trust proxy', trustProxy);
+
 (async () => {
   await connectDB();
   await sequelize.sync();
@@ -69,6 +90,7 @@ const apiLimiter = rateLimit({
   max: 60, // IP당 1분에 최대 60개까지만 요청 가능
   standardHeaders: true,
   legacyHeaders: false,
+  skip: req => req.method === 'OPTIONS',
   message: {
     success: false,
     error: '너무 많은 요청을 보냈습니다. 잠시 후 다시 시도해주세요.',
@@ -83,6 +105,15 @@ app.get('/', (req, res) => {
 
 const cardRoutes = require('./routes/cards');
 app.use('/api/cards', cardRoutes);
+
+app.use('/api', (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: {
+      message: '요청한 API 엔드포인트를 찾을 수 없습니다.',
+    },
+  });
+});
 
 // 404 핸들러 - 모든 라우터 후에 위치하도록 해야 함 
 app.use(notFoundHandler);
