@@ -6,17 +6,23 @@ function normalizeIp(ip) {
   return ip.startsWith('::ffff:') ? ip.slice(7) : ip;
 }
 
-function getForwardedIp(req) {
+function getForwardedIpList(req) {
   const headerValue = req.headers?.['x-forwarded-for'];
 
   if (!headerValue) {
-    return null;
+    return [];
   }
 
   const forwardedValue = Array.isArray(headerValue) ? headerValue[0] : headerValue;
-  const firstIp = forwardedValue.split(',')[0]?.trim();
 
-  return normalizeIp(firstIp);
+  return forwardedValue
+    .split(',')
+    .map(ip => normalizeIp(ip.trim()))
+    .filter(Boolean);
+}
+
+function getForwardedIp(req) {
+  return getForwardedIpList(req)[0] || null;
 }
 
 function getClientIp(req) {
@@ -41,5 +47,7 @@ function getRateLimitKey(req, suffix = null) {
 
 module.exports = {
   getClientIp,
+  getForwardedIp,
+  getForwardedIpList,
   getRateLimitKey,
 };

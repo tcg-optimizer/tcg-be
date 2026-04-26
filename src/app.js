@@ -106,6 +106,8 @@ app.get('/', (req, res) => {
 });
 
 const cardRoutes = require('./routes/cards');
+const debugRoutes = require('./routes/debug');
+app.use('/api/debug', debugRoutes);
 app.use('/api/cards', cardRoutes);
 app.use('/api', apiNotFoundHandler);
 
