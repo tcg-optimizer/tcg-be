@@ -1,4 +1,5 @@
 const redisManager = require('./redis-manager');
+const { getClientIp } = require('../utils/clientIp');
 
 // 커스텀 에러 클래스
 class AppError extends Error {
@@ -26,7 +27,7 @@ const createErrorData = (error, req = null, context = {}) => {
       url: req?.url,
       method: req?.method,
       userAgent: req?.get('User-Agent'),
-      ip: req?.ip || req?.connection?.remoteAddress,
+      ip: req ? getClientIp(req) : undefined,
       body: req?.body,
       params: req?.params,
       query: req?.query,
@@ -44,38 +45,41 @@ const determineSeverity = error => {
   return 'info';
 };
 
-const globalErrorHandler = (err, req, res, next) => {
-  setImmediate(async () => {
-    try {
-      console.log('Publishing error to Redis...');
-      console.log('redisManager instance:', typeof redisManager, !!redisManager);
-      const errorData = createErrorData(err, req);
-      const success = await redisManager.publishError(errorData);
-      if (success) {
-        console.log('Error successfully published to Redis');
-      } else {
-        console.log('Failed to publish error to Redis');
-      }
-    } catch (publishError) {
-      console.error('Failed to publish error to Redis:', publishError);
-    }
-  });
+const shouldPublishError = error => {
+  const statusCode = error.statusCode || 500;
+  return statusCode >= 500;
+};
 
+const globalErrorHandler = (err, req, res, next) => {
   const statusCode = err.statusCode || 500;
   const message = err.isOperational ? err.message : 'Internal Server Error';
+  const logMethod = statusCode >= 500 ? console.error : console.warn;
 
-  console.error('Error occurred:', {
+  logMethod('Error occurred:', {
     message: err.message,
     stack: err.stack,
     url: req.url,
     method: req.method,
   });
 
+  if (shouldPublishError(err)) {
+    setImmediate(async () => {
+      try {
+        const errorData = createErrorData(err, req);
+        const success = await redisManager.publishError(errorData);
+        if (!success) {
+          console.error('Failed to publish error to Redis');
+        }
+      } catch (publishError) {
+        console.error('Failed to publish error to Redis:', publishError);
+      }
+    });
+  }
+
   res.status(statusCode).json({
     success: false,
     error: {
       message,
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
     },
   });
 };

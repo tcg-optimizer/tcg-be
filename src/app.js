@@ -5,6 +5,8 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const redisManager = require('./lib/redis-manager');
 const { notFoundHandler, globalErrorHandler } = require('./lib/error-handler');
+const { apiTrafficGuard, apiNotFoundHandler } = require('./utils/apiTrafficGuard');
+const { getRateLimitKey } = require('./utils/clientIp');
 
 dotenv.config();
 
@@ -14,6 +16,26 @@ require('./models/CardPriceCache');
 const { startPeriodicCleanup } = require('./utils/cleanup');
 
 const app = express();
+
+const resolveTrustProxy = value => {
+  if (value === undefined || value === null || value === '') {
+    return 1;
+  }
+
+  if (value === 'true') {
+    return 1;
+  }
+
+  if (value === 'false') {
+    return false;
+  }
+
+  const numericValue = Number(value);
+  return Number.isNaN(numericValue) ? value : numericValue;
+};
+
+app.set('trust proxy', resolveTrustProxy(process.env.TRUST_PROXY));
+app.disable('x-powered-by');
 
 (async () => {
   await connectDB();
@@ -26,8 +48,6 @@ const app = express();
 
 app.use(helmet());
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 process.on('uncaughtException', err => {
   console.error('Uncaught Exception:', err);
@@ -73,9 +93,13 @@ const apiLimiter = rateLimit({
     success: false,
     error: '너무 많은 요청을 보냈습니다. 잠시 후 다시 시도해주세요.',
   },
+  keyGenerator: req => getRateLimitKey(req),
 });
 
+app.use('/api', apiTrafficGuard);
 app.use('/api', apiLimiter);
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.get('/', (req, res) => {
   res.json({ message: 'TCG스캐너에 오신 것을 환영합니다!' });
@@ -83,6 +107,7 @@ app.get('/', (req, res) => {
 
 const cardRoutes = require('./routes/cards');
 app.use('/api/cards', cardRoutes);
+app.use('/api', apiNotFoundHandler);
 
 // 404 핸들러 - 모든 라우터 후에 위치하도록 해야 함 
 app.use(notFoundHandler);

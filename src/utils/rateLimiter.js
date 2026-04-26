@@ -1,4 +1,5 @@
 const { redisClient } = require('./db');
+const { getClientIp } = require('./clientIp');
 
 const RATE_LIMITS = {
   naver: 10, // 네이버 API - 초당 10개 요청
@@ -121,7 +122,7 @@ function withRateLimit(fn, site) {
 }
 
 function cardRequestLimiter(req, res, next) {
-  const ip = req.ip;
+  const ip = getClientIp(req);
   const cardName = req.query.cardName || req.body.cardName || req.params.cardName;
 
   const { isLimited, retryAfter } = trackCardRequest(ip, cardName);
