@@ -6,7 +6,8 @@ const rateLimit = require('express-rate-limit');
 const redisManager = require('./lib/redis-manager');
 const { notFoundHandler, globalErrorHandler } = require('./lib/error-handler');
 const { internalApiAuth } = require('./middleware/internalAuth');
-const { getClientIp } = require('./utils/clientIp');
+const { apiTrafficGuard, apiNotFoundHandler } = require('./utils/apiTrafficGuard');
+const { getRateLimitKey } = require('./utils/clientIp');
 
 dotenv.config();
 
@@ -27,17 +28,25 @@ if (!process.env.INTERNAL_API_SECRET) {
   );
 }
 
-const trustProxy = process.env.TRUST_PROXY;
-if (trustProxy) {
-  app.set(
-    'trust proxy',
-    trustProxy === 'true'
-      ? true
-      : Number.isNaN(Number(trustProxy))
-        ? trustProxy
-        : Number(trustProxy)
-  );
-}
+const resolveTrustProxy = value => {
+  if (value === undefined || value === null || value === '') {
+    return 1;
+  }
+
+  if (value === 'true') {
+    return 1;
+  }
+
+  if (value === 'false') {
+    return false;
+  }
+
+  const numericValue = Number(value);
+  return Number.isNaN(numericValue) ? value : numericValue;
+};
+
+app.set('trust proxy', resolveTrustProxy(process.env.TRUST_PROXY));
+app.disable('x-powered-by');
 
 (async () => {
   await connectDB();
@@ -117,15 +126,16 @@ process.on('unhandledRejection', (reason, promise) => {
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: 60, // IP당 1분에 최대 60개까지만 요청 가능
-  keyGenerator: req => getClientIp(req),
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     success: false,
     error: '너무 많은 요청을 보냈습니다. 잠시 후 다시 시도해주세요.',
   },
+  keyGenerator: req => getRateLimitKey(req),
 });
 
+app.use('/api', apiTrafficGuard);
 app.use('/api', apiLimiter);
 app.use('/api', internalApiAuth);
 
@@ -134,7 +144,10 @@ app.get('/', (req, res) => {
 });
 
 const cardRoutes = require('./routes/cards');
+const debugRoutes = require('./routes/debug');
+app.use('/api/debug', debugRoutes);
 app.use('/api/cards', cardRoutes);
+app.use('/api', apiNotFoundHandler);
 
 // 404 핸들러 - 모든 라우터 후에 위치하도록 해야 함 
 app.use(notFoundHandler);

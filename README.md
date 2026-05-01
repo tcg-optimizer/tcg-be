@@ -121,6 +121,7 @@
    # 서버 설정
    HOST=0.0.0.0
    PORT=5000
+   TRUST_PROXY=1
    
    # 데이터베이스 설정
    DB_HOST=localhost
@@ -166,6 +167,7 @@
 |--------|------|------|
 | `HOST` | 백엔드 서버 바인딩 호스트 | `0.0.0.0` |
 | `PORT` | 백엔드 서버 포트 | `5000` |
+| `TRUST_PROXY` | 신뢰할 프록시 홉 수. 로드밸런서/리버스 프록시 뒤에서 실제 클라이언트 IP를 식별할 때 사용 | `1` |
 | `DB_HOST` | MySQL 호스트 | `localhost` |
 | `DB_PORT` | MySQL 포트 | `3306` |
 | `DB_NAME` | 데이터베이스 이름 | `cards` |
@@ -182,6 +184,13 @@
 | `NAVER_CLIENT_SECRET` | 네이버 API 클라이언트 시크릿 | 네이버 쇼핑 검색 API |
 | `DISCORD_BOT_TOKEN` | Discord 봇 토큰 | Discord 알림 봇 |
 | `DISCORD_CHANNEL_ID` | Discord 채널 ID | Discord 알림 전송 |
+
+### 프록시/운영 환경 참고
+
+- `TRUST_PROXY`는 AWS ALB, Nginx, Cloudflare 같은 프록시 뒤에서 `X-Forwarded-For` 헤더를 신뢰할 때 필요합니다.
+- 일반적으로 로드밸런서 1단 뒤에 바로 Express가 있으면 `TRUST_PROXY=1`을 사용합니다.
+- 프록시가 2단 이상이면 실제 홉 수에 맞춰 `2`, `3`처럼 조정해야 합니다.
+- `TRUST_PROXY`가 잘못 설정되면 rate limit이 실제 사용자별이 아니라 프록시 IP 기준으로 묶여 오동작할 수 있습니다.
 
 ## 🤖 Discord 봇 (선택사항)
 
