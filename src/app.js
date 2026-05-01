@@ -5,6 +5,8 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const redisManager = require('./lib/redis-manager');
 const { notFoundHandler, globalErrorHandler } = require('./lib/error-handler');
+const { internalApiAuth } = require('./middleware/internalAuth');
+const { getClientIp } = require('./utils/clientIp');
 
 dotenv.config();
 
@@ -14,6 +16,28 @@ require('./models/CardPriceCache');
 const { startPeriodicCleanup } = require('./utils/cleanup');
 
 const app = express();
+
+if (process.env.NODE_ENV === 'production' && !process.env.INTERNAL_API_SECRET) {
+  throw new Error('INTERNAL_API_SECRET must be set in production.');
+}
+
+if (!process.env.INTERNAL_API_SECRET) {
+  console.warn(
+    '[WARN] INTERNAL_API_SECRET is not set. /api internal auth is disabled outside production.'
+  );
+}
+
+const trustProxy = process.env.TRUST_PROXY;
+if (trustProxy) {
+  app.set(
+    'trust proxy',
+    trustProxy === 'true'
+      ? true
+      : Number.isNaN(Number(trustProxy))
+        ? trustProxy
+        : Number(trustProxy)
+  );
+}
 
 (async () => {
   await connectDB();
@@ -25,7 +49,33 @@ const app = express();
 })();
 
 app.use(helmet());
-app.use(cors());
+app.use(
+  cors({
+    origin(origin, callback) {
+      const allowedOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_ORIGIN || '')
+        .split(',')
+        .map(item => item.trim())
+        .filter(Boolean);
+
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+      ) {
+        return callback(null, true);
+      }
+
+      return callback(new Error('Not allowed by CORS'));
+    },
+  })
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -67,6 +117,7 @@ process.on('unhandledRejection', (reason, promise) => {
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: 60, // IP당 1분에 최대 60개까지만 요청 가능
+  keyGenerator: req => getClientIp(req),
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -76,6 +127,7 @@ const apiLimiter = rateLimit({
 });
 
 app.use('/api', apiLimiter);
+app.use('/api', internalApiAuth);
 
 app.get('/', (req, res) => {
   res.json({ message: 'TCG스캐너에 오신 것을 환영합니다!' });
