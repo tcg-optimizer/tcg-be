@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const redisManager = require('./lib/redis-manager');
 const { notFoundHandler, globalErrorHandler } = require('./lib/error-handler');
+const { internalApiAuth } = require('./middleware/internalAuth');
 const { apiTrafficGuard, apiNotFoundHandler } = require('./utils/apiTrafficGuard');
 const { getRateLimitKey } = require('./utils/clientIp');
 
@@ -16,6 +17,16 @@ require('./models/CardPriceCache');
 const { startPeriodicCleanup } = require('./utils/cleanup');
 
 const app = express();
+
+if (process.env.NODE_ENV === 'production' && !process.env.INTERNAL_API_SECRET) {
+  throw new Error('INTERNAL_API_SECRET must be set in production.');
+}
+
+if (!process.env.INTERNAL_API_SECRET) {
+  console.warn(
+    '[WARN] INTERNAL_API_SECRET is not set. /api internal auth is disabled outside production.'
+  );
+}
 
 const resolveTrustProxy = value => {
   if (value === undefined || value === null || value === '') {
@@ -47,7 +58,35 @@ app.disable('x-powered-by');
 })();
 
 app.use(helmet());
-app.use(cors());
+app.use(
+  cors({
+    origin(origin, callback) {
+      const allowedOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_ORIGIN || '')
+        .split(',')
+        .map(item => item.trim())
+        .filter(Boolean);
+
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+      ) {
+        return callback(null, true);
+      }
+
+      return callback(new Error('Not allowed by CORS'));
+    },
+  })
+);
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 process.on('uncaughtException', err => {
   console.error('Uncaught Exception:', err);
@@ -98,8 +137,7 @@ const apiLimiter = rateLimit({
 
 app.use('/api', apiTrafficGuard);
 app.use('/api', apiLimiter);
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use('/api', internalApiAuth);
 
 app.get('/', (req, res) => {
   res.json({ message: 'TCG스캐너에 오신 것을 환영합니다!' });

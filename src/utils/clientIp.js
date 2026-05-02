@@ -26,6 +26,11 @@ function getForwardedIp(req) {
 }
 
 function getClientIp(req) {
+  const clientIp = req.get?.('x-client-ip');
+  if (clientIp) {
+    return normalizeIp(clientIp.trim()) || 'unknown';
+  }
+
   return (
     getForwardedIp(req) ||
     normalizeIp(req.ip) ||
