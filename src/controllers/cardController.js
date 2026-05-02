@@ -9,6 +9,7 @@ const CardPriceCache = require('../models/CardPriceCache');
 const rateLimit = require('express-rate-limit');
 const { cardRequestLimiter } = require('../utils/rateLimiter');
 const { parseCondition } = require('../utils/crawler');
+const { getRateLimitKey } = require('../utils/clientIp');
 
 async function searchCardPricesFromAllSources(cardName, gameType = 'yugioh') {
   let existingCard = await Card.findOne({
@@ -697,7 +698,7 @@ const cardPriceRateLimiter = rateLimit({
     error: '카드 가격 검색 요청이 너무 많습니다. 30초 후에 다시 시도해주세요.',
   },
   keyGenerator: req => {
-    return `${req.ip}:${req.query.cardName || 'unknown'}`;
+    return getRateLimitKey(req, req.query.cardName || 'unknown');
   },
 });
 
@@ -711,6 +712,7 @@ const optimalPurchaseRateLimiter = rateLimit({
     success: false,
     error: '최적 구매 조합 계산 요청이 너무 많습니다. 30초 후에 다시 시도해주세요.',
   },
+  keyGenerator: req => getRateLimitKey(req),
 });
 
 // 카드 검색 API에 대한 IP당 제한 설정
@@ -723,6 +725,7 @@ const cardSearchRateLimiter = rateLimit({
     success: false,
     error: '카드 검색 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
   },
+  keyGenerator: req => getRateLimitKey(req),
 });
 
 exports.getYugiohPricesByRarity = [
