@@ -20,7 +20,7 @@ const CardPriceCache = sequelize.define(
       allowNull: true,
     },
     gameType: {
-      // 게임 타입 (yugioh: 유희왕, vanguard: 뱅가드, onepiece: 원피스 카드게임)
+      // 게임 타입 (yugioh: 유희왕, vanguard: 뱅가드, onepiece: 원피스)
       type: DataTypes.STRING,
       allowNull: false,
       defaultValue: GAME_TYPES.YUGIOH,

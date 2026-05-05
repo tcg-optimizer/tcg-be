@@ -912,7 +912,7 @@ exports.getVanguardPricesByRarity = createGetPricesByRarityHandler(
 );
 exports.getOnepiecePricesByRarity = createGetPricesByRarityHandler(
   GAME_TYPES.ONEPIECE,
-  '원피스 카드게임'
+  '원피스'
 );
 
 exports.searchNaverShopApi = [
