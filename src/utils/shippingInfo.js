@@ -690,6 +690,48 @@ const naverSellerShippingInfo = {
     islandShippingFee: 3500,
     freeShippingThreshold: Infinity,
   },
+
+  '화성스토어-tcg-': {
+    shippingFee: 3000,
+    jejuShippingFee: 6000,
+    islandShippingFee: 8000,
+    freeShippingThreshold: 60000,
+  },
+
+  카드코어: {
+    shippingFee: 3000,
+    jejuShippingFee: 7000,
+    islandShippingFee: 7000,
+    freeShippingThreshold: 30000,
+  },
+
+  하비게임몰: {
+    shippingFee: 3000,
+    jejuShippingFee: 6000,
+    islandShippingFee: 6000,
+    freeShippingThreshold: 50000,
+  },
+
+  카드숲: {
+    shippingFee: 3500,
+    jejuShippingFee: 7000,
+    islandShippingFee: 7000,
+    freeShippingThreshold: 50000,
+  },
+  
+  위대한항로: {
+    shippingFee: 4000,
+    jejuShippingFee: 7000,
+    islandShippingFee: 7000,
+    freeShippingThreshold: 50000,
+  },
+
+  데쿠데쿠: {
+    shippingFee: 3500,
+    jejuShippingFee: 7000,
+    islandShippingFee: 7000,
+    freeShippingThreshold: 50000,
+  }
 };
 
 const loggedMissingShippingInfoSellers = new Set();

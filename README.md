@@ -283,15 +283,17 @@ npm run format:check
 
 서버가 정상적으로 실행되면 다음 엔드포인트들을 사용할 수 있습니다:
 
-- `GET /api/cards/rarity-prices?cardName={카드이름}` - 카드 가격 정보 조회
+- `GET /api/cards/yugioh-rarity-prices?cardName={카드이름}` - 유희왕 카드 가격 정보 조회
+- `GET /api/cards/vanguard-rarity-prices?cardName={카드이름}` - 뱅가드 카드 가격 정보 조회
+- `GET /api/cards/onepiece-rarity-prices?cardName={카드이름}` - 원피스 카드 가격 정보 조회
 - `POST /api/cards/optimal-purchase` - 최적 구매 조합 계산
 - `GET /api/cards/prices-cache/{cacheId}` - 캐시된 가격 정보 조회
 
 ### 기본 사용 예시
 
 ```javascript
-// 카드 가격 조회
-const response = await fetch('http://localhost:5000/api/cards/rarity-prices?cardName=블랙 매지션');
+// 카드 가격 조회 (게임별 엔드포인트 사용)
+const response = await fetch('http://localhost:5000/api/cards/yugioh-rarity-prices?cardName=블랙 매지션');
 const data = await response.json();
 
 // 최적 구매 조합 계산
@@ -365,6 +367,24 @@ GET /api/cards/vanguard-rarity-prices?cardName=블래스터 블레이드
 **중고 상품 제외 옵션:**
 
 GET /api/cards/vanguard-rarity-prices?cardName=블래스터 블레이드&includeUsed=false
+
+#### **1-3. 원피스 카드 가격 정보 조회**
+
+- **엔드포인트**: GET /api/cards/onepiece-rarity-prices?cardName=카드이름
+- **설명**: 원피스 카드 이름으로 검색하여 카드 정보와 레어도별 가격 데이터를 반환합니다. 네이버 API, TCGShop, CardDC에서 실시간 검색을 시도합니다.
+
+- **파라미터**: cardName: 검색할 카드 이름
+- **쿼리 파라미터**: includeUsed: 중고 상품 포함 여부 (기본값: true)
+
+**요청 형식 예시**
+
+**기본 요청:**
+
+GET /api/cards/onepiece-rarity-prices?cardName=몽키 D 루피
+
+**중고 상품 제외 옵션:**
+
+GET /api/cards/onepiece-rarity-prices?cardName=몽키 D 루피&includeUsed=false
 
 - **응답 예시**:json
 
@@ -499,7 +519,7 @@ GET /api/cards/vanguard-rarity-prices?cardName=블래스터 블레이드&include
 
 - **엔드포인트**: POST /api/cards/optimal-purchase
 - **설명**: 여러 장의 카드를 가장 저렴하게 구매할 수 있는 조합을 계산합니다. 다양한 사이트에서 카드 가격을 검색하고, 배송비를 고려하여 최적의 구매 조합을 제안합니다.
-- **중요**: 이 API를 사용하기 전에 반드시 각 카드에 대해 /api/cards/rarity-prices/:cardName API를 호출하여 가격 정보와 캐시 ID를 받아야 합니다.
+- **중요**: 이 API를 사용하기 전에 반드시 각 카드에 대해 게임별 가격 조회 API(`/api/cards/yugioh-rarity-prices`, `/api/cards/vanguard-rarity-prices`, `/api/cards/onepiece-rarity-prices`)를 호출하여 가격 정보와 캐시 ID를 받아야 합니다.
 - **요청 본문 예시**:
 
 ```json
@@ -567,7 +587,7 @@ cards: 구매할 카드 목록 (필수)
 - rarity: 원하는 레어도 (필수)
 - language: 원하는 언어 (필수, 예: "한글판", "일본판", "영문판")
 - quantity: 같은 카드를 몇 장 구매할건지 (필수, 기본값: 1)
-- cacheId: 가격 정보 캐시 ID (필수, /api/cards/rarity-prices/:cardName API 호출 시 받은 값)
+- cacheId: 가격 정보 캐시 ID (필수, 게임별 가격 조회 API 호출 시 응답으로 받은 cacheId 값)
 - shippingRegion: 'default', 'jeju', 'island' (기본값: 'default', 기본 배송비, 제주 지역 배송비, 도서 지역 배송비 적용)
 
 적립금 관련 옵션들: 
@@ -605,7 +625,7 @@ cards: 구매할 카드 목록 (필수)
 ```json
 {
   "success": false,
-  "message": "'블랙 매지션' 카드의 가격 정보가 만료되었거나 존재하지 않습니다. 다시 /api/cards/rarity-prices/블랙%20매지션 API를 호출하여 새로운 캐시 ID를 얻어주세요.",
+  "message": "'블랙 매지션' 카드의 가격 정보가 만료되었거나 존재하지 않습니다. 다시 게임별 가격 조회 API(예: /api/cards/yugioh-rarity-prices?cardName=블랙%20매지션)를 호출하여 새로운 캐시 ID를 얻어주세요.",
   "invalidCacheId": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
@@ -754,7 +774,7 @@ cards: 구매할 카드 목록 (필수)
 
 - :id - 캐시 ID (UUID 형식)
 - UUID 형식: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (예: 123e4567-e89b-12d3-a456-426614174000)
-- 이 캐시 ID는 /api/cards/rarity-prices API를 호출할 때 응답으로 받은 cacheId 값을 사용해야 합니다.
+- 이 캐시 ID는 게임별 가격 조회 API(`/api/cards/yugioh-rarity-prices`, `/api/cards/vanguard-rarity-prices`, `/api/cards/onepiece-rarity-prices`)를 호출할 때 응답으로 받은 cacheId 값을 사용해야 합니다.
 
 **요청 형식 예시**
 

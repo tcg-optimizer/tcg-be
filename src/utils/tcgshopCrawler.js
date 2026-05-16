@@ -1,15 +1,38 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 const iconv = require('iconv-lite');
-const { parseRarity } = require('./rarityUtil');
+const { parseRarity, normalizeRarity } = require('./rarityUtil');
 const { parseLanguage, parseCondition, detectIllustration, encodeEUCKR } = require('./crawler');
 const { withRateLimit } = require('./rateLimiter');
 const { createCrawlerConfig } = require('./userAgentUtil');
+const { GAME_TYPES } = require('../constants/gameTypes');
+const { normalizeGameType } = require('./gameType');
+
+function isCardCodePatternForGame(cardName, gameType = GAME_TYPES.YUGIOH) {
+  if (!cardName || typeof cardName !== 'string') {
+    return false;
+  }
+
+  const normalized = cardName.trim();
+
+  switch (gameType) {
+    case GAME_TYPES.VANGUARD:
+      return /^[A-Z0-9]{1,3}-[A-Z0-9]{2,6}-[A-Z]{2}[A-Z0-9]+$/i.test(normalized);
+    case GAME_TYPES.ONEPIECE:
+      return /^(?:[A-Z]{1,4}\d{2}-\d{3}[A-Z]?|[A-Z]{1,4}-\d{2}-\d{3}[A-Z]?|P-\d{3}[A-Z]?)$/i.test(
+        normalized
+      );
+    case GAME_TYPES.YUGIOH:
+    default:
+      return /^[A-Z0-9]{2,5}-[A-Z]{2}\d{3,4}$/i.test(normalized);
+  }
+}
 
 
-// 뱅가드 전용 크롤링 함수
-async function crawlTCGShopVanguard(cardName, cardId, gameType = 'vanguard') {
+async function crawlTCGShopVanguard(cardName, cardId, gameType = GAME_TYPES.VANGUARD) {
   try {
+    gameType = normalizeGameType(gameType, GAME_TYPES.VANGUARD);
+
     const encodedQuery = encodeEUCKR(cardName);
 
     const searchUrl = `http://www.tcgshop.co.kr/search_result.php?search=meta_str&searchstring=${encodedQuery.replace(/%20/g, '+')}`;
@@ -45,7 +68,7 @@ async function crawlTCGShopVanguard(cardName, cardId, gameType = 'vanguard') {
       const title = productLink.text().trim();
 
       // 입력된 카드명이 카드 코드 패턴인지 확인 (뱅가드: D-PR-KR262, DZ-SS07-KRFFR03 등)
-      const isCardCodePattern = /^[A-Z0-9]{1,3}-[A-Z0-9]{2,6}-[A-Z]{2}[A-Z0-9]+$/i.test(cardName.trim());
+      const isCardCodePattern = isCardCodePatternForGame(cardName, gameType);
 
       // 카드 코드 추출 (span.glist_02에서 괄호 안의 내용)
       const codeElement = productTable.find('span.glist_02');
@@ -125,6 +148,8 @@ async function crawlTCGShopVanguard(cardName, cardId, gameType = 'vanguard') {
         language = parseLanguage(extractedCardCode, gameType);
       }
 
+      rarity = normalizeRarity(rarity, { gameType, cardCode: extractedCardCode });
+
       const illustration = detectIllustration(title);
 
       // 품절 여부 확인 (no_good_img 이미지가 있으면 품절)
@@ -182,9 +207,10 @@ async function crawlTCGShopVanguard(cardName, cardId, gameType = 'vanguard') {
   }
 }
 
-// 유희왕 전용 크롤링 함수 (기존 로직 유지)
-async function crawlTCGShop(cardName, cardId, gameType = 'yugioh') {
+async function crawlTCGShop(cardName, cardId, gameType = GAME_TYPES.YUGIOH) {
   try {
+    gameType = normalizeGameType(gameType, GAME_TYPES.YUGIOH);
+
     const encodedQuery = encodeEUCKR(cardName);
 
     const searchUrl = `http://www.tcgshop.co.kr/search_result.php?search=meta_str&searchstring=${encodedQuery.replace(/%20/g, '+')}`;
@@ -218,7 +244,7 @@ async function crawlTCGShop(cardName, cardId, gameType = 'yugioh') {
 
       // 입력된 카드명이 카드 코드 패턴인지 확인 (예: ALIN-KR011, ROTA-JP024 등)
       // 사용자가 카드 코드 패턴으로 검색하는 경우를 위함
-      const isCardCodePattern = /^[A-Z0-9]{2,5}-[A-Z]{2}\d{3,4}$/i.test(cardName.trim());
+      const isCardCodePattern = isCardCodePatternForGame(cardName, gameType);
 
       // 상품 행 (tr) 찾기
       const productRow = productCell.closest('tr');
@@ -298,6 +324,8 @@ async function crawlTCGShop(cardName, cardId, gameType = 'yugioh') {
         language = parseLanguage(extractedCardCode, gameType);
       }
 
+      rarity = normalizeRarity(rarity, { gameType, cardCode: extractedCardCode });
+
       const illustration = detectIllustration(title);
 
       let available = true;
@@ -359,11 +387,13 @@ async function crawlTCGShop(cardName, cardId, gameType = 'yugioh') {
 const crawlTCGShopWithRateLimit = withRateLimit(crawlTCGShop, 'tcgshop');
 const crawlTCGShopVanguardWithRateLimit = withRateLimit(crawlTCGShopVanguard, 'tcgshop');
 
-async function searchAndSaveTCGShopPrices(cardName, cardId, gameType = 'yugioh') {
+async function searchAndSaveTCGShopPrices(cardName, cardId, gameType = GAME_TYPES.YUGIOH) {
   try {
+    gameType = normalizeGameType(gameType, GAME_TYPES.YUGIOH);
+
     // gameType에 따라 적절한 크롤링 함수 선택
     let priceData;
-    if (gameType === 'vanguard') {
+    if (gameType === GAME_TYPES.VANGUARD || gameType === GAME_TYPES.ONEPIECE) {
       priceData = await crawlTCGShopVanguardWithRateLimit(cardName, cardId, gameType);
     } else {
       priceData = await crawlTCGShopWithRateLimit(cardName, cardId, gameType);
