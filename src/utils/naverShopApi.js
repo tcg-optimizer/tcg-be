@@ -298,6 +298,15 @@ const searchAndSaveCardPricesApi = async (cardName, options = {}) => {
       }
     }
 
+    // CardPrice 테이블엔 title 컬럼이 없으므로, 다운스트림 키워드 필터가 매칭할 수
+    // 있도록 원본 상품 제목을 저장된 인스턴스에 부착한다.
+    savedPrices.forEach(savedPrice => {
+      const item = results.find(result => result.productId === savedPrice.productId);
+      if (item) {
+        savedPrice.dataValues.title = item.title;
+      }
+    });
+
     return {
       card,
       prices: savedPrices,

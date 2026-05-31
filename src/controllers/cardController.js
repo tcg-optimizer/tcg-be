@@ -349,6 +349,7 @@ async function getOrCreateCardPriceData(
 
           rarityPrices[illustration][language][rarity].prices.push({
             id: price.id,
+            title: String(price.title || '').trim(),
             price: Number(price.price),
             site: String(price.site || '').trim(),
             url: String(price.url || '').trim(),
