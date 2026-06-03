@@ -25,6 +25,13 @@ function getGameSearchPrefix(gameType) {
   }
 }
 
+function getExcludedShops() {
+  return (process.env.NAVER_EXCLUDED_SHOPS || '')
+    .split(',')
+    .map(name => name.trim())
+    .filter(name => name.length > 0);
+}
+
 function shouldExcludeByCrossGameTitle(title, gameType) {
   if (!title) return false;
 
@@ -50,6 +57,8 @@ const performNaverSearch = async (
   gameType = GAME_TYPES.YUGIOH
 ) => {
   gameType = normalizeGameType(gameType, GAME_TYPES.YUGIOH);
+
+  const excludedShops = getExcludedShops();
 
   const query = encodeURIComponent(searchQuery);
   const display = 100; // 한 페이지에 표시할 검색 결과 개수
@@ -114,6 +123,8 @@ const performNaverSearch = async (
         item =>
           item.site !== '번개장터' &&
           !item.site.includes('번개장터') &&
+          !item.site.includes('쿠팡') &&
+          !excludedShops.includes(item.site) &&
           item.language !== '알 수 없음' &&
           item.rarity !== '알 수 없음' &&
           !shouldExcludeByCrossGameTitle(item.title, gameType) &&
@@ -191,14 +202,14 @@ const searchNaverShop = async (cardName, gameType = GAME_TYPES.YUGIOH) => {
     const gameTypeName = GAME_TYPE_LABELS[gameType] || 'TCG';
 
     // 유효한 결과가 적을 때 검색어에 게임 키워드를 붙여 재검색
-    if (gameSearchPrefix && allItems.length < 4) {
+    if (gameSearchPrefix && allItems.length < 2) {
       console.log(
         `[INFO] "${cardName}" 검색에서 유효한 ${gameTypeName} 카드가 ${allItems.length}개로 부족합니다. ${gameSearchPrefix} "${cardName}"으로 재검색합니다.`
       );
       searchQuery = `${gameSearchPrefix} "${cardName}"`;
       const additionalItems = await performNaverSearch(searchQuery, clientId, clientSecret, 10, 1, gameType);
       allItems = [...allItems, ...additionalItems];
-    } else if (allItems.length >= 4) {
+    } else if (allItems.length >= 2) {
       // 유효한 카드가 4개 이상이면 나머지 7페이지 추가 검색
       console.log(
         `[INFO] "${cardName}" 검색에서 유효한 ${gameTypeName} 카드가 ${allItems.length}개 발견. 나머지 7페이지를 추가 검색합니다.`
