@@ -1,4 +1,4 @@
-name: Deploy to EC2
+name: Deploy to OCI
 
 on:
   workflow_dispatch:
@@ -23,10 +23,10 @@ jobs:
       - name: Restart PM2
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: ${{ secrets.SSH_PORT }}
+          host: ${{ secrets.OCI_HOST }}
+          username: ${{ secrets.OCI_USERNAME }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          port: ${{ secrets.OCI_SSH_PORT }}
           script: |
             cd /home/ubuntu/be
             git pull origin master
@@ -35,5 +35,4 @@ jobs:
             source ~/.nvm/nvm.sh
             nvm use 22
 
-            cd ~
-            pm2 restart ecosystem.config.js --update-env
+            pm2 restart tcg-be --update-env
