@@ -1,9 +1,11 @@
+const { getClientIp } = require('./clientIp');
+
 function createRequestLogger(endpointName) {
   return (req, res, next) => {
     const startTime = Date.now();
     const method = req.method;
     const url = req.originalUrl || req.url;
-    const reqIp = req.ip || 'unknown';
+    const reqIp = getClientIp(req);
 
     const queryParams = Object.keys(req.query).length > 0 ? req.query : null;
 
