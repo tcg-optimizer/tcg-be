@@ -436,6 +436,7 @@ const searchAndSaveCardDCPrices = async (
         if (item) {
           const productWithId = {
             id: item.productId,
+            title: item.title,
             url: item.url,
             site: 'CardDC',
             price: item.price,
