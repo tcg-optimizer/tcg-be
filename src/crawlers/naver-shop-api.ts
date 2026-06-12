@@ -1,0 +1,306 @@
+import axios from 'axios';
+import { parseRarity, normalizeRarity } from '../common/utils/rarity-util';
+import { parseLanguage, parseCondition, extractCardCode, detectIllustration } from './crawler';
+import { withRateLimit } from './rate-limiter';
+import { getRandomizedHeaders } from '../common/utils/user-agent-util';
+import { GAME_TYPES, GAME_TYPE_LABELS } from '../common/constants/game-types';
+import { normalizeGameType } from '../common/utils/game-type';
+
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getGameSearchPrefix(gameType: string): string {
+  switch (gameType) {
+    case GAME_TYPES.YUGIOH:
+      return '유희왕';
+    case GAME_TYPES.VANGUARD:
+      return '뱅가드';
+    case GAME_TYPES.ONEPIECE:
+      return '원피스 카드';
+    default:
+      return '';
+  }
+}
+
+function getExcludedShops(): string[] {
+  return (process.env.NAVER_EXCLUDED_SHOPS || '')
+    .split(',')
+    .map(name => name.trim())
+    .filter(name => name.length > 0);
+}
+
+function shouldExcludeByCrossGameTitle(title: string, gameType: string): boolean {
+  if (!title) return false;
+
+  if (gameType === GAME_TYPES.YUGIOH) {
+    return title.includes('뱅가드') || title.includes('원피스 카드');
+  }
+  if (gameType === GAME_TYPES.VANGUARD) {
+    return title.includes('유희왕') || title.includes('원피스 카드');
+  }
+  if (gameType === GAME_TYPES.ONEPIECE) {
+    return title.includes('유희왕') || title.includes('뱅가드');
+  }
+
+  return false;
+}
+
+const performNaverSearch = async (
+  searchQuery: string,
+  clientId: string,
+  clientSecret: string,
+  maxPages: number,
+  startPage = 1,
+  gameType: string = GAME_TYPES.YUGIOH
+): Promise<any[]> => {
+  gameType = normalizeGameType(gameType, GAME_TYPES.YUGIOH);
+
+  const excludedShops = getExcludedShops();
+
+  const query = encodeURIComponent(searchQuery);
+  const display = 100; // 한 페이지에 표시할 검색 결과 개수
+  const sort = 'sim'; // 정확도순으로 내림차순 정렬
+  const exclude = 'used:rental:cbshop'; // 중고, 렌탈, 해외직구/구매대행 상품 제외
+  // 단, 네이버 샵들이 중고 상품을 중고 카테고리로 분류하지 않는 경우가 많아 여전히 추가적인 중고 파싱 로직은 필요함
+
+  let allItems: any[] = [];
+  let start = (startPage - 1) * display + 1; // 시작 페이지에 맞게 start 계산
+  let hasMoreItems = true;
+  const maxItems = maxPages * display; // 최대 아이템 수
+  let retryCount = 0;
+  const maxRetries = 3;
+  let currentPage = startPage;
+
+  while (hasMoreItems && allItems.length < maxItems && currentPage <= maxPages) {
+    const apiUrl = `https://openapi.naver.com/v1/search/shop.json?query=${query}&display=${display}&start=${start}&sort=${sort}&exclude=${exclude}`;
+
+    try {
+      if (currentPage > startPage) {
+        await delay(50);
+      }
+
+      const combinedHeaders = {
+        ...getRandomizedHeaders(false),
+        'X-Naver-Client-Id': clientId,
+        'X-Naver-Client-Secret': clientSecret,
+      };
+
+      const response = await axios.get(apiUrl, {
+        headers: combinedHeaders,
+        timeout: 5000,
+      });
+
+      const items = response.data.items.map((item: any) => {
+        const title = item.title.replace(/<b>|<\/b>/g, ''); // HTML 태그 제거용
+
+        const cardCode = extractCardCode(title, gameType);
+        const rarity = normalizeRarity(parseRarity(title, gameType), { gameType, cardCode });
+        const condition = parseCondition(title);
+        const language = parseLanguage(title, gameType);
+        const illustration = detectIllustration(title);
+
+        return {
+          title: title,
+          price: parseInt(item.lprice),
+          site: item.mallName,
+          url: item.link,
+          productId: item.productId.toString(),
+          image: item.image,
+          condition: condition,
+          rarity: rarity,
+          language: language,
+          cardCode: cardCode,
+          available: true,
+          illustration: illustration,
+        };
+      });
+
+      // 번개장터 상품과 언어/레어도가 '알 수 없음'인 상품들을 필터링
+      const filteredItems = items.filter(
+        (item: any) =>
+          item.site !== '번개장터' &&
+          !item.site.includes('번개장터') &&
+          !item.site.includes('쿠팡') &&
+          !excludedShops.includes(item.site) &&
+          item.language !== '알 수 없음' &&
+          item.rarity !== '알 수 없음' &&
+          !shouldExcludeByCrossGameTitle(item.title, gameType) &&
+          !(item.title.includes('랜덤') && item.title.includes('레어도'))
+      );
+
+      if (filteredItems.length > 0) {
+        allItems = [...allItems, ...filteredItems];
+      }
+
+      retryCount = 0;
+
+      // 100개 미만의 결과를 받았거나 최대 페이지에 도달했다면 더 이상 요청하지 않음
+      if (items.length < display || currentPage >= maxPages) {
+        hasMoreItems = false;
+      } else {
+        start += display;
+        currentPage++;
+      }
+    } catch (error: any) {
+      if (error.response && error.response.status === 429) {
+        console.log('[WARN] 네이버 API 속도 제한 초과. 2초 대기 후 재시도.');
+        await delay(2000);
+      } else {
+        retryCount++;
+        if (retryCount <= maxRetries) {
+          console.log(
+            `[WARN] 네이버 API 오류(${error.code || error.message}). ${retryCount}/${maxRetries} 재시도 중...`
+          );
+          await delay(2000);
+          continue;
+        } else {
+          console.log('[WARN] 네이버 API 오류. 최대 재시도 횟수 초과, 검색 종료.');
+          console.error(`[ERROR] 최종 오류: ${error.message}`);
+          break;
+        }
+      }
+    }
+  }
+
+  // productId 기준으로 중복 제거
+  const uniqueItems: any[] = [];
+  const seenProductIds = new Set<string>();
+  for (const item of allItems) {
+    if (!seenProductIds.has(item.productId)) {
+      seenProductIds.add(item.productId);
+      uniqueItems.push(item);
+    }
+  }
+
+  const gameTypeName = GAME_TYPE_LABELS[gameType] || 'TCG';
+  console.log(
+    `[INFO] "${searchQuery}" 검색 완료: 총 ${uniqueItems.length}개의 유효한 ${gameTypeName} 카드 발견 (중복 제거 전: ${allItems.length}개, ${maxPages}페이지, 최대 ${maxItems}개)`
+  );
+  return uniqueItems;
+};
+
+const searchNaverShop = async (
+  cardName: string,
+  gameType: string = GAME_TYPES.YUGIOH
+): Promise<any[]> => {
+  try {
+    gameType = normalizeGameType(gameType, GAME_TYPES.YUGIOH);
+
+    const clientId = process.env.NAVER_CLIENT_ID;
+    const clientSecret = process.env.NAVER_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      throw new Error('네이버 API 인증 정보가 설정되지 않았습니다.');
+    }
+
+    // 첫 번째 검색 시도 (3페이지까지)
+    let searchQuery = cardName;
+    let allItems = await performNaverSearch(searchQuery, clientId, clientSecret, 3, 1, gameType);
+
+    const gameSearchPrefix = getGameSearchPrefix(gameType);
+    const gameTypeName = GAME_TYPE_LABELS[gameType] || 'TCG';
+
+    // 유효한 결과가 적을 때 검색어에 게임 키워드를 붙여 재검색
+    if (gameSearchPrefix && allItems.length < 2) {
+      console.log(
+        `[INFO] "${cardName}" 검색에서 유효한 ${gameTypeName} 카드가 ${allItems.length}개로 부족합니다. ${gameSearchPrefix} "${cardName}"으로 재검색합니다.`
+      );
+      searchQuery = `${gameSearchPrefix} "${cardName}"`;
+      const additionalItems = await performNaverSearch(
+        searchQuery,
+        clientId,
+        clientSecret,
+        10,
+        1,
+        gameType
+      );
+      allItems = [...allItems, ...additionalItems];
+    } else if (allItems.length >= 2) {
+      // 유효한 카드가 4개 이상이면 나머지 7페이지 추가 검색
+      console.log(
+        `[INFO] "${cardName}" 검색에서 유효한 ${gameTypeName} 카드가 ${allItems.length}개 발견. 나머지 7페이지를 추가 검색합니다.`
+      );
+      const additionalItems = await performNaverSearch(
+        searchQuery,
+        clientId,
+        clientSecret,
+        10,
+        4,
+        gameType
+      );
+      allItems = [...allItems, ...additionalItems];
+    }
+
+    // 최종 중복 제거 (여러 검색 결과를 합칠 때 중복이 발생할 수 있음)
+    const uniqueItems: any[] = [];
+    const seenProductIds = new Set<string>();
+    for (const item of allItems) {
+      if (!seenProductIds.has(item.productId)) {
+        seenProductIds.add(item.productId);
+        uniqueItems.push(item);
+      }
+    }
+
+    console.log(`[INFO] 최종 중복 제거: ${allItems.length}개 -> ${uniqueItems.length}개`);
+    return uniqueItems;
+  } catch (error) {
+    console.error('[ERROR] 네이버 쇼핑 API 검색 오류:', error);
+    return [];
+  }
+};
+
+// 요청 제한이 적용된 함수 생성
+const searchNaverShopWithRateLimit = withRateLimit(searchNaverShop, 'naver');
+
+export const searchAndSaveCardPricesApi = async (
+  cardName: string,
+  options: { gameType?: string } = {}
+): Promise<any> => {
+  try {
+    const gameType = normalizeGameType(options.gameType, GAME_TYPES.YUGIOH);
+    const results = await searchNaverShopWithRateLimit(cardName, gameType);
+
+    // 기존 Card.findOrCreate 대체: 카드 정보를 메모리에서 구성
+    const itemWithImage = results.find((item: any) => item.image && item.image.trim() !== '');
+    const card = {
+      name: cardName,
+      gameType,
+      image: itemWithImage ? itemWithImage.image : null,
+    };
+
+    if (results.length === 0) {
+      return { message: '검색 결과가 없습니다.', card, count: 0 };
+    }
+
+    // 기존 CardPrice.bulkCreate 대체: DB 저장 없이 메모리 객체로 구성.
+    // id는 DB PK 대신 productId 사용 (스펙 외부 영향 #1)
+    const savedPrices = results.map((item: any) => ({
+      id: item.productId,
+      title: item.title,
+      site: `Naver_${item.site}`,
+      price: item.price,
+      url: item.url,
+      condition: item.condition,
+      rarity: item.rarity,
+      language: item.language,
+      available: item.available,
+      cardCode: item.cardCode,
+      lastUpdated: new Date(),
+      productId: item.productId,
+      illustration: item.illustration,
+    }));
+
+    return {
+      card,
+      prices: savedPrices,
+      count: savedPrices.length,
+      rawResults: results,
+    };
+  } catch (error) {
+    console.error('카드 가격 저장 오류:', error);
+    throw error;
+  }
+};
+
+export { searchNaverShopWithRateLimit as searchNaverShop };

@@ -25,10 +25,11 @@
 
 ### 백엔드
 - **Node.js** - 서버 환경
-- **Express.js** - 웹 프레임워크
+- **NestJS** - 웹 프레임워크
+- **TypeScript** - 타입 안전성
 - **MySQL** - 데이터베이스
 - **Redis** - 캐싱 및 세션 관리
-- **Sequelize** - ORM
+- **TypeORM** - ORM
 - **Discord.js** - Discord 봇 (선택사항)
 
 ### 프론트엔드
@@ -145,19 +146,43 @@
 
 7. **백엔드 서버 실행**
    ```bash
-   # 개발 모드 (nodemon 사용)
+   # 개발 모드 (nest start --watch)
    npm run dev
    
-   # 또는 일반 실행
-   npm start
+   # 프로덕션 실행
+   npm run build && npm start
    ```
 
    서버가 정상적으로 시작되면 다음과 같은 메시지가 표시됩니다:
    ```
    DB 연결 성공
-   데이터베이스 테이블 동기화 완료
    TCG스캐너 서버가 포트 5000에서 실행 중입니다.
    ```
+
+   > **저사양 서버(OCI 프리 티어 등) 권고**: 1GB RAM급 서버에서는 서버에서 직접 빌드하지 말고 로컬/CI에서 `npm run build` 후 `dist/`와 프로덕션 의존성(`npm ci --omit=dev`)만 배포하는 것을 권장합니다. 서버에서 `npm run dev`(watch 모드) 실행은 피하세요.
+
+## 🗄️ DB 스키마
+
+앱은 `synchronize: false`로 동작하므로 테이블을 자동 생성하지 않습니다. 신규 환경에서는 아래 SQL을 직접 실행하세요.
+
+필요한 테이블은 `CardPriceCaches` 하나입니다:
+
+```sql
+CREATE TABLE IF NOT EXISTS `CardPriceCaches` (
+  `id` CHAR(36) NOT NULL,
+  `cardName` VARCHAR(255) NOT NULL,
+  `image` VARCHAR(255) NULL,
+  `gameType` VARCHAR(255) NOT NULL DEFAULT 'yugioh',
+  `rarityPrices` JSON NOT NULL,
+  `expiresAt` DATETIME NOT NULL,
+  `createdAt` DATETIME NOT NULL,
+  `updatedAt` DATETIME NOT NULL,
+  PRIMARY KEY (`id`),
+  INDEX `card_price_caches_card_name_game_type_expires_at` (`cardName`, `gameType`, `expiresAt`)
+);
+```
+
+기존에 운영하던 DB의 `Cards`/`CardPrices` 테이블은 더 이상 사용하지 않습니다 (포팅 검증 완료 후 수동 DROP 예정). 앱은 `synchronize: false`로 동작하므로 테이블을 자동 생성하지 않습니다 — 신규 환경에서는 위 SQL을 직접 실행하세요.
 
 ## ⚙️ 환경 변수 설정
 

@@ -26,3 +26,7 @@ Thumbs.db
 *.swo 
 scripts/
 .codex
+
+# 빌드 산출물
+dist/
+*.tsbuildinfo

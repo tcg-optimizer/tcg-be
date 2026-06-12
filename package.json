@@ -1,44 +1,47 @@
 {
   "name": "cards-price-comparison",
-  "version": "1.0.0",
-  "main": "src/server.js",
+  "version": "2.0.0",
+  "main": "dist/main.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
-    "discord-bot": "node src/discord-bot.js",
-    "test": "echo \"Warning: no test specified\"",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "format": "prettier --write \"**/*.{js,json}\"",
-    "format:check": "prettier --check \"**/*.{js,json}\""
+    "build": "nest build",
+    "start": "node dist/main",
+    "dev": "nest start --watch",
+    "discord-bot": "node bot/discord-bot.js",
+    "lint": "eslint \"src/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\" \"bot/**/*.js\" \"*.json\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"bot/**/*.js\" \"*.json\""
   },
-  "keywords": [
-    "yugioh",
-    "card",
-    "price",
-    "comparison",
-    "crawler"
-  ],
+  "keywords": ["yugioh", "card", "price", "comparison", "crawler"],
   "author": "",
   "license": "ISC",
   "description": "유희왕 카드 가격 비교 웹 애플리케이션",
   "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/typeorm": "^11.0.0",
     "axios": "^1.8.4",
     "cheerio": "1.0.0-rc.10",
-    "cors": "^2.8.5",
     "discord.js": "^14.20.0",
     "dotenv": "^16.3.1",
-    "express": "^4.18.2",
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.1.0",
     "iconv-lite": "^0.6.3",
     "ioredis": "^5.3.2",
     "mysql2": "^3.14.0",
-    "sequelize": "^6.37.7",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "typeorm": "^0.3.21",
     "uuid": "^13.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9",
-    "prettier": "^3.5.3"
+    "@eslint/js": "^9.0.0",
+    "@nestjs/cli": "^11.0.0",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.0.0"
   }
 }
