@@ -1,5 +1,5 @@
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
-const redisManager = require('./lib/redis-manager');
+const redisManager = require('./redis-manager');
 require('dotenv').config();
 
 class DiscordBot {
