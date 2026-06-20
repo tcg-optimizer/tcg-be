@@ -37,4 +37,4 @@ jobs:
             source ~/.nvm/nvm.sh
             nvm use 22
 
-            pm2 restart tcg-be --update-env
+            pm2 startOrReload ecosystem.config.js --update-env && pm2 save
