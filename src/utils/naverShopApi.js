@@ -146,8 +146,16 @@ const performNaverSearch = async (
       }
     } catch (error) {
       if (error.response && error.response.status === 429) {
-        console.log('[WARN] 네이버 API 속도 제한 초과. 2초 대기 후 재시도.');
-        await delay(2000);
+        retryCount++;
+        if (retryCount <= maxRetries) {
+          console.log(
+            `[WARN] 네이버 API 속도 제한 초과(429). 2초 대기 후 재시도 중... (${retryCount}/${maxRetries})`
+          );
+          await delay(2000);
+        } else {
+          console.log('[WARN] 네이버 API 속도 제한(429) 지속. 최대 재시도 횟수 초과, 검색 종료.');
+          break;
+        }
       } else {
         retryCount++;
         if (retryCount <= maxRetries) {

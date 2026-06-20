@@ -60,6 +60,11 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
     const excludedProductIds = options.excludedProductIds || [];
     const excludedStores = options.excludedStores || [];
 
+    // 전체 계산에 대한 벽시계 데드라인. 초과하면 그리디 루프와 상점-제외 탐색이
+    // 지금까지의 best 결과를 반환하고 멈춘다(이벤트 루프 장시간 점유 방지).
+    const DEFAULT_TIME_BUDGET_MS = 5000;
+    const deadline = Date.now() + (options.timeBudgetMs || DEFAULT_TIME_BUDGET_MS);
+
     const filteredCardsList = cardsList
       .map(card => {
         if (!card || !card.cardName) {
@@ -184,6 +189,7 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
       ...mergedOptions,
       excludedProductIds,
       excludedStores,
+      deadline,
     });
     let bestExcludedStores = [...excludedStores];
 
@@ -212,10 +218,12 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
       }
 
       for (const sellerToExclude of candidateSellers) {
+        if (Date.now() > deadline) break;
         const altResult = findGreedyOptimalPurchase(processedCardsList, {
           ...mergedOptions,
           excludedProductIds,
           excludedStores: [...excludedStores, sellerToExclude],
+          deadline,
         });
 
         if (altResult.success && altResult.totalCost < result.totalCost) {

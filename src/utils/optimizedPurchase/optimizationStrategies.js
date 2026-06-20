@@ -204,7 +204,11 @@ function tryMultipleCardsMove(
   allCandidateCards.sort((a, b) => a.efficiency - b.efficiency);
 
 
-  const maxCardsToMove = allCandidateCards.length;
+  // 동시 이동 카드 수 상한. 이전에는 allCandidateCards.length까지 올라가 부분집합 열거가
+  // O(2^N)으로 폭발했다 (2026-06-14 ~2일 행의 핵심 원인). 5장 이상을 한 번에 옮겨야
+  // 이득인 경우는 드물어, 상한을 둬도 일반 결과는 바뀌지 않으면서 폭발만 막는다.
+  const MAX_MOVE_SIZE = 4;
+  const maxCardsToMove = Math.min(allCandidateCards.length, MAX_MOVE_SIZE);
   let bestCombination = [];
   let bestTotalCost = Infinity;
   let bestCurrentStateCost = Infinity; // 최선의 조합에 대한 현재 상태 비용

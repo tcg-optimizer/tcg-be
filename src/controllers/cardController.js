@@ -1160,6 +1160,16 @@ exports.getOptimalPurchaseCombination = [
         });
       }
 
+      // 입력 크기 상한. 정상적인 덱/구매 목록은 이 선을 넘지 않으며, 비정상적으로 큰
+      // 카트가 동기 최적화 계산을 폭주시키는 것을 1차로 차단한다(데드라인과 별개의 방어선).
+      const MAX_CARDS = 100;
+      if (cards.length > MAX_CARDS) {
+        console.warn(`[WARN] optimal-purchase 입력 카드 수 초과: ${cards.length} > ${MAX_CARDS}, 요청 거부`);
+        return res.status(400).json({
+          error: `카드 수가 너무 많습니다. 최대 ${MAX_CARDS}장까지 계산할 수 있습니다. (요청: ${cards.length}장)`,
+        });
+      }
+
       const filteredCards = cards.filter(card => {
         if (card.cardCode && /^ST19-KRFC[1-4]$/i.test(card.cardCode)) {
           console.log(`[INFO] 센터 카드(${card.cardCode}) "${card.name || card.cardName}" 제외됨`);
