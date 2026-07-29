@@ -97,7 +97,11 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
     naverHyundaiCard: false,
   };
 
-  const MAX_ITERATIONS = 100;
+  // 컨트롤러가 넘긴 maxIterations를 존중 (이전에는 무시하고 100 하드코딩).
+  const MAX_ITERATIONS = options.maxIterations || 100;
+  // 벽시계 데드라인(타임스탬프). 초과 시 지금까지의 best 결과를 반환한다.
+  // 1/8 OCPU 환경에서 단일 요청이 이벤트 루프를 무한정 점유하는 것을 막는 안전망.
+  const deadline = options.deadline || Infinity;
 
   const sortingStrategies = [
     // 1. 가격이 높은 카드부터 처리
@@ -168,6 +172,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
   let bestCost = Infinity;
 
   for (let strategyIndex = 0; strategyIndex < sortingStrategies.length; strategyIndex++) {
+    if (Date.now() > deadline) break;
     const sortedCards = sortingStrategies[strategyIndex](reducedCardsList);
 
     // 리뷰 제품 목록 초기화
@@ -462,7 +467,7 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
     let improved = true;
     let iterations = 0;
 
-    while (improved && iterations < MAX_ITERATIONS) {
+    while (improved && iterations < MAX_ITERATIONS && Date.now() < deadline) {
       improved = false;
       iterations++;
 

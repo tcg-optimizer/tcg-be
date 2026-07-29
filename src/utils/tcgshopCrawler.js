@@ -463,6 +463,7 @@ async function searchAndSaveTCGShopPrices(cardName, cardId, gameType = GAME_TYPE
         if (item) {
           const productWithId = {
             id: item.productId.toString(),
+            title: item.title,
             url: item.url,
             site: 'TCGShop',
             price: item.price,
