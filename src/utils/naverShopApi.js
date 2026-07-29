@@ -5,7 +5,7 @@ const { parseRarity, normalizeRarity } = require('./rarityUtil');
 const { parseLanguage, parseCondition, extractCardCode, detectIllustration } = require('./crawler');
 const { withRateLimit } = require('./rateLimiter');
 const { getRandomizedHeaders } = require('./userAgentUtil');
-const { GAME_TYPES, GAME_TYPE_LABELS } = require('../constants/gameTypes');
+const { GAME_TYPES } = require('../constants/gameTypes');
 const { normalizeGameType } = require('./gameType');
 
 function delay(ms) {
@@ -175,10 +175,6 @@ const performNaverSearch = async (
     }
   }
 
-  const gameTypeName = GAME_TYPE_LABELS[gameType] || 'TCG';
-  console.log(
-    `[INFO] "${searchQuery}" 검색 완료: 총 ${uniqueItems.length}개의 유효한 ${gameTypeName} 카드 발견 (중복 제거 전: ${allItems.length}개, ${maxPages}페이지, 최대 ${maxItems}개)`
-  );
   return uniqueItems;
 };
 
@@ -199,21 +195,14 @@ const searchNaverShop = async (cardName, gameType = GAME_TYPES.YUGIOH) => {
     let allItems = await performNaverSearch(searchQuery, clientId, clientSecret, 3, 1, gameType);
 
     const gameSearchPrefix = getGameSearchPrefix(gameType);
-    const gameTypeName = GAME_TYPE_LABELS[gameType] || 'TCG';
 
     // 유효한 결과가 적을 때 검색어에 게임 키워드를 붙여 재검색
     if (gameSearchPrefix && allItems.length < 2) {
-      console.log(
-        `[INFO] "${cardName}" 검색에서 유효한 ${gameTypeName} 카드가 ${allItems.length}개로 부족합니다. ${gameSearchPrefix} "${cardName}"으로 재검색합니다.`
-      );
       searchQuery = `${gameSearchPrefix} "${cardName}"`;
       const additionalItems = await performNaverSearch(searchQuery, clientId, clientSecret, 10, 1, gameType);
       allItems = [...allItems, ...additionalItems];
     } else if (allItems.length >= 2) {
       // 유효한 카드가 4개 이상이면 나머지 7페이지 추가 검색
-      console.log(
-        `[INFO] "${cardName}" 검색에서 유효한 ${gameTypeName} 카드가 ${allItems.length}개 발견. 나머지 7페이지를 추가 검색합니다.`
-      );
       const additionalItems = await performNaverSearch(searchQuery, clientId, clientSecret, 10, 4, gameType);
       allItems = [...allItems, ...additionalItems];
     }
@@ -228,7 +217,6 @@ const searchNaverShop = async (cardName, gameType = GAME_TYPES.YUGIOH) => {
       }
     }
 
-    console.log(`[INFO] 최종 중복 제거: ${allItems.length}개 -> ${uniqueItems.length}개`);
     return uniqueItems;
   } catch (error) {
     console.error('[ERROR] 네이버 쇼핑 API 검색 오류:', error);

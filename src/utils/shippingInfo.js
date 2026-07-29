@@ -842,9 +842,6 @@ function calculateShippingFee(
         normalizedSellerName === normalizedEnabledStore &&
         TAKEOUT_INFO[enabledStore] !== undefined
       ) {
-        console.log(
-          `[INFO] "${sellerName}" 상점의 방문수령 옵션 적용: ${TAKEOUT_INFO[enabledStore]}원`
-        );
         return TAKEOUT_INFO[enabledStore];
       }
     }

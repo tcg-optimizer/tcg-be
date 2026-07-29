@@ -45,12 +45,6 @@ function trackCardRequest(ip, cardName) {
   const isLimited = requestData.count > 2;
   const retryAfter = Math.ceil((requestData.lastRequest + 5000 - now) / 1000);
 
-  if (isLimited) {
-    console.log(
-      `[INFO] IP ${ip}의 "${cardName}" 카드 요청 제한됨: 5초 내 ${requestData.count}회 요청`
-    );
-  }
-
   return { isLimited, retryAfter };
 }
 
@@ -97,9 +91,6 @@ async function waitForRateLimit(site, maxRetries = 5) {
     }
 
     const waitTime = Math.min(100 * Math.pow(2, retries), 2000);
-    console.log(
-      `[INFO] ${site} 요청 제한 도달, ${waitTime}ms 대기 후 재시도 (${retries + 1}/${maxRetries})`
-    );
 
     await new Promise(resolve => setTimeout(resolve, waitTime));
     retries++;

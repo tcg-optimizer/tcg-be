@@ -247,9 +247,6 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
               const productIdStr = String(card.product.id);
               for (const excludedId of excludedProductIds) {
                 if (String(excludedId) === productIdStr) {
-                  console.log(
-                    `[INFO] 최종 결과에서 제외된 상품 "${productIdStr}"가 발견되었습니다. (${card.cardName || '이름 없음'})`
-                  );
                   hasExcludedProducts = true;
                   excludedCardNames.add(card.cardName);
                   return false;
@@ -261,23 +258,15 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
           });
 
           if (filteredCards.length !== originalCardCount) {
-            console.log(
-              `[INFO] ${seller}에서 ${originalCardCount - filteredCards.length}개의 제외된 상품을 결과에서 제거합니다.`
-            );
-
             result.cardsOptimalPurchase[seller].cards = filteredCards;
 
             if (filteredCards.length === 0) {
-              console.log(`[INFO] ${seller}에 남은 카드가 없어 판매처를 결과에서 제거합니다.`);
               delete result.cardsOptimalPurchase[seller];
 
               if (Object.keys(result.cardsOptimalPurchase).length === 0) {
-                console.log('[INFO] 모든 판매처의 상품이 제외되어 결과가 없습니다.');
                 result.success = false;
               }
             } else if (filteredCards.length !== sellerData.cards.length) {
-              console.log(`[INFO] ${seller}에서 카드가 제거되었으므로 비용을 재계산합니다.`);
-              
               const newProductCost = filteredCards.reduce((sum, card) => {
                 const price = card.price || 0;
                 const quantity = card.quantity || 1;
@@ -339,10 +328,6 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
       });
 
       if (excludedCardNames.size > 0) {
-        console.log(
-          `[INFO] 제외된 카드 ${excludedCardNames.size}개에 대해 대체 상품을 찾아 최적 조합 재계산을 시도합니다.`
-        );
-
         const excludedCardsList = [];
 
         excludedCardNames.forEach(cardName => {
@@ -359,8 +344,6 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
         });
 
         for (const excludedCard of excludedCardsList) {
-          console.log(`[INFO] "${excludedCard.cardName}" 카드의 대체 상품 찾기 시도...`);
-
           const alternativeProducts = excludedCard.products.filter(product => {
             const productId = product.id || (product.product && product.product.id);
             const productIdStr = productId ? String(productId) : '';
@@ -376,7 +359,6 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
           });
 
           if (alternativeProducts.length === 0) {
-            console.log(`[INFO] "${excludedCard.cardName}" 카드의 대체 상품을 찾을 수 없습니다.`);
             continue;
           }
 
@@ -384,10 +366,6 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
 
           const bestAlternative = alternativeProducts[0];
           const sellerId = getSellerId(bestAlternative.site || bestAlternative.product?.site);
-
-          console.log(
-            `[INFO] "${excludedCard.cardName}" 카드의 최저가 대체 상품 찾음: ${sellerId}의 ${bestAlternative.price}원 상품`
-          );
 
           if (!result.cardsOptimalPurchase[sellerId]) {
             result.cardsOptimalPurchase[sellerId] = {
@@ -497,7 +475,6 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
       }
 
       if (hasExcludedProducts && Object.keys(result.cardsOptimalPurchase).length > 0) {
-        console.log('[INFO] 비용 정보를 다시 계산합니다.');
         let totalProductCost = 0;
         let totalShippingCost = 0;
         let totalPointsEarned = 0;
@@ -524,7 +501,7 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
       algorithm: 'improved_greedy',
     };
   } catch (error) {
-    console.log('[INFO] 최적 구매 조합 계산 중 예외 발생:', error);
+    console.error('[ERROR] 최적 구매 조합 계산 중 예외 발생:', error);
     return {
       success: false,
       totalCost: 0,

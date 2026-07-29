@@ -1161,7 +1161,6 @@ exports.getOptimalPurchaseCombination = [
 
       const filteredCards = cards.filter(card => {
         if (card.cardCode && /^ST19-KRFC[1-4]$/i.test(card.cardCode)) {
-          console.log(`[INFO] 센터 카드(${card.cardCode}) "${card.name || card.cardName}" 제외됨`);
           return false;
         }
 
@@ -1169,7 +1168,6 @@ exports.getOptimalPurchaseCombination = [
           (card.name && /^ST19-KRFC[1-4]$/i.test(card.name)) ||
           (card.cardName && /^ST19-KRFC[1-4]$/i.test(card.cardName))
         ) {
-          console.log(`[INFO] 센터 카드 "${card.name || card.cardName}" 제외됨`);
           return false;
         }
 
@@ -1197,8 +1195,6 @@ exports.getOptimalPurchaseCombination = [
       // 제외할 상품 ID와 상점 기반으로 필터링 적용
       const filteredCardsData = processedCards
         .map(card => {
-          const beforeFilterCount = card.products.length;
-
           const filteredProducts = card.products.filter(product => {
             const productId =
               product.product && product.product.id
@@ -1233,13 +1229,6 @@ exports.getOptimalPurchaseCombination = [
 
             return !isExcluded && !isSiteExcluded && !isMarketplaceExcluded;
           });
-
-          const afterFilterCount = filteredProducts.length;
-          if (beforeFilterCount !== afterFilterCount) {
-            console.log(
-              `[INFO] "${card.cardName}" 카드: ${beforeFilterCount - afterFilterCount}개 상품이 제외 목록에 따라 필터링됨`
-            );
-          }
 
           return {
             ...card,
@@ -1276,13 +1265,6 @@ exports.getOptimalPurchaseCombination = [
           naverHyundaiCard: purchaseOptions.naverHyundaiCardPoints || false,
         },
       };
-
-      console.log('계산 옵션:', {
-        maxSellersPerCard: options.maxSellersPerCard,
-        maxIterations: options.maxIterations,
-        shippingRegion: options.shippingRegion,
-        pointsOptions: options.pointsOptions,
-      });
 
       const result = findOptimalPurchaseCombination(filteredCardsData, {
         ...options,
