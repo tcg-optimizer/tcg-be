@@ -734,8 +734,6 @@ const naverSellerShippingInfo = {
   }
 };
 
-const loggedMissingShippingInfoSellers = new Set();
-
 const REGION_TYPES = {
   DEFAULT: 'default',
   JEJU: 'jeju',
@@ -777,15 +775,6 @@ function getSellerName(seller) {
   return typeof seller === 'string' ? seller : seller.name || seller.id || String(seller);
 }
 
-function logMissingShippingInfoOnce(sellerName, normalizedSellerName) {
-  if (loggedMissingShippingInfoSellers.has(normalizedSellerName)) {
-    return;
-  }
-
-  loggedMissingShippingInfoSellers.add(normalizedSellerName);
-  console.log(`[INFO] 판매자 '${sellerName}'의 배송비 정보가 없습니다. 기본값 사용.`);
-}
-
 // 배송비 정보를 반환
 function getShippingInfo(site) {
   let sellerName = getSellerName(site).toLowerCase();
@@ -809,8 +798,6 @@ function getShippingInfo(site) {
     }
 
     // 일치하는 판매자가 없을 경우 기본 배송비 정보 반환
-    // 이 로그를 발견하면 해당 판매자의 배송비 정보를 수동으로 추가할 것
-    logMissingShippingInfoOnce(sellerName, normalizedSellerName);
     return shippingInfo.naverDefault;
   }
 }
