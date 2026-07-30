@@ -62,7 +62,7 @@ function findOptimalPurchaseCombination(cardsList, options = {}) {
 
     // 전체 계산에 대한 벽시계 데드라인. 초과하면 그리디 루프와 상점-제외 탐색이
     // 지금까지의 best 결과를 반환하고 멈춘다(이벤트 루프 장시간 점유 방지).
-    const DEFAULT_TIME_BUDGET_MS = 5000;
+    const DEFAULT_TIME_BUDGET_MS = 10000;
     const deadline = Date.now() + (options.timeBudgetMs || DEFAULT_TIME_BUDGET_MS);
 
     const filteredCardsList = cardsList

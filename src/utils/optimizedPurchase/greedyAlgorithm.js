@@ -13,7 +13,8 @@ function generateFreeShippingCombinations(
   seller,
   freeShippingThreshold,
   pointsOptions,
-  sellerShippingInfo
+  sellerShippingInfo,
+  deadline = Infinity
 ) {
   const availableCards = sortedCards.filter(card =>
     card.products.some(p => getSellerId(p.site) === seller)
@@ -42,8 +43,32 @@ function generateFreeShippingCombinations(
   // 가격별로 정렬
   cardsWithPrice.sort((a, b) => a.priceDifference - b.priceDifference);
 
+  // 모든 후보를 구매해도 무료배송 기준에 도달하지 못하면 부분집합을 탐색할 필요가 없다.
+  const totalAvailablePrice = cardsWithPrice.reduce((sum, card) => sum + card.totalPrice, 0);
+  if (totalAvailablePrice < freeShippingThreshold) {
+    return combinations;
+  }
+
+  // 현재 위치부터 남은 후보를 모두 선택했을 때의 최대 금액.
+  // 이 금액으로도 무료배송 기준에 도달할 수 없는 재귀 분기를 즉시 제거한다.
+  const remainingTotalByIndex = new Array(cardsWithPrice.length + 1).fill(0);
+  for (let i = cardsWithPrice.length - 1; i >= 0; i--) {
+    remainingTotalByIndex[i] = remainingTotalByIndex[i + 1] + cardsWithPrice[i].totalPrice;
+  }
+
+  let visitedNodes = 0;
+  const DEADLINE_CHECK_INTERVAL = 1024;
+
   // 재귀적으로 조합 생성 (백트래킹)
   function findCombinations(current, startIdx, currentSum) {
+    visitedNodes++;
+    if (
+      (visitedNodes === 1 || visitedNodes % DEADLINE_CHECK_INTERVAL === 0) &&
+      Date.now() >= deadline
+    ) {
+      return true;
+    }
+
     if (currentSum >= freeShippingThreshold) {
       combinations.push([...current]);
       return combinations.length >= MAX_COMBINATIONS;
@@ -51,6 +76,10 @@ function generateFreeShippingCombinations(
 
     if (combinations.length >= MAX_COMBINATIONS) {
       return true;
+    }
+
+    if (currentSum + remainingTotalByIndex[startIdx] < freeShippingThreshold) {
+      return false;
     }
 
     for (let i = startIdx; i < cardsWithPrice.length; i++) {
@@ -180,7 +209,9 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
 
     const freeShippingCombinationsBySeller = {};
 
-    sellersList.forEach(seller => {
+    for (const seller of sellersList) {
+      if (Date.now() >= deadline) break;
+
       const { freeShippingThreshold } = sellerShippingInfo[seller];
 
       if (freeShippingThreshold !== Infinity && freeShippingThreshold > 0) {
@@ -189,14 +220,15 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
           seller,
           freeShippingThreshold,
           pointsOptions,
-          sellerShippingInfo
+          sellerShippingInfo,
+          deadline
         );
 
         if (combinations.length > 0) {
           freeShippingCombinationsBySeller[seller] = combinations;
         }
       }
-    });
+    }
 
     const purchaseDetails = {};
     sellersList.forEach(seller => {
@@ -947,7 +979,11 @@ function findGreedyOptimalPurchase(cardsList, options = {}) {
     let consolidationIterations = 0;
     const MAX_CONSOLIDATION_ITERATIONS = 5;
 
-    while (consolidationImproved && consolidationIterations < MAX_CONSOLIDATION_ITERATIONS) {
+    while (
+      consolidationImproved &&
+      consolidationIterations < MAX_CONSOLIDATION_ITERATIONS &&
+      Date.now() < deadline
+    ) {
       consolidationImproved = trySellersConsolidation(
         purchaseDetails,
         sellerShippingInfo,
